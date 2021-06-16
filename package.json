@@ -1,0 +1,56 @@
+{
+  "name": "pro-amm",
+  "version": "1.0.0",
+  "description": "This repository contains the contracts for the Kyber Pro AMM",
+  "main": "hardhat.config.ts",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "./test.sh",
+    "t": "./test.sh",
+    "compile": "./compile.sh",
+    "c": "printf 'yes' | ./compile.sh",
+    "coverage": "hardhat coverage",
+    "lint": "./lint.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KyberNetwork/pro-amm.git"
+  },
+  "author": "Kyber SC Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/KyberNetwork/pro-amm/issues"
+  },
+  "dependencies": {
+    "dotenv": "8.2.0",
+    "solc": "0.8.5",
+    "solhint": "3.3.2"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "2.0.0",
+    "@nomiclabs/hardhat-etherscan": "2.1.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/test-helpers": "0.5.6",
+    "@typechain/ethers-v5": "6.0.5",
+    "@types/chai": "4.2.16",
+    "@types/mocha": "8.2.2",
+    "@types/node": "14.14.37",
+    "chai": "^4.3.4",
+    "chai-as-promised": "7.1.1",
+    "chai-bn": "0.2.1",
+    "ethereum-waffle": "3.3.0",
+    "ethers": "5.0.0",
+    "hardhat": "2.0.8",
+    "hardhat-gas-reporter": "1.0.4",
+    "hardhat-typechain": "0.3.5",
+    "prettier": "2.3.0",
+    "prettier-plugin-solidity": "1.0.0-alpha.57",
+    "solidity-coverage": "0.7.12",
+    "ts-generator": "0.1.1",
+    "ts-node": "9.1.1",
+    "typechain": "4.0.3",
+    "typescript": "4.2.4"
+  }
+}

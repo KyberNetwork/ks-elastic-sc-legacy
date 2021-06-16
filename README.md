@@ -1,2 +1,2 @@
 # pro-amm
-Main smart contract for Pro-AMM
+Main smart contract repo for Pro-AMM
