@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.5;
+pragma solidity >= 0.8.0;
 
 /// @title Contains constants needed for math libraries
 library MathConstants {

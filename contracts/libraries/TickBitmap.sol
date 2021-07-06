@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.0;
 
 import './BitMath.sol';
 
@@ -36,7 +36,7 @@ library TickBitmap {
   /// @param self The mapping in which to compute the next initialized tick
   /// @param tick The starting tick
   /// @param tickSpacing The spacing between usable ticks
-  /// @param willUpTick Whether to search for the next initialized tick to the right (greater than the starting tick)
+  /// @param willUpTick Whether to search for the next initialized tick greater than the starting tick
   /// @return next The next initialized or uninitialized tick up to 256 ticks away from the current tick
   /// @return initialized Whether the next tick is initialized, as the function only searches within up to 256 ticks
   function nextInitializedTickWithinOneWord(

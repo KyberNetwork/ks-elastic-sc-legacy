@@ -1,14 +1,17 @@
-// SPDX-License-Identifier: MIT
-pragma solidity 0.8.5;
+// SPDX-License-Identifier: agpl-3.0
+pragma solidity >=0.8.0;
 
 import {MathConstants} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
+import {SafeCast} from './SafeCast.sol';
 
 /// @title Contains helper functions for swaps
 library SwapMath {
+  using SafeCast for uint256;
+
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
   // from sqrtPc (price of current tick)
-  function calculateDeltaNext(
+  function calcDeltaNext(
     uint256 lpPluslf,
     uint160 sqrtPc,
     uint160 sqrtPn,
@@ -54,48 +57,48 @@ library SwapMath {
     int256 delta;
     uint256 lpPluslf;
     uint256 lc;
-    uint256 protocolFee;
+    uint256 governmentFee;
     uint160 sqrtPc;
     uint160 sqrtPn;
-    uint24 swapFeeInBps;
-    uint24 protocolFeeInBps;
+    uint16 swapFeeBps;
+    uint16 governmentFeeBps;
     bool isExactInput;
     bool isToken0;
     // true if needed to calculate final sqrt price, false otherwise
     bool calcFinalPrice;
   }
 
-  // calculates actual delta and fee amounts (lc and protocolFee) 
+  // calculates actual delta and fee amounts (lc and governmentFee)
   // in addition, will return non-zero sqrtPn if calcFinalPrice is true
-  function calculateSwapInTick(SwapParams memory swapParams)
+  function calcSwapInTick(SwapParams memory swapParams)
     internal
     pure
     returns (
       int256 actualDelta,
       uint256 lc,
-      uint256 protocolFee,
+      uint256 governmentFee,
       uint160 sqrtPn
     )
   {
-    uint256 protocolFeeQty;
+    uint256 governmentFeeQty;
     uint256 absDelta = swapParams.delta >= 0
       ? uint256(swapParams.delta)
       : type(uint256).max - uint256(swapParams.delta) + 1;
     // calculate fee amounts
-    (swapParams.lc, protocolFeeQty) = calculateFeeAmounts(
+    (swapParams.lc, governmentFeeQty) = calcSwapFeeAmounts(
       absDelta,
       swapParams.sqrtPc,
-      swapParams.swapFeeInBps,
-      swapParams.protocolFeeInBps,
+      swapParams.swapFeeBps,
+      swapParams.governmentFeeBps,
       swapParams.isExactInput,
       swapParams.isToken0
     );
 
-    swapParams.protocolFee += protocolFeeQty;
+    swapParams.governmentFee += governmentFeeQty;
 
     if (swapParams.calcFinalPrice) {
       // calculate final sqrt price
-      swapParams.sqrtPn = calculateFinalPrice(
+      swapParams.sqrtPn = calcFinalPrice(
         absDelta,
         swapParams.lpPluslf,
         swapParams.lc,
@@ -105,7 +108,7 @@ library SwapMath {
     }
 
     // calculate actualDelta
-    actualDelta += calculateActualDelta(
+    actualDelta += calcActualDelta(
       swapParams.lpPluslf,
       swapParams.sqrtPc,
       swapParams.sqrtPn,
@@ -114,38 +117,53 @@ library SwapMath {
       swapParams.isToken0
     );
 
-    return (actualDelta, swapParams.lc, swapParams.protocolFee, swapParams.sqrtPn);
+    return (actualDelta, swapParams.lc, swapParams.governmentFee, swapParams.sqrtPn);
   }
 
-  function calculateFeeAmounts(
+  function calcSwapFeeAmounts(
     uint256 absDelta,
     uint160 sqrtPc,
-    uint24 swapFeeInBps,
-    uint24 protocolFeeInBps,
+    uint16 swapFeeBps,
+    uint16 governmentFeeBps,
     bool isExactInput,
     bool isToken0
-  ) internal pure returns (uint256 lc, uint256 protocolFeeQty) {
+  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
     if (isToken0) {
       lc = FullMath.mulDivFloor(
         sqrtPc,
-        absDelta * swapFeeInBps,
+        absDelta * swapFeeBps,
         2 *
           MathConstants.TWO_POW_96 *
-          (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeInBps)
+          (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
       );
     } else {
       lc = FullMath.mulDivFloor(
         MathConstants.TWO_POW_96,
-        absDelta * swapFeeInBps,
-        2 * sqrtPc * (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeInBps)
+        absDelta * swapFeeBps,
+        2 * sqrtPc * (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
       );
     }
-    protocolFeeQty = (lc * (MathConstants.BPS - protocolFeeInBps)) / MathConstants.BPS;
-    lc -= protocolFeeQty;
+    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
+    lc -= governmentFeeQty;
+  }
+
+  function calcFlashFeeAmounts(
+    uint256 swapFeeDelta,
+    uint160 sqrtPc,
+    uint16 governmentFeeBps,
+    bool isToken0
+  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
+    if (isToken0) {
+      lc = FullMath.mulDivFloor(sqrtPc, swapFeeDelta, 2 * MathConstants.TWO_POW_96);
+    } else {
+      lc = FullMath.mulDivFloor(MathConstants.TWO_POW_96, swapFeeDelta, 2 * sqrtPc);
+    }
+    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
+    lc -= governmentFeeQty;
   }
 
   // will round down sqrtPn
-  function calculateFinalPrice(
+  function calcFinalPrice(
     uint256 absDelta,
     uint256 lpPluslf,
     uint256 lc,
@@ -156,18 +174,18 @@ library SwapMath {
     if (isToken0) {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = uint160(
-        FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator + lpPluslf)
-      );
+      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator + lpPluslf))
+        .toUint160();
     } else {
       numerator = absDelta + FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = uint160(FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc));
+      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
+        .toUint160();
     }
   }
 
   // calculates actual output | input tokens in exchange for
   // user specified input | output
-  function calculateActualDelta(
+  function calcActualDelta(
     uint256 lpPluslf,
     uint160 sqrtPc,
     uint160 sqrtPn,
