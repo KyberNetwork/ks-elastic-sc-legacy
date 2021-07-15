@@ -9,6 +9,7 @@ import {MathConstants} from './libraries/MathConstants.sol';
 contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
   /// @inheritdoc IProAMMFactory
   address public override feeToSetter;
+  address public override reinvestmentTokenMaster;
 
   address private feeTo;
   uint16 private governmentFeeBps;
@@ -18,8 +19,9 @@ contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
   /// @inheritdoc IProAMMFactory
   mapping(IERC20 => mapping(IERC20 => mapping(uint16 => address))) public override getPool;
 
-  constructor() {
+  constructor(address _reinvestmentTokenMaster) {
     feeToSetter = msg.sender;
+    reinvestmentTokenMaster = _reinvestmentTokenMaster;
     emit FeeToSetterUpdated(address(0), feeToSetter);
 
     feeAmountTickSpacing[5] = 10;

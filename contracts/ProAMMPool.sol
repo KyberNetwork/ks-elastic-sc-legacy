@@ -3,12 +3,12 @@ pragma solidity 0.8.5;
 
 import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
 import {IProAMMFactory, IProAMMPoolDeployer} from './interfaces/IProAMMPoolDeployer.sol';
+import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
 import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.sol';
-import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
 import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
@@ -18,10 +18,9 @@ import {Tick, TickMath} from './libraries/Tick.sol';
 import {TickBitmap} from './libraries/TickBitmap.sol';
 import {Position} from './libraries/Position.sol';
 
-import {IReinvestmentToken, ReinvestmentToken} from './reinvestmentToken/ReinvestmentToken.sol';
-
-contract ProAMMPool is IProAMMPool, ReentrancyGuard {
+contract ProAMMPool is IProAMMPool {
   //     TODO: change IERC20 to IERC20Ext
+  using Clones for address;
   using SafeCast for uint256;
   using SafeCast for int256;
   using SafeERC20 for IERC20;
@@ -35,7 +34,6 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   IProAMMFactory public immutable override factory;
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
-  IReinvestmentToken public immutable override reinvestmentToken;
   uint128 public immutable override maxLiquidityPerTick;
   uint16 public immutable override swapFeeBps;
   int24 public immutable override tickSpacing;
@@ -44,6 +42,9 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   // for calculation of collectible fees
   int24 private constant MAX_TICK_DISTANCE = 487; // ~5% price movement
   int24 private constant MIN_LIQUIDITY = 1000;
+  uint8 private constant LOCKED = 1;
+  uint8 private constant UNLOCKED = 2;
+  uint8 private lockStatus = LOCKED;
   // the current government fee as a percentage of the swap fee taken on withdrawal
   // value is fetched from factory and updated whenever a position is modified
   // or when government fee is collected
@@ -58,19 +59,27 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   uint256 internal poolReinvestmentLiquidity;
   uint256 internal poolReinvestmentLiquidityLast;
   // see IProAMMPool for explanations of the variables below
+  IReinvestmentToken public override reinvestmentToken;
   uint256 public override collectedGovernmentFee;
   mapping(int24 => Tick.Data) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
   mapping(bytes32 => Position.Data) public override positions;
+
+  /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
+  /// Also prevents entrance to pool actions prior to initalization
+  modifier lock() {
+    require(lockStatus == UNLOCKED, 'locked');
+    lockStatus = LOCKED;
+    _;
+    lockStatus = UNLOCKED;
+  }
 
   constructor() {
     int24 _tickSpacing;
     (factory, token0, token1, swapFeeBps, _tickSpacing) = IProAMMPoolDeployer(msg.sender)
       .poolParams();
     tickSpacing = _tickSpacing;
-
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
-    reinvestmentToken = IReinvestmentToken(new ReinvestmentToken());
   }
 
   /// @dev Get pool's balance of token0
@@ -97,8 +106,8 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
 
   function getPoolState()
     external
-    view
     override
+    view
     returns (
       uint160,
       int24,
@@ -110,8 +119,8 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
 
   function getReinvestmentState()
     external
-    view
     override
+    view
     returns (
       uint256,
       uint256,
@@ -122,12 +131,15 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   }
 
   /// see IProAMMPoolActions
-  // TODO: maybe lockup initial liquidity by calling mint() -> make public
-  // TODO: create modifier for uint8 unlocked = 2 (unlocked), 1 = locked
   // TODO: use Clones.sol https://docs.openzeppelin.com/contracts/3.x/api/proxy#Clones
-  function initialize(uint160 _poolSqrtPrice) external override {
-    require(poolSqrtPrice == 0, 'already inited');
+  function initialize(
+    uint160 _poolSqrtPrice
+  ) external override {
+    require(address(reinvestmentToken) == address(0), 'already inited');
+    lockStatus = UNLOCKED; // unlock the pool
     poolTick = TickMath.getTickAtSqrtRatio(_poolSqrtPrice);
+    reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
+    reinvestmentToken.initialize();
     emit Initialize(_poolSqrtPrice, poolTick);
   }
 
@@ -147,10 +159,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   /// @return qty1 token1 qty owed to the pool, negative if the pool should pay the recipient
   function _tweakPosition(TweakPositionData memory posData)
     private
-    returns (
-      int256 qty0,
-      int256 qty1
-    )
+    returns (int256 qty0, int256 qty1)
   {
     require(posData.tickLower < posData.tickUpper, 'invalid ticks');
     require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
@@ -273,7 +282,12 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
       // calculate rMintQty
       uint256 rMintQty = (lfLast == 0)
         ? uint24(MIN_LIQUIDITY)
-        : ReinvestmentMath.calcrMintQtyInLiquidityDelta(lf, poolReinvestmentLiquidityLast, lp, reinvestmentToken.totalSupply());
+        : ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+          lf,
+          poolReinvestmentLiquidityLast,
+          lp,
+          reinvestmentToken.totalSupply()
+        );
       // mint to pool
       reinvestmentToken.mint(address(this), rMintQty);
       // update fee global
@@ -309,7 +323,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
     int24 tickUpper,
     uint128 qty,
     bytes calldata data
-  ) external override nonReentrant returns (uint256 qty0, uint256 qty1) {
+  ) external override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, 'zero qty');
     (int256 qty0Int, int256 qty1Int) = _tweakPosition(
       TweakPositionData({
@@ -339,7 +353,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
     int24 tickLower,
     int24 tickUpper,
     uint128 qty
-  ) external override nonReentrant returns (uint256 qty0, uint256 qty1) {
+  ) external override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, 'zero qty');
     (int256 qty0Int, int256 qty1Int) = _tweakPosition(
       TweakPositionData({
@@ -358,11 +372,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   }
 
   // TODO: override
-  function burnRTokens(uint256 _qty)
-    external
-    nonReentrant
-    returns (uint256 qty0, uint256 qty1)
-  {
+  function burnRTokens(uint256 _qty) external lock returns (uint256 qty0, uint256 qty1) {
     // SLOADs for gas optimizations
     uint256 lf = poolReinvestmentLiquidity;
     uint128 lp = poolLiquidity;
@@ -438,7 +448,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
     bool isToken0,
     uint160 sqrtPriceLimit,
     bytes calldata data
-  ) external nonReentrant override returns (int256 deltaQty0, int256 deltaQty1) {
+  ) external override lock returns (int256 deltaQty0, int256 deltaQty1) {
     require(swapQty != 0, '0 swapQty');
     bool isExactInput = swapQty > 0;
     // tick (token1Amt/token0Amt) will increase for token0Output or token1Input
@@ -504,15 +514,15 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
           isExactInput,
           isToken0
         );
-        // TODO: maybe have to change to
-        // if (isExactInput ?
-        //     ((isToken0) ? (swapData.deltaNext >= swapData.deltaRemaining) : (swapData.deltaNext > swapData.deltaRemaining)) :
-        //     ((isToken0) ? (swapData.deltaNext <= swapData.deltaRemaining) : (swapData.deltaNext < swapData.deltaRemaining))
+        // TODO: maybe can change to
+        // if (
+        //   isExactInput
+        //     ? (swapData.deltaNext >= swapData.deltaRemaining)
+        //     : (swapData.deltaNext <= swapData.deltaRemaining)
         // )
-        if (
-          isExactInput
-            ? (swapData.deltaNext >= swapData.deltaRemaining)
-            : (swapData.deltaNext <= swapData.deltaRemaining)
+        if (isExactInput ?
+            ((isToken0) ? (swapData.deltaNext >= swapData.deltaRemaining) : (swapData.deltaNext > swapData.deltaRemaining)) :
+            ((isToken0) ? (swapData.deltaNext <= swapData.deltaRemaining) : (swapData.deltaNext < swapData.deltaRemaining))
         ) {
           (swapData.actualDelta, swapData.lc, swapData.governmentFee, swapData.sqrtPn) = SwapMath
             .calcSwapInTick(
@@ -562,7 +572,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
           }
         } else {
           // notice that swapData.sqrtPn isn't updated
-          (swapData.actualDelta, swapData.lc, swapData.governmentFee,) = SwapMath.calcSwapInTick(
+          (swapData.actualDelta, swapData.lc, swapData.governmentFee, ) = SwapMath.calcSwapInTick(
             SwapMath.SwapParams({
               delta: swapData.deltaNext,
               lpPluslf: swapData.lp + swapData.lf,
@@ -646,7 +656,7 @@ contract ProAMMPool is IProAMMPool, ReentrancyGuard {
   //     uint256 qty0,
   //     uint256 qty1,
   //     bytes calldata data
-  // ) external nonReentrant override {
+  // ) external override lock {
   //     uint128 _liquidity = poolLiquidity;
   //     require(_liquidity > 0, 'L');
 

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.5;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
+import {ERC20Initializable} from './ERC20Initializable.sol';
 import "../interfaces/IERC20Permit.sol";
 
 /// @dev https://eips.ethereum.org/EIPS/eip-2612
-contract ERC20Permit is ERC20, IERC20Permit {
+contract ERC20PermitInitializable is ERC20Initializable, IERC20Permit {
     /// @dev To make etherscan auto-verify new pool, this variable is not immutable
     bytes32 public domainSeparator;
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -15,11 +14,12 @@ contract ERC20Permit is ERC20, IERC20Permit {
 
     mapping(address => uint256) public nonces;
 
-    constructor(
+    function initialize(
         string memory name,
         string memory symbol,
         string memory version
-    ) ERC20(name, symbol) {
+    ) public {
+        ERC20Initializable.initialize(name, symbol);
         uint256 chainId;
         assembly {
             chainId := chainid()

@@ -4,6 +4,9 @@ pragma solidity >=0.5.0;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 interface IReinvestmentToken is IERC20 {
+    /// @notice called only once upon ProAMMPool deployment
+    function initialize() external;
+
     /// @notice mints specified amount of tokens to recipient
     /// callable by ProAMMPool only
     function mint(address recipient, uint256 amount) external;
