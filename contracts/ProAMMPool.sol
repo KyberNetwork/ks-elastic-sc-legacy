@@ -19,7 +19,6 @@ import {TickBitmap} from './libraries/TickBitmap.sol';
 import {Position} from './libraries/Position.sol';
 
 contract ProAMMPool is IProAMMPool {
-  //     TODO: change IERC20 to IERC20Ext
   using Clones for address;
   using SafeCast for uint256;
   using SafeCast for int256;
@@ -132,9 +131,7 @@ contract ProAMMPool is IProAMMPool {
 
   /// see IProAMMPoolActions
   // TODO: use Clones.sol https://docs.openzeppelin.com/contracts/3.x/api/proxy#Clones
-  function initialize(
-    uint160 _poolSqrtPrice
-  ) external override {
+  function initialize(uint160 _poolSqrtPrice) external override {
     require(address(reinvestmentToken) == address(0), 'already inited');
     lockStatus = UNLOCKED; // unlock the pool
     poolTick = TickMath.getTickAtSqrtRatio(_poolSqrtPrice);
@@ -371,8 +368,7 @@ contract ProAMMPool is IProAMMPool {
     emit BurnLP(msg.sender, tickLower, tickUpper, qty, qty0, qty1);
   }
 
-  // TODO: override
-  function burnRTokens(uint256 _qty) external lock returns (uint256 qty0, uint256 qty1) {
+  function burnRTokens(uint256 _qty) external override lock returns (uint256 qty0, uint256 qty1) {
     // SLOADs for gas optimizations
     uint256 lf = poolReinvestmentLiquidity;
     uint128 lp = poolLiquidity;
@@ -520,9 +516,18 @@ contract ProAMMPool is IProAMMPool {
         //     ? (swapData.deltaNext >= swapData.deltaRemaining)
         //     : (swapData.deltaNext <= swapData.deltaRemaining)
         // )
-        if (isExactInput ?
-            ((isToken0) ? (swapData.deltaNext >= swapData.deltaRemaining) : (swapData.deltaNext > swapData.deltaRemaining)) :
-            ((isToken0) ? (swapData.deltaNext <= swapData.deltaRemaining) : (swapData.deltaNext < swapData.deltaRemaining))
+        if (
+          isExactInput
+            ? (
+              (isToken0)
+                ? (swapData.deltaNext >= swapData.deltaRemaining)
+                : (swapData.deltaNext > swapData.deltaRemaining)
+            )
+            : (
+              (isToken0)
+                ? (swapData.deltaNext <= swapData.deltaRemaining)
+                : (swapData.deltaNext < swapData.deltaRemaining)
+            )
         ) {
           (swapData.actualDelta, swapData.lc, swapData.governmentFee, swapData.sqrtPn) = SwapMath
             .calcSwapInTick(

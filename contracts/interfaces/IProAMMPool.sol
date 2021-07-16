@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.5.0;
 
-// TODO: update to import {IERC20Ext} from '@kyber.network/utils-sc/contracts/IERC20Ext.sol';
 import {IERC20, IProAMMFactory} from './IProAMMFactory.sol';
 import {IReinvestmentToken} from './IReinvestmentToken.sol';
 import {IProAMMPoolActions} from './pool/IProAMMPoolActions.sol';
