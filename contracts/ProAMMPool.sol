@@ -2,7 +2,7 @@
 pragma solidity 0.8.5;
 
 import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
-import {IProAMMFactory, IProAMMPoolDeployer} from './interfaces/IProAMMPoolDeployer.sol';
+import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
@@ -30,12 +30,14 @@ contract ProAMMPool is IProAMMPool {
   using Position for Position.Data;
 
   /// see IProAMMPool for explanations of the immutables below
-  IProAMMFactory public immutable override factory;
-  IERC20 public immutable override token0;
-  IERC20 public immutable override token1;
-  uint128 public immutable override maxLiquidityPerTick;
-  uint16 public immutable override swapFeeBps;
-  int24 public immutable override tickSpacing;
+  /// can't be set in constructor to be EIP-1167 compatible
+  /// hence lacking immutable keyword
+  IProAMMFactory public override factory;
+  IERC20 public override token0;
+  IERC20 public override token1;
+  uint128 public override maxLiquidityPerTick;
+  uint16 public override swapFeeBps;
+  int24 public override tickSpacing;
 
   // maximum ticks traversable, so that we can use a simpler formula
   // for calculation of collectible fees
@@ -73,11 +75,21 @@ contract ProAMMPool is IProAMMPool {
     lockStatus = UNLOCKED;
   }
 
-  constructor() {
-    int24 _tickSpacing;
-    (factory, token0, token1, swapFeeBps, _tickSpacing) = IProAMMPoolDeployer(msg.sender)
-      .poolParams();
-    tickSpacing = _tickSpacing;
+  function initialize(
+    address _factory,
+    IERC20 _token0,
+    IERC20 _token1,
+    uint16 _swapFeeBps,
+    int24 _tickSpacing
+  ) external override {
+    require(address(factory) == address(0), 'already inited');
+    (factory, token0, token1, swapFeeBps, tickSpacing) = (
+      IProAMMFactory(_factory),
+      _token0,
+      _token1,
+      _swapFeeBps,
+      _tickSpacing
+    );
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
   }
 
@@ -130,8 +142,7 @@ contract ProAMMPool is IProAMMPool {
   }
 
   /// see IProAMMPoolActions
-  // TODO: use Clones.sol https://docs.openzeppelin.com/contracts/3.x/api/proxy#Clones
-  function initialize(uint160 _poolSqrtPrice) external override {
+  function unlockPool(uint160 _poolSqrtPrice) external override {
     require(address(reinvestmentToken) == address(0), 'already inited');
     lockStatus = UNLOCKED; // unlock the pool
     poolTick = TickMath.getTickAtSqrtRatio(_poolSqrtPrice);

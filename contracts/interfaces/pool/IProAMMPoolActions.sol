@@ -1,10 +1,27 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.5.0;
 
+import {IERC20, IProAMMFactory} from '../IProAMMFactory.sol';
+
 interface IProAMMPoolActions {
+  /// @notice Initializes most of the params for pool deployment
+  /// @dev Called by the ProAMMPoolDeployer after cloning of the pool
+  /// @param factory ProAMMFactory address
+  /// @param token0 First pool token by address sort order
+  /// @param token1 Second pool token of the pool by address sort order
+  /// @param swapFeeBps Fee to be collected upon every swap in the pool, in basis points
+  /// @param tickSpacing Minimum number of ticks between initialized ticks
+  function initialize(
+    address factory,
+    IERC20 token0,
+    IERC20 token1,
+    uint16 swapFeeBps,
+    int24 tickSpacing
+  ) external;
+
   /// @notice Sets the initial price for the pool
   /// @param poolSqrtPrice the initial sqrt price of the pool
-  function initialize(uint160 poolSqrtPrice) external;
+  function unlockPool(uint160 poolSqrtPrice) external;
 
   /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when
@@ -48,9 +65,7 @@ interface IProAMMPoolActions {
   /// @param qty Reinvestment token quantity to burn
   /// @return qty0 token0 quantity sent to the recipient for burnt reinvestment tokens
   /// @return qty1 token1 quantity sent to the recipient for burnt reinvestment tokens
-  function burnRTokens(
-    uint256 qty
-  ) external returns (uint256 qty0, uint256 qty1);
+  function burnRTokens(uint256 qty) external returns (uint256 qty0, uint256 qty1);
 
   /// @notice Swap token0 -> token1, or vice versa
   /// @dev This method's caller receives a callback in the form of IProAMMSwapCallback#proAMMSwapCallback
