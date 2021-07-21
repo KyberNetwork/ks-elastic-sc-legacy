@@ -11,7 +11,7 @@ import {snapshot, revertToSnapshot} from './helpers/hardhat';
 let liqDeltaMath: MockLiqDeltaMath;
 let snapshotId: any;
 
-describe('FullMath', () => {
+describe('LiqDeltaMath', () => {
   before('setup', async () => {
     const liqDeltaMathFactory = await ethers.getContractFactory('MockLiqDeltaMath');
     liqDeltaMath = (await liqDeltaMathFactory.deploy()) as MockLiqDeltaMath;

@@ -19,9 +19,23 @@ interface IProAMMPoolActions {
     int24 tickSpacing
   ) external;
 
-  /// @notice Sets the initial price for the pool
+  /// @notice Adds initial liquidity and sets initial price for the pool
+  /// @dev It will call the #mint method, so it is necessary for the
+  /// caller to implement IProAMMMintCallback#proAMMMintCallback as well
   /// @param poolSqrtPrice the initial sqrt price of the pool
-  function unlockPool(uint160 poolSqrtPrice) external;
+  /// @param recipient Address for which the added liquidity is credited to
+  /// @param tickLower Recipient position's lower tick
+  /// @param tickUpper Recipient position's upper tick
+  /// @param qty Liquidity quantity to mint
+  /// @param data Data (if any) to be passed through to the callback
+  function unlockPool(
+    uint160 poolSqrtPrice,
+    address recipient,
+    int24 tickLower,
+    int24 tickUpper,
+    uint128 qty,
+    bytes calldata data
+  ) external;
 
   /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when

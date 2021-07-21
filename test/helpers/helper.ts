@@ -7,6 +7,7 @@ export const ZERO = ethers.constants.Zero;
 export const ONE = ethers.constants.One;
 export const MINUS_ONE = BN.from(-1);
 export const TWO = ethers.constants.Two;
+export const TWO_POW_96 = TWO.pow(96);
 export const TWO_POW_128 = TWO.pow(128);
 export const MAX_INT_128 = TWO.pow(127).sub(ONE);
 export const MIN_INT_128 = TWO.pow(127).mul(-1);

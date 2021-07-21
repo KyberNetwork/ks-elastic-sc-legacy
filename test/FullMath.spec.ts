@@ -194,9 +194,9 @@ describe('FullMath', () => {
       let a = genRandomBNWithPossibleZero(chance, MAX_UINT);
       let b = genRandomBNWithPossibleZero(chance, MAX_UINT);
       let denom = genRandomBNWithPossibleZero(chance, MAX_UINT);
-      console.log(a.toString());
-      console.log(b.toString());
-      console.log(denom.toString());
+      console.log(`a: ${a.toString()}`);
+      console.log(`b: ${b.toString()}`);
+      console.log(`denom: ${denom.toString()}`);
       let floor = fullMath.mulDivFloor(a, b, denom);
       let ceiling = fullMath.mulDivCeiling(a, b, denom);
 

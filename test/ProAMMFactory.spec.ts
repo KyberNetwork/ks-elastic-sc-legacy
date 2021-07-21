@@ -24,8 +24,8 @@ let factory: ProAMMFactory;
 let poolAddressPredictor: PredictPoolAddress;
 let reinvestmentMaster: ReinvestmentTokenMaster;
 let poolMaster: ProAMMPool;
-let token0: MockToken;
-let token1: MockToken;
+let tokenA: MockToken;
+let tokenB: MockToken;
 let swapFeeBps: number;
 let tickSpacing: number;
 
@@ -40,8 +40,8 @@ describe('ProAMMFactory', () => {
     reinvestmentMaster = await deployReinvestmentTokenMaster(ethers);
     poolMaster = await deployProAMMPoolMaster(ethers);
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
-    token0 = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
-    token1 = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
+    tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
+    tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
     factory = await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address);
     snapshotId = await snapshot();
   });
@@ -69,58 +69,58 @@ describe('ProAMMFactory', () => {
       let expectedPoolAddress = await poolAddressPredictor.predictPoolAddress(
         factory.address,
         poolMaster.address,
-        token0.address,
-        token1.address,
+        tokenA.address,
+        tokenB.address,
         swapFeeBps
       );
-      let tokenAAddress = token0.address < token1.address ? token0.address : token1.address;
-      let tokenBAddress = tokenAAddress == token0.address ? token1.address : token0.address; 
-      await expect(factory.createPool(token0.address, token1.address, swapFeeBps))
+      let token0Address = tokenA.address < tokenB.address ? tokenA.address : tokenB.address;
+      let token1Address = token0Address == tokenA.address ? tokenB.address : tokenA.address; 
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
         .to.emit(factory, 'PoolCreated')
-        .withArgs(tokenAAddress, tokenBAddress, swapFeeBps, 10, expectedPoolAddress);
+        .withArgs(token0Address, token1Address, swapFeeBps, 10, expectedPoolAddress);
 
       swapFeeBps = 30;
       expectedPoolAddress = await poolAddressPredictor.predictPoolAddress(
         factory.address,
         poolMaster.address,
-        token0.address,
-        token1.address,
+        tokenA.address,
+        tokenB.address,
         swapFeeBps
       );
 
-      await expect(factory.createPool(token0.address, token1.address, swapFeeBps))
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
         .to.emit(factory, 'PoolCreated')
-        .withArgs(tokenAAddress, tokenBAddress, swapFeeBps, 60, expectedPoolAddress);
+        .withArgs(token0Address, token1Address, swapFeeBps, 60, expectedPoolAddress);
     });
 
     describe('#createPool', async () => {
       it('should revert for identical tokens', async () => {
-        await expect(factory.createPool(token0.address, token0.address, swapFeeBps)).to.be.revertedWith('identical tokens');
+        await expect(factory.createPool(tokenA.address, tokenA.address, swapFeeBps)).to.be.revertedWith('identical tokens');
       });
 
       it('should revert if either token is null', async () => {
-        await expect(factory.createPool(token0.address, ZERO_ADDRESS, swapFeeBps)).to.be.revertedWith('null address');
-        await expect(factory.createPool(ZERO_ADDRESS, token0.address, swapFeeBps)).to.be.revertedWith('null address');
+        await expect(factory.createPool(tokenA.address, ZERO_ADDRESS, swapFeeBps)).to.be.revertedWith('null address');
+        await expect(factory.createPool(ZERO_ADDRESS, tokenA.address, swapFeeBps)).to.be.revertedWith('null address');
       });
 
       it('should revert for invalid swapFeeBps', async () => {
-        await expect(factory.createPool(token0.address, token1.address, ONE)).to.be.revertedWith('invalid fee');
+        await expect(factory.createPool(tokenA.address, tokenB.address, ONE)).to.be.revertedWith('invalid fee');
       });
 
       it('should revert for invalid swapFeeBps', async () => {
-        await expect(factory.createPool(token0.address, token1.address, ONE)).to.be.revertedWith('invalid fee');
+        await expect(factory.createPool(tokenA.address, tokenB.address, ONE)).to.be.revertedWith('invalid fee');
       });
 
       it('should revert for existing pool', async () => {
-        await factory.createPool(token0.address, token1.address, swapFeeBps);
-        await expect(factory.createPool(token0.address, token1.address, swapFeeBps)).to.be.revertedWith('pool exists');
-        await expect(factory.createPool(token1.address, token0.address, swapFeeBps)).to.be.revertedWith('pool exists');
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps)).to.be.revertedWith('pool exists');
+        await expect(factory.createPool(tokenB.address, tokenA.address, swapFeeBps)).to.be.revertedWith('pool exists');
       });
 
       it('should return the same pool address regardless of token order', async () => {
-        await factory.createPool(token0.address, token1.address, swapFeeBps);
-        let poolAddressOne = await factory.getPool(token0.address, token1.address, swapFeeBps);
-        let poolAddressTwo = await factory.getPool(token0.address, token1.address, swapFeeBps);
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddressOne = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         expect(poolAddressOne).to.be.eql(poolAddressTwo);
         expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
       });
@@ -179,8 +179,8 @@ describe('ProAMMFactory', () => {
         swapFeeBps = 10;
         tickSpacing = 30;
         await factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing);
-        await factory.createPool(token0.address, token1.address, swapFeeBps);
-        expect(await factory.getPool(token0.address, token1.address, swapFeeBps)).to.not.be.eql(tickSpacing);
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        expect(await factory.getPool(tokenA.address, tokenB.address, swapFeeBps)).to.not.be.eql(tickSpacing);
       });
     });
 

@@ -16,8 +16,8 @@ library QtyDeltaMath {
   /// i.e. liquidity * (sqrt(upper) - sqrt(lower)) / (sqrt(upper) * sqrt(lower))
   /// @param sqrtPriceA A sqrt price
   /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity Amount of usable liquidity
-  /// @param roundUp Whether to round the amount up or down
+  /// @param liquidity Usable liquidity quantity
+  /// @param roundUp Whether to round the result up or down
   /// @return token0 qty needed to cover a position of size liquidity between the 2 sqrt prices
   function getQty0Delta(
     uint160 sqrtPriceA,
@@ -27,10 +27,10 @@ library QtyDeltaMath {
   ) internal pure returns (uint256) {
     if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
 
-    uint256 numerator1 = uint256(liquidity) << MathConstants.TWO_POW_96;
+    uint256 numerator1 = uint256(liquidity) << MathConstants.RES_96;
     uint256 numerator2 = sqrtPriceB - sqrtPriceA;
 
-    require(sqrtPriceA > 0);
+    require(sqrtPriceA > 0, '0 sqrtPrice');
 
     return
       roundUp
@@ -38,12 +38,12 @@ library QtyDeltaMath {
         : FullMath.mulDivFloor(numerator1, numerator2, sqrtPriceB) / sqrtPriceA;
   }
 
-  /// @notice Gets the amount1 delta between two prices
+  /// @notice Gets the token1 delta quantity between two prices
   /// @dev Calculates liquidity * (sqrt(upper) - sqrt(lower))
   /// @param sqrtPriceA A sqrt price
   /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity The amount of usable liquidity
-  /// @param roundUp Whether to round the amount up, or down
+  /// @param liquidity Usable liquidity quantity
+  /// @param roundUp Whether to round the result up or down
   /// @return token1 qty needed to cover a position of size liquidity between the 2 sqrt prices
   function getQty1Delta(
     uint160 sqrtPriceA,
@@ -62,7 +62,7 @@ library QtyDeltaMath {
   /// @notice Helper that gets signed token0 delta
   /// @param sqrtPriceA A sqrt price
   /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity The change in liquidity for which to compute the amount0 delta
+  /// @param liquidity Liquidity delta for which to compute the token0 delta
   /// @return token0 quantity corresponding to the passed liquidityDelta between the two prices
   function getQty0Delta(
     uint160 sqrtPriceA,
@@ -81,7 +81,7 @@ library QtyDeltaMath {
   /// @notice Helper that gets signed token1 delta
   /// @param sqrtPriceA A sqrt price
   /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity The change in liquidity for which to compute the amount1 delta
+  /// @param liquidity Liquidity delta for which to compute the token1 delta
   /// @return token1 quantity corresponding to the passed liquidityDelta between the two prices
   function getQty1Delta(
     uint160 sqrtPriceA,
@@ -97,6 +97,11 @@ library QtyDeltaMath {
         : getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
   }
 
+  /// @notice Calculates the token0 quantity proportion to be sent to the user
+  /// for burning reinvestment tokens
+  /// @param sqrtPrice Current pool sqrt price
+  /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
+  /// @return token0 quantity to be sent to the user
   function getQty0FromBurnRTokens(
     uint160 sqrtPrice,
     uint256 lfDelta
@@ -104,6 +109,11 @@ library QtyDeltaMath {
     return FullMath.mulDivFloor(lfDelta, MathConstants.TWO_POW_96, sqrtPrice);
   }
 
+  /// @notice Calculates the token1 quantity proportion to be sent to the user
+  /// for burning reinvestment tokens
+  /// @param sqrtPrice Current pool sqrt price
+  /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
+  /// @return token1 quantity to be sent to the user
   function getQty1FromBurnRTokens(
     uint160 sqrtPrice,
     uint256 lfDelta
