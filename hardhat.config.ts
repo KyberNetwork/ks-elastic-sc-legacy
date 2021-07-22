@@ -2,6 +2,8 @@ import '@nomiclabs/hardhat-waffle';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-typechain';
+import 'hardhat-contract-sizer';
+
 import { HardhatUserConfig } from 'hardhat/types';
 import * as dotenv from 'dotenv';
 
@@ -49,6 +51,11 @@ const config: HardhatUserConfig = {
 
   typechain: {
     target: 'ethers-v5'
+  },
+
+  contractSizer: {
+    runOnCompile: true,
+    disambiguatePaths: false
   }
 };
 

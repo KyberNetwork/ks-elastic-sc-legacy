@@ -56,7 +56,8 @@ describe('Position', () => {
     it('should revert if feeGrowthInside < feeGrowthInsideLast', async () => {
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       await expect(position.update(user.address, tickLower, tickUpper, liquidityDelta, ZERO)).to.be.reverted;
-      await expect(position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside.sub(ONE))).to.be.reverted;
+      await expect(position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside.sub(ONE))).to.be
+        .reverted;
     });
 
     it('should return 0 rTokensOwed if current liquidity is zero', async () => {
@@ -81,25 +82,27 @@ describe('Position', () => {
     });
 
     it('should return rTokensOwed > 0 if user fully removes liquidity', async () => {
-        await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
-        await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthInside.mul(2));
-        expect(await position.rTokensOwed()).to.be.gt(ZERO);
+      await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
+      await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthInside.mul(2));
+      expect(await position.rTokensOwed()).to.be.gt(ZERO);
     });
 
     it('should test max feeGrowth difference = MAX_UINT * TWO_POW_96 / MAX_INT_128', async () => {
-        let feeGrowthDiff = MAX_UINT.mul(TWO_POW_96).div(MAX_INT_128);
-        await position.update(user.address, tickLower, tickUpper, MAX_INT_128, ZERO);
-        // take snapshot to revert to it later
-        let tempSnapshotId = await snapshot();
-        await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthDiff);
-        // due to rounding error
-        expect(await position.rTokensOwed()).to.be.gt(MAX_UINT.sub(5));
+      let feeGrowthDiff = MAX_UINT.mul(TWO_POW_96).div(MAX_INT_128);
+      await position.update(user.address, tickLower, tickUpper, MAX_INT_128, ZERO);
+      // take snapshot to revert to it later
+      let tempSnapshotId = await snapshot();
+      await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthDiff);
+      // due to rounding error
+      expect(await position.rTokensOwed()).to.be.gt(MAX_UINT.sub(5));
 
-        // revert to snapshot
-        await revertToSnapshot(tempSnapshotId);
-        // will revert from overflow
-        feeGrowthDiff = feeGrowthDiff.add(ONE);
-        await expect(position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthDiff)).to.be.revertedWith('denom <= prod1');
+      // revert to snapshot
+      await revertToSnapshot(tempSnapshotId);
+      // will revert from overflow
+      feeGrowthDiff = feeGrowthDiff.add(ONE);
+      await expect(position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthDiff)).to.be.revertedWith(
+        'denom <= prod1'
+      );
     });
   });
 });

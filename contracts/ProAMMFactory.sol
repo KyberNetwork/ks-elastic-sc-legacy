@@ -87,8 +87,8 @@ contract ProAMMFactory is IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   function getFeeConfiguration()
     external
-    override
     view
+    override
     returns (address _feeTo, uint16 _governmentFeeBps)
   {
     _feeTo = feeTo;

@@ -108,10 +108,12 @@ describe('ProAMMPool', () => {
       // create pools
       for (let i = 0; i < swapFeeBpsArray.length; i++) {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBpsArray[i]);
-        poolArray.push((await ethers.getContractAt(
+        poolArray.push(
+          (await ethers.getContractAt(
             'ProAMMPool',
             await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[i])
-          )) as ProAMMPool);
+          )) as ProAMMPool
+        );
       }
       snapshotId = await snapshot();
     });
@@ -127,9 +129,21 @@ describe('ProAMMPool', () => {
     it('should be able to mint liquidity and do swap', async () => {
       for (let i = 0; i < poolArray.length; i++) {
         pool = poolArray[i];
-        await callback.connect(user).unlockPool(pool.address, BN.from('79704936542881920863903188246'), user.address, tickSpacingArray[i], 100 * tickSpacingArray[i], PRECISION, '0x');
-        await callback.connect(user).swap(pool.address, user.address, PRECISION.div(100000), true, BN.from('4295128740'), '0x');
-      };
+        await callback
+          .connect(user)
+          .unlockPool(
+            pool.address,
+            BN.from('79704936542881920863903188246'),
+            user.address,
+            tickSpacingArray[i],
+            100 * tickSpacingArray[i],
+            PRECISION,
+            '0x'
+          );
+        await callback
+          .connect(user)
+          .swap(pool.address, user.address, PRECISION.div(100000), true, BN.from('4295128740'), '0x');
+      }
     });
   });
 });

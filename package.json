@@ -7,12 +7,13 @@
     "test": "test"
   },
   "scripts": {
-    "test": "./test.sh",
+    "test": "yarn hardhat test --no-compile",
     "t": "./test.sh",
     "compile": "yarn hardhat compile",
     "c": "printf 'yes' | yarn hardhat compile",
     "coverage": "hardhat coverage",
-    "lint": "./lint.sh"
+    "prettier": "prettier --write",
+    "prettierAll": "prettier --write contracts/* && prettier --write test/*"
   },
   "repository": {
     "type": "git",
@@ -45,10 +46,11 @@
     "ethereum-waffle": "3.3.0",
     "ethers": "5.0.0",
     "hardhat": "2.4.3",
+    "hardhat-contract-sizer": "^2.0.3",
     "hardhat-gas-reporter": "1.0.4",
     "hardhat-typechain": "0.3.5",
     "prettier": "2.3.0",
-    "prettier-plugin-solidity": "1.0.0-alpha.57",
+    "prettier-plugin-solidity": "1.0.0-beta.14",
     "solidity-coverage": "0.7.12",
     "ts-generator": "0.1.1",
     "ts-node": "9.1.1",

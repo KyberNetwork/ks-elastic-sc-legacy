@@ -16,13 +16,13 @@ export async function runWithImpersonation(target: string, run: () => Promise<vo
 
 export async function snapshot() {
   return await hardhat.network.provider.request({
-    method: 'evm_snapshot'
+    method: 'evm_snapshot',
   });
 }
 
 export async function revertToSnapshot(snapshotId: any) {
   return await hardhat.network.provider.request({
     method: 'evm_revert',
-    params: [snapshotId]
+    params: [snapshotId],
   });
 }
