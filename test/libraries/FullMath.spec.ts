@@ -1,31 +1,24 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {ZERO, ONE, TWO, TWO_POW_128, MAX_UINT, BN} from './helpers/helper';
+import {ZERO, ONE, TWO, TWO_POW_128, MAX_UINT, BN} from '../helpers/helper';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {MockFullMath} from '../typechain';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
-import {genRandomBNWithPossibleZero} from './helpers/genRandomBN';
+import {MockFullMath, MockFullMath__factory} from '../../typechain';
+import {genRandomBNWithPossibleZero} from '../helpers/genRandomBN';
 
 let fullMath: MockFullMath;
-let snapshotId: any;
 
 describe('FullMath', () => {
   before('setup', async () => {
-    const fullMathFactory = await ethers.getContractFactory('MockFullMath');
-    fullMath = (await fullMathFactory.deploy()) as MockFullMath;
-    snapshotId = await snapshot();
-  });
-
-  beforeEach('revert to snapshot', async () => {
-    await revertToSnapshot(snapshotId);
-    snapshotId = await snapshot();
+    const fullMathFactory = (await ethers.getContractFactory('MockFullMath')) as MockFullMath__factory;
+    fullMath = await fullMathFactory.deploy();
   });
 
   describe('#mulDivFloor', async () => {
     it('should revert for 0 denominator', async () => {
+      await expect(fullMath.mulDivFloor(TWO_POW_128, 5, 0)).to.be.revertedWith('0 denom');
       await expect(fullMath.mulDivFloor(TWO_POW_128, ZERO, ZERO)).to.be.revertedWith('0 denom');
       await expect(fullMath.mulDivFloor(ZERO, TWO_POW_128, ZERO)).to.be.revertedWith('0 denom');
       await expect(fullMath.mulDivFloor(ZERO, ZERO, ZERO)).to.be.revertedWith('0 denom');
@@ -48,10 +41,18 @@ describe('FullMath', () => {
     });
 
     it('should return accurate value without phantom overflow', async () => {
-      let result = TWO_POW_128.div(TWO);
+      const result = TWO_POW_128.div(TWO);
       expect(await fullMath.mulDivFloor(TWO_POW_128, TWO, TWO.mul(TWO))).to.be.eql(result);
       expect(await fullMath.mulDivFloor(TWO_POW_128, ONE, TWO)).to.be.eql(result);
       expect(await fullMath.mulDivFloor(TWO_POW_128, 5000, 10000)).to.be.eql(result);
+
+      expect(
+        await fullMath.mulDivFloor(
+          TWO_POW_128,
+          /*0.5=*/ BN.from(50).mul(TWO_POW_128).div(100),
+          /*1.5=*/ BN.from(150).mul(TWO_POW_128).div(100)
+        )
+      ).to.eq(TWO_POW_128.div(3));
     });
 
     it('should return accurate value with phantom overflow', async () => {

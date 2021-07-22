@@ -1,27 +1,18 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {BN, ZERO, ONE, TWO, MAX_UINT} from './helpers/helper';
+import {BN, ZERO, ONE, TWO, MAX_UINT} from '../helpers/helper';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {MockBitMath} from '../typechain';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
+import {MockBitMath, MockBitMath__factory} from '../../typechain';
 
 let bitMath: MockBitMath;
-let snapshotId: any;
-const TWO_POW_255 = TWO.pow(BN.from(255));
 
 describe('BitMath', () => {
   before('setup', async () => {
-    const bitMathFactory = await ethers.getContractFactory('MockBitMath');
-    bitMath = (await bitMathFactory.deploy()) as MockBitMath;
-    snapshotId = await snapshot();
-  });
-
-  beforeEach('revert to snapshot', async () => {
-    await revertToSnapshot(snapshotId);
-    snapshotId = await snapshot();
+    const bitMathFactory = (await ethers.getContractFactory('MockBitMath')) as MockBitMath__factory;
+    bitMath = await bitMathFactory.deploy();
   });
 
   describe('#mostSignificantBit', async () => {

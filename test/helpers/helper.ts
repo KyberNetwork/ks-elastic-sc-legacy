@@ -17,3 +17,5 @@ export const BPS_PLUS_ONE = BPS.add(ONE);
 export const MAX_UINT = ethers.constants.MaxUint256;
 export const MAX_INT = ethers.constants.MaxInt256;
 export const MIN_INT = ethers.constants.MinInt256;
+export const MIN_SQRT_RATIO = BN.from('4295128739');
+export const MAX_SQRT_RATIO = BN.from('1461446703485210103287273052203988822378723970342');
