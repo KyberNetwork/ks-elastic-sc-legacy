@@ -175,11 +175,11 @@ library SwapMath {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
       sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator + lpPluslf))
-        .toUint160();
+      .toUint160();
     } else {
       numerator = absDelta + FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
       sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
-        .toUint160();
+      .toUint160();
     }
   }
 

@@ -69,7 +69,7 @@ describe('LiqDeltaMath', () => {
     });
 
     // (2^128 - 1) + (-2^127)
-    it('should return for liquidity = MAX_UINT_128, liquidityDelta = MAX_INT_128', async() => {
+    it('should return for liquidity = MAX_UINT_128, liquidityDelta = MAX_INT_128', async () => {
       expect(await liqDeltaMath.addLiquidityDelta(MAX_UINT_128, MIN_INT_128)).to.be.eql(MAX_UINT_128.add(MIN_INT_128));
     });
   });

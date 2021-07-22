@@ -34,7 +34,7 @@ interface IProAMMFactory {
   /// @param feeTo Recipient of government fees
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
-  event SetFeeConfiguration(address feeTo, uint16 governmentFeeBps); 
+  event SetFeeConfiguration(address feeTo, uint16 governmentFeeBps);
 
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context

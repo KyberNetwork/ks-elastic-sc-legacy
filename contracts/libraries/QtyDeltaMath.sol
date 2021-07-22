@@ -102,10 +102,11 @@ library QtyDeltaMath {
   /// @param sqrtPrice Current pool sqrt price
   /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token0 quantity to be sent to the user
-  function getQty0FromBurnRTokens(
-    uint160 sqrtPrice,
-    uint256 lfDelta
-  ) internal pure returns (uint256) {
+  function getQty0FromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)
+    internal
+    pure
+    returns (uint256)
+  {
     return FullMath.mulDivFloor(lfDelta, MathConstants.TWO_POW_96, sqrtPrice);
   }
 
@@ -114,13 +115,13 @@ library QtyDeltaMath {
   /// @param sqrtPrice Current pool sqrt price
   /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token1 quantity to be sent to the user
-  function getQty1FromBurnRTokens(
-    uint160 sqrtPrice,
-    uint256 lfDelta
-  ) internal pure returns (uint256) {
+  function getQty1FromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)
+    internal
+    pure
+    returns (uint256)
+  {
     return FullMath.mulDivFloor(lfDelta, sqrtPrice, MathConstants.TWO_POW_96);
   }
-
 
   /// @notice Returns ceil(x / y)
   /// @dev division by 0 has unspecified behavior, and must be checked externally

@@ -117,8 +117,8 @@ contract ProAMMPool is IProAMMPool {
 
   function getPoolState()
     external
-    override
     view
+    override
     returns (
       uint160,
       int24,
@@ -130,8 +130,8 @@ contract ProAMMPool is IProAMMPool {
 
   function getReinvestmentState()
     external
-    override
     view
+    override
     returns (
       uint256,
       uint256,
@@ -314,7 +314,8 @@ contract ProAMMPool is IProAMMPool {
       // update fee global
       _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
         rMintQty,
-        (_feeGrowthGlobal == 0) ? uint128(liquidityDelta) : lp);
+        (_feeGrowthGlobal == 0) ? uint128(liquidityDelta) : lp
+      );
       poolFeeGrowthGlobal = _feeGrowthGlobal;
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -559,7 +560,7 @@ contract ProAMMPool is IProAMMPool {
             )
         ) {
           (swapData.actualDelta, swapData.lc, swapData.governmentFee, swapData.sqrtPn) = SwapMath
-            .calcSwapInTick(
+          .calcSwapInTick(
             SwapMath.SwapParams({
               delta: swapData.deltaRemaining,
               lpPluslf: swapData.lp + swapData.lf,
@@ -589,7 +590,7 @@ contract ProAMMPool is IProAMMPool {
           if (swapData.rTotalSupply != 0) {
             // update rTotalSupply, feeGrowthGlobal and lf
             (swapData.rTotalSupply, swapData.feeGrowthGlobal, swapData.lf) = ReinvestmentMath
-              .updateReinvestments(
+            .updateReinvestments(
               swapData.lp,
               swapData.lf,
               swapData.lc,
@@ -636,7 +637,7 @@ contract ProAMMPool is IProAMMPool {
           }
           // update rTotalSupply, feeGrowthGlobal and lf
           (swapData.rTotalSupply, swapData.feeGrowthGlobal, swapData.lf) = ReinvestmentMath
-            .updateReinvestments(
+          .updateReinvestments(
             swapData.lp,
             swapData.lf,
             swapData.lc,
