@@ -4,8 +4,7 @@ pragma solidity >= 0.8.0;
 /// @title Contains 512-bit math functions
 /// @notice Facilitates multiplication and division that can have overflow of an intermediate value without any loss of precision
 /// @dev Handles "phantom overflow" i.e., allows multiplication and division where an intermediate value overflows 256 bits
-/// @dev 1 line of code was replaced since sol 0.8 forbids the negation of unsigned integers
-///      using the solution in https://ethereum.stackexchange.com/questions/96642/unary-operator-cannot-be-applied-to-type-uint256
+/// @dev Code has been modified to be compatible with sol 0.8
 library FullMath {
     /// @notice Calculates floor(a×b÷denominator) with full precision. Throws if result overflows a uint256 or denominator == 0
     /// @param a The multiplicand
@@ -33,7 +32,7 @@ library FullMath {
 
         // Handle non-overflow cases, 256 by 256 division
         if (prod1 == 0) {
-            require(denominator > 0, "0 denom");
+            require(denominator > 0, '0 denom');
             assembly {
                 result := div(prod0, denominator)
             }
@@ -42,7 +41,7 @@ library FullMath {
 
         // Make sure the result is less than 2**256.
         // Also prevents denominator == 0
-        require(denominator > prod1, "denom <= prod1");
+        require(denominator > prod1, 'denom <= prod1');
 
         ///////////////////////////////////////////////
         // 512 by 256 division.

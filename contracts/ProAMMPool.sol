@@ -2,7 +2,7 @@
 pragma solidity 0.8.5;
 
 import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
-import {IProAMMFactory, IProAMMPoolDeployer} from './interfaces/IProAMMPoolDeployer.sol';
+import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
@@ -10,7 +10,7 @@ import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.s
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
-import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
+import {MathConstants, QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
 import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
 import {SwapMath} from './libraries/SwapMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
@@ -30,12 +30,14 @@ contract ProAMMPool is IProAMMPool {
   using Position for Position.Data;
 
   /// see IProAMMPool for explanations of the immutables below
-  IProAMMFactory public immutable override factory;
-  IERC20 public immutable override token0;
-  IERC20 public immutable override token1;
-  uint128 public immutable override maxLiquidityPerTick;
-  uint16 public immutable override swapFeeBps;
-  int24 public immutable override tickSpacing;
+  /// can't be set in constructor to be EIP-1167 compatible
+  /// hence lacking immutable keyword
+  IProAMMFactory public override factory;
+  IERC20 public override token0;
+  IERC20 public override token1;
+  uint128 public override maxLiquidityPerTick;
+  uint16 public override swapFeeBps;
+  int24 public override tickSpacing;
 
   // maximum ticks traversable, so that we can use a simpler formula
   // for calculation of collectible fees
@@ -73,11 +75,21 @@ contract ProAMMPool is IProAMMPool {
     lockStatus = UNLOCKED;
   }
 
-  constructor() {
-    int24 _tickSpacing;
-    (factory, token0, token1, swapFeeBps, _tickSpacing) = IProAMMPoolDeployer(msg.sender)
-      .poolParams();
-    tickSpacing = _tickSpacing;
+  function initialize(
+    address _factory,
+    IERC20 _token0,
+    IERC20 _token1,
+    uint16 _swapFeeBps,
+    int24 _tickSpacing
+  ) external override {
+    require(address(factory) == address(0), 'already inited');
+    (factory, token0, token1, swapFeeBps, tickSpacing) = (
+      IProAMMFactory(_factory),
+      _token0,
+      _token1,
+      _swapFeeBps,
+      _tickSpacing
+    );
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
   }
 
@@ -130,14 +142,25 @@ contract ProAMMPool is IProAMMPool {
   }
 
   /// see IProAMMPoolActions
-  // TODO: use Clones.sol https://docs.openzeppelin.com/contracts/3.x/api/proxy#Clones
-  function initialize(uint160 _poolSqrtPrice) external override {
+  function unlockPool(
+    uint160 initialSqrtPrice,
+    address recipient,
+    int24 tickLower,
+    int24 tickUpper,
+    uint128 qty,
+    bytes calldata data
+  ) external override {
     require(address(reinvestmentToken) == address(0), 'already inited');
     lockStatus = UNLOCKED; // unlock the pool
-    poolTick = TickMath.getTickAtSqrtRatio(_poolSqrtPrice);
+    int24 _initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
+    // initial tick must be within lower and upper ticks, exclusive
+    require(tickLower < _initialTick && _initialTick < tickUpper, 'price ! in range');
+    poolTick = _initialTick;
+    poolSqrtPrice = initialSqrtPrice;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
     reinvestmentToken.initialize();
-    emit Initialize(_poolSqrtPrice, poolTick);
+    mint(recipient, tickLower, tickUpper, qty, data);
+    emit Initialize(initialSqrtPrice, poolTick);
   }
 
   struct TweakPositionData {
@@ -232,6 +255,7 @@ contract ProAMMPool is IProAMMPool {
   /// @param owner address of owner of the position
   /// @param tickLower position's lower tick
   /// @param tickUpper position's upper tick
+  /// @param liquidityDelta change in position's liquidity
   /// @param currentTick  current pool tick, passed to avoid sload
   /// @param lp current pool liquidity, passed to avoid sload
   /// @param lf current pool reinvestment liquidity, passed to avoid sload
@@ -288,7 +312,9 @@ contract ProAMMPool is IProAMMPool {
       // mint to pool
       reinvestmentToken.mint(address(this), rMintQty);
       // update fee global
-      _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, lp);
+      _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
+        rMintQty,
+        (_feeGrowthGlobal == 0) ? uint128(liquidityDelta) : lp);
       poolFeeGrowthGlobal = _feeGrowthGlobal;
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -320,7 +346,7 @@ contract ProAMMPool is IProAMMPool {
     int24 tickUpper,
     uint128 qty,
     bytes calldata data
-  ) external override lock returns (uint256 qty0, uint256 qty1) {
+  ) public override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, 'zero qty');
     (int256 qty0Int, int256 qty1Int) = _tweakPosition(
       TweakPositionData({
@@ -437,7 +463,9 @@ contract ProAMMPool is IProAMMPool {
     uint256 rTotalSupplyInitial;
   }
 
-  // swap will execute up to sqrtPriceLimit, even if exact output is not hit
+  // see IProAMMPoolActions
+  // for specified exact output, swaps will execute up to sqrtPriceLimit,
+  // even if target swapQty is not reached
   function swap(
     address recipient,
     int256 swapQty,
@@ -474,7 +502,7 @@ contract ProAMMPool is IProAMMPool {
       rTotalSupplyInitial: 0
     });
 
-    // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
+    // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
       (swapData.nextTick, swapData.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
         swapData.currentTick,
@@ -482,14 +510,14 @@ contract ProAMMPool is IProAMMPool {
         willUpTick
       );
 
-      // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
+      // ensure that next tick does not exceed min / max tick
       if (swapData.nextTick < TickMath.MIN_TICK) {
         swapData.nextTick = TickMath.MIN_TICK;
       } else if (swapData.nextTick > TickMath.MAX_TICK) {
         swapData.nextTick = TickMath.MAX_TICK;
       }
 
-      while (swapData.currentTick != swapData.nextTick) {
+      while (swapData.currentTick != swapData.nextTick && swapData.deltaRemaining != 0) {
         // increment currentTick by max distance, capped at nextTick
         if (willUpTick) {
           swapData.currentTick = swapData.currentTick + MAX_TICK_DISTANCE;
@@ -510,7 +538,8 @@ contract ProAMMPool is IProAMMPool {
           isExactInput,
           isToken0
         );
-        // TODO: maybe can change to
+        // TODO: R&D into finding another solution
+        // which consumes less gas, or be able to relax the equality
         // if (
         //   isExactInput
         //     ? (swapData.deltaNext >= swapData.deltaRemaining)
@@ -555,7 +584,8 @@ contract ProAMMPool is IProAMMPool {
           poolTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPn);
           collectedGovernmentFee += swapData.governmentFee;
 
-          // if rTotalSupply has been initialized, update feeGlobal and Lp
+          // if rTotalSupply has been initialized (tick crossed), update feeGlobal, lp and lf
+          // also mint reinvestment tokens
           if (swapData.rTotalSupply != 0) {
             // update rTotalSupply, feeGrowthGlobal and lf
             (swapData.rTotalSupply, swapData.feeGrowthGlobal, swapData.lf) = ReinvestmentMath
@@ -570,13 +600,14 @@ contract ProAMMPool is IProAMMPool {
               address(this),
               swapData.rTotalSupply - swapData.rTotalSupplyInitial
             );
-            // update more pool variables
+            // update pool variables
             poolFeeGrowthGlobal = swapData.feeGrowthGlobal;
             poolLiquidity = swapData.lp;
             poolReinvestmentLiquidityLast = swapData.lf;
           }
         } else {
           // notice that swapData.sqrtPn isn't updated
+          // and is kept as the sqrtPrice of the updated current tick
           (swapData.actualDelta, swapData.lc, swapData.governmentFee, ) = SwapMath.calcSwapInTick(
             SwapMath.SwapParams({
               delta: swapData.deltaNext,
@@ -702,6 +733,7 @@ contract ProAMMPool is IProAMMPool {
   //     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   // }
 
+  // see IProAMMPoolActions
   function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {
     (address feeTo, uint16 _governmentFeeBps) = factory.getFeeConfiguration();
     governmentFeeBps = _governmentFeeBps;

@@ -20,6 +20,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       accounts: accounts,
+      allowUnlimitedContractSize: true
     },
   },
 
@@ -30,7 +31,7 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 4000,
+            runs: 28000,
           },
         },
       },

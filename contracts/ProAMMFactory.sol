@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.5;
 
-import {IERC20, IProAMMFactory, ProAMMPoolDeployer} from './ProAMMPoolDeployer.sol';
+import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 /// @title ProAMM factory
 /// @notice Deploys ProAMM pools and manages control over government fees
-contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
+contract ProAMMFactory is IProAMMFactory {
+  using Clones for address;
   /// @inheritdoc IProAMMFactory
+  address public immutable override reinvestmentTokenMaster;
+  address public immutable override poolMaster;
   address public override feeToSetter;
-  address public override reinvestmentTokenMaster;
 
   address private feeTo;
   uint16 private governmentFeeBps;
@@ -19,9 +23,10 @@ contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
   /// @inheritdoc IProAMMFactory
   mapping(IERC20 => mapping(IERC20 => mapping(uint16 => address))) public override getPool;
 
-  constructor(address _reinvestmentTokenMaster) {
+  constructor(address _reinvestmentTokenMaster, address _poolMaster) {
     feeToSetter = msg.sender;
     reinvestmentTokenMaster = _reinvestmentTokenMaster;
+    poolMaster = _poolMaster;
     emit FeeToSetterUpdated(address(0), feeToSetter);
 
     feeAmountTickSpacing[5] = 10;
@@ -42,7 +47,8 @@ contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
     int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
-    pool = deploy(address(this), token0, token1, swapFeeBps, tickSpacing);
+    pool = poolMaster.cloneDeterministic(keccak256(abi.encode(token0, token1, swapFeeBps)));
+    IProAMMPoolActions(pool).initialize(address(this), token0, token1, swapFeeBps, tickSpacing);
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
     getPool[token1][token0][swapFeeBps] = pool;
@@ -72,7 +78,7 @@ contract ProAMMFactory is IProAMMFactory, ProAMMPoolDeployer {
   /// @inheritdoc IProAMMFactory
   function setFeeConfiguration(address _feeTo, uint16 _governmentFeeBps) external override {
     require(msg.sender == feeToSetter, 'forbidden');
-    require(_governmentFeeBps > 0 && _governmentFeeBps < 2000, 'invalid fee');
+    require(_governmentFeeBps <= 2000, 'invalid fee');
     feeTo = _feeTo;
     governmentFeeBps = _governmentFeeBps;
     emit SetFeeConfiguration(_feeTo, _governmentFeeBps);
