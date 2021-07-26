@@ -1,28 +1,19 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {ZERO, ONE, TWO_POW_96, TWO, PRECISION} from './helpers/helper';
-import {convertReserveAmtsToSqrtPrice} from './helpers/utils';
 
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
 import {MockQtyDeltaMath, MockQtyDeltaMath__factory} from '../typechain';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
 
 let qtyDeltaMath: MockQtyDeltaMath;
-let snapshotId: any;
 
 describe('QtyDeltaMath', () => {
   before('setup', async () => {
     const qtyDeltaMathFactory = (await ethers.getContractFactory('MockQtyDeltaMath')) as MockQtyDeltaMath__factory;
-    qtyDeltaMath = (await qtyDeltaMathFactory.deploy()) as MockQtyDeltaMath;
-    snapshotId = await snapshot();
-  });
-
-  beforeEach('revert to snapshot', async () => {
-    await revertToSnapshot(snapshotId);
-    snapshotId = await snapshot();
+    qtyDeltaMath = await qtyDeltaMathFactory.deploy();
   });
 
   describe('#getQty0Delta', async () => {

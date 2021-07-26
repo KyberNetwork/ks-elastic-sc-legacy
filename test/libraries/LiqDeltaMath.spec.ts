@@ -1,26 +1,18 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {ZERO, ONE, MINUS_ONE, TWO, TWO_POW_128, MAX_INT_128, MAX_UINT_128, MIN_INT_128} from './helpers/helper';
+import {ZERO, ONE, MINUS_ONE, TWO, TWO_POW_128, MAX_INT_128, MAX_UINT_128, MIN_INT_128} from '../helpers/helper';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {MockLiqDeltaMath} from '../typechain';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
+import {MockLiqDeltaMath, MockLiqDeltaMath__factory} from '../../typechain';
 
 let liqDeltaMath: MockLiqDeltaMath;
-let snapshotId: any;
 
 describe('LiqDeltaMath', () => {
   before('setup', async () => {
-    const liqDeltaMathFactory = await ethers.getContractFactory('MockLiqDeltaMath');
-    liqDeltaMath = (await liqDeltaMathFactory.deploy()) as MockLiqDeltaMath;
-    snapshotId = await snapshot();
-  });
-
-  beforeEach('revert to snapshot', async () => {
-    await revertToSnapshot(snapshotId);
-    snapshotId = await snapshot();
+    const liqDeltaMathFactory = (await ethers.getContractFactory('MockLiqDeltaMath')) as MockLiqDeltaMath__factory;
+    liqDeltaMath = await liqDeltaMathFactory.deploy();
   });
 
   describe('#addLiquidityDelta', async () => {
@@ -69,7 +61,7 @@ describe('LiqDeltaMath', () => {
     });
 
     // (2^128 - 1) + (-2^127)
-    it('should return for liquidity = MAX_UINT_128, liquidityDelta = MAX_INT_128', async () => {
+    it('should return for liquidity = MAX_UINT_128, liquidityDelta = MIN_INT_128', async () => {
       expect(await liqDeltaMath.addLiquidityDelta(MAX_UINT_128, MIN_INT_128)).to.be.eql(MAX_UINT_128.add(MIN_INT_128));
     });
   });

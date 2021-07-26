@@ -1,15 +1,15 @@
 import bn from 'bignumber.js';
-import {BigNumber as BN, BigNumberish} from 'ethers';
-import {BPS, PRECISION, TWO_POW_96} from './helper';
+import {BigNumber, BigNumberish} from 'ethers';
 
-export function convertReserveAmtsToSqrtPrice(amount1: BigNumberish, amount0: BigNumberish): BN {
-  return BN.from(
-    new bn(amount1.toString())
-      .div(amount0.toString())
+bn.config({EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40});
+
+export function encodePriceSqrt(reserve1: BigNumberish, reserve0: BigNumberish): BigNumber {
+  return BigNumber.from(
+    new bn(reserve1.toString())
+      .div(reserve0.toString())
       .sqrt()
-      .multipliedBy(new bn(TWO_POW_96.toString()))
-      .dividedBy(new bn('1e8'))
-      .integerValue(bn.ROUND_FLOOR)
+      .multipliedBy(new bn(2).pow(96))
+      .integerValue(3)
       .toString()
-  ).mul(1e8);
+  );
 }
