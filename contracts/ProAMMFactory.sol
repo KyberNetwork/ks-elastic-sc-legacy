@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.5;
+pragma solidity 0.8.6;
 
 import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';

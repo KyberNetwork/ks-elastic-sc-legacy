@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "dotenv": "8.2.0",
-    "solc": "0.8.5",
+    "solc": "0.8.6",
     "solhint": "3.3.2"
   },
   "devDependencies": {

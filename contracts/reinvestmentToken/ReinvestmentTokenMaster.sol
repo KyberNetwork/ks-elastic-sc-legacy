@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.5;
+pragma solidity 0.8.6;
 
 import {ERC20PermitInitializable} from './ERC20PermitInitializable.sol';
 import {IReinvestmentToken} from '../interfaces/IReinvestmentToken.sol';
