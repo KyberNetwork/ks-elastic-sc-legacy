@@ -25,4 +25,17 @@ library SafeCast {
     require(y < 2**255);
     z = int256(y);
   }
+
+  /// @notice Cast a uint256 to a int256 and revert the sign, revert on overflow
+  /// @param y The uint256 to be casted
+  /// @return z The casted integer, now type int256
+  function revToInt256(uint256 y) internal pure returns (int256 z) {
+    require(y < 2**255);
+    z = -int256(y);
+  }
+
+  /// @dev assume y <=0
+  function revToUint128(int128 y) internal pure returns (uint128 z) {
+    return type(uint128).max - uint128(y) + 1;
+  }
 }

@@ -10,6 +10,7 @@ import {SafeCast} from './SafeCast.sol';
 /// or from burning reinvestment tokens
 library QtyDeltaMath {
   using SafeCast for uint256;
+  using SafeCast for int128;
 
   /// @notice Gets the qty0 delta between two prices
   /// @dev Calculates liquidity / sqrt(lower) - liquidity / sqrt(upper),
@@ -28,10 +29,10 @@ library QtyDeltaMath {
     if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
 
     uint256 numerator1 = uint256(liquidity) << MathConstants.RES_96;
-    uint256 numerator2 = sqrtPriceB - sqrtPriceA;
-
-    require(sqrtPriceA > 0, '0 sqrtPrice');
-
+    uint256 numerator2;
+    unchecked {
+      numerator2 = sqrtPriceB - sqrtPriceA;
+    }
     return
       roundUp
         ? divCeiling(FullMath.mulDivCeiling(numerator1, numerator2, sqrtPriceB), sqrtPriceA)
@@ -53,10 +54,12 @@ library QtyDeltaMath {
   ) internal pure returns (uint256) {
     if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
 
-    return
-      roundUp
-        ? FullMath.mulDivCeiling(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96)
-        : FullMath.mulDivFloor(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96);
+    unchecked {
+      return
+        roundUp
+          ? FullMath.mulDivCeiling(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96)
+          : FullMath.mulDivFloor(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96);
+    }
   }
 
   /// @notice Helper that gets signed token0 delta
@@ -69,13 +72,11 @@ library QtyDeltaMath {
     uint160 sqrtPriceB,
     int128 liquidity
   ) internal pure returns (int256) {
-    return
-      (liquidity < 0)
-        ? (type(uint256).max -
-          getQty0Delta(sqrtPriceA, sqrtPriceB, type(uint128).max - uint128(liquidity) + 1, false) +
-          1)
-          .toInt256()
-        : getQty0Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+    if (liquidity < 0) {
+      return getQty0Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256();
+    } else {
+      return getQty0Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+    }
   }
 
   /// @notice Helper that gets signed token1 delta
@@ -88,39 +89,37 @@ library QtyDeltaMath {
     uint160 sqrtPriceB,
     int128 liquidity
   ) internal pure returns (int256) {
-    return
-      liquidity < 0
-        ? (type(uint256).max -
-          getQty1Delta(sqrtPriceA, sqrtPriceB, type(uint128).max - uint128(liquidity) + 1, false) +
-          1)
-          .toInt256()
-        : getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+    if (liquidity < 0) {
+      return getQty1Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256();
+    } else {
+      return getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+    }
   }
 
   /// @notice Calculates the token0 quantity proportion to be sent to the user
   /// for burning reinvestment tokens
   /// @param sqrtPrice Current pool sqrt price
-  /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
+  /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token0 quantity to be sent to the user
-  function getQty0FromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)
+  function getQty0FromBurnRTokens(uint160 sqrtPrice, uint256 liquidity)
     internal
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(lfDelta, MathConstants.TWO_POW_96, sqrtPrice);
+    return FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPrice);
   }
 
   /// @notice Calculates the token1 quantity proportion to be sent to the user
   /// for burning reinvestment tokens
   /// @param sqrtPrice Current pool sqrt price
-  /// @param lfDelta Difference in reinvestment liquidity due to reinvestment token burn
+  /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token1 quantity to be sent to the user
-  function getQty1FromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)
+  function getQty1FromBurnRTokens(uint160 sqrtPrice, uint256 liquidity)
     internal
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(lfDelta, sqrtPrice, MathConstants.TWO_POW_96);
+    return FullMath.mulDivFloor(liquidity, sqrtPrice, MathConstants.TWO_POW_96);
   }
 
   /// @notice Returns ceil(x / y)
@@ -129,6 +128,8 @@ library QtyDeltaMath {
   /// @param y The divisor
   /// @return z The quotient, ceil(x / y)
   function divCeiling(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    // return x / y + ((x % y == 0) ? 0 : 1);
+    require(y > 0);
     assembly {
       z := add(div(x, y), gt(mod(x, y), 0))
     }
