@@ -40,9 +40,6 @@ contract ProAMMPool is IProAMMPool {
   int24 public override tickSpacing;
 
   int24 private constant MIN_LIQUIDITY = 1000;
-  uint8 private constant LOCKED = 1;
-  uint8 private constant UNLOCKED = 2;
-  uint8 private lockStatus = LOCKED;
   // the current government fee as a percentage of the swap fee taken on withdrawal
   // value is fetched from factory and updated whenever a position is modified
   // or when government fee is collected
@@ -51,6 +48,7 @@ contract ProAMMPool is IProAMMPool {
   // see IProAMMPool#getPoolState for explanations of the variables below
   uint160 internal poolSqrtPrice;
   int24 internal poolTick;
+  bool private locked;
   uint128 internal poolLiquidity;
   // see IProAMMPool#getReinvestmentAndFees for explanations of the variables below
   uint256 internal poolFeeGrowthGlobal;
@@ -66,10 +64,10 @@ contract ProAMMPool is IProAMMPool {
   /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
   /// Also prevents entrance to pool actions prior to initalization
   modifier lock() {
-    require(lockStatus == UNLOCKED, 'locked');
-    lockStatus = LOCKED;
+    require(locked == false, 'locked');
+    locked = true;
     _;
-    lockStatus = UNLOCKED;
+    locked = false;
   }
 
   function initialize(
@@ -88,6 +86,7 @@ contract ProAMMPool is IProAMMPool {
       _tickSpacing
     );
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
+    locked = true;
   }
 
   /// @dev Get pool's balance of token0
@@ -117,12 +116,13 @@ contract ProAMMPool is IProAMMPool {
     view
     override
     returns (
-      uint160,
-      int24,
-      uint128
+      uint160 _poolSqrtPrice,
+      int24 _poolTick,
+      bool _locked,
+      uint128 _poolLiquidity
     )
   {
-    return (poolSqrtPrice, poolTick, poolLiquidity);
+    return (poolSqrtPrice, poolTick, locked, poolLiquidity);
   }
 
   function getReinvestmentState()
@@ -130,9 +130,9 @@ contract ProAMMPool is IProAMMPool {
     view
     override
     returns (
-      uint256,
-      uint256,
-      uint256
+      uint256 _poolFeeGrowthGlobal,
+      uint256 _poolReinvestmentLiquidity,
+      uint256 _poolReinvestmentLiquidityLast
     )
   {
     return (poolFeeGrowthGlobal, poolReinvestmentLiquidity, poolReinvestmentLiquidityLast);
@@ -148,10 +148,10 @@ contract ProAMMPool is IProAMMPool {
     bytes calldata data
   ) external override {
     require(address(reinvestmentToken) == address(0), 'already inited');
-    lockStatus = UNLOCKED; // unlock the pool
+    locked = false; // unlock the pool
     int24 _initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
-    // initial tick must be within lower and upper ticks, exclusive
-    require(tickLower < _initialTick && _initialTick < tickUpper, 'price ! in range');
+    // initial tick must be within lower and upper ticks
+    require(tickLower <= _initialTick && _initialTick <= tickUpper, 'price !in range');
     poolTick = _initialTick;
     poolSqrtPrice = initialSqrtPrice;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
@@ -176,7 +176,7 @@ contract ProAMMPool is IProAMMPool {
   /// @return qty1 token1 qty owed to the pool, negative if the pool should pay the recipient
   function _tweakPosition(TweakPositionData memory posData)
     private
-    returns (int256 qty0, int256 qty1)
+    returns (int256 qty0, int256 qty1, bool isInitialMint)
   {
     require(posData.tickLower < posData.tickUpper, 'invalid ticks');
     require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
@@ -189,6 +189,7 @@ contract ProAMMPool is IProAMMPool {
     // for first LP provider (posData.liquidityDelta > 0),
     // permanently lockup MIN_LIQUIDITY as pool reinvestment liquidity (lf)
     if (lf == 0) {
+      isInitialMint = true;
       posData.liquidityDelta -= MIN_LIQUIDITY;
       lf = uint24(MIN_LIQUIDITY);
       poolReinvestmentLiquidity = lf;
@@ -346,7 +347,7 @@ contract ProAMMPool is IProAMMPool {
     bytes calldata data
   ) public override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, 'zero qty');
-    (int256 qty0Int, int256 qty1Int) = _tweakPosition(
+    (int256 qty0Int, int256 qty1Int, bool isInitialMint) = _tweakPosition(
       TweakPositionData({
         owner: recipient,
         tickLower: tickLower,
@@ -354,7 +355,7 @@ contract ProAMMPool is IProAMMPool {
         liquidityDelta: int256(uint256(qty)).toInt128()
       })
     );
-
+    if (isInitialMint) qty -= uint24(MIN_LIQUIDITY);
     qty0 = uint256(qty0Int);
     qty1 = uint256(qty1Int);
 
@@ -376,7 +377,7 @@ contract ProAMMPool is IProAMMPool {
     uint128 qty
   ) external override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, 'zero qty');
-    (int256 qty0Int, int256 qty1Int) = _tweakPosition(
+    (int256 qty0Int, int256 qty1Int, ) = _tweakPosition(
       TweakPositionData({
         owner: msg.sender,
         tickLower: tickLower,

@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BN, PRECISION, ZERO_ADDRESS, BPS_PLUS_ONE, ZERO, ONE, BPS} from './helpers/helper';
 import chai from 'chai';
-const {solidity} = waffle;
+const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
 import {
@@ -14,7 +14,6 @@ import {
   PredictPoolAddress,
 } from '../typechain';
 import {deployFactory, deployProAMMPoolMaster, deployReinvestmentTokenMaster} from './helpers/proAMMSetup';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -31,7 +30,7 @@ let snapshotId: any;
 describe('ProAMMFactory', () => {
   const [operator, admin, feeToSetter] = waffle.provider.getWallets();
 
-  before('setup', async () => {
+  async function fixture() {
     let poolAddressPredictorFactory = await ethers.getContractFactory('PredictPoolAddress');
     poolAddressPredictor = (await poolAddressPredictorFactory.deploy()) as PredictPoolAddress;
     reinvestmentMaster = await deployReinvestmentTokenMaster(ethers);
@@ -39,14 +38,12 @@ describe('ProAMMFactory', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    factory = await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address);
-    snapshotId = await snapshot();
-  });
+    return (await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address));
+  }
 
   describe('#factory deployment and pool creation', async () => {
-    beforeEach('revert to snapshot', async () => {
-      await revertToSnapshot(snapshotId);
-      snapshotId = await snapshot();
+    beforeEach('load fixture', async () => {
+      factory = await loadFixture(fixture);
       swapFeeBps = 5;
       tickSpacing = 10;
     });
@@ -143,6 +140,8 @@ describe('ProAMMFactory', () => {
           'forbidden'
         );
         // feeToSetter should be able to update
+        swapFeeBps = 20;
+        tickSpacing = 100;
         await factory.connect(feeToSetter).enableSwapFee(swapFeeBps, tickSpacing);
         await factory.connect(feeToSetter).setFeeConfiguration(admin.address, swapFeeBps);
       });

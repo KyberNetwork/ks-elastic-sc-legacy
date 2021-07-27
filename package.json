@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "yarn hardhat test --no-compile",
+    "test": "TS_NODE_TRANSPILE_ONLY=1 yarn hardhat test --no-compile",
     "t": "./test.sh",
     "compile": "yarn hardhat compile",
     "c": "printf 'yes' | yarn hardhat compile",

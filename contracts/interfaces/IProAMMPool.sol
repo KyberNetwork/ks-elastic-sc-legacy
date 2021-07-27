@@ -44,6 +44,7 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
   /// @notice Fetches the pool's current price, tick and liquidity
   /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)
   /// @return poolTick pool's current tick
+  /// @return locked true if pool is locked, false otherwise
   /// @return poolLiquidity pool's current liquidity that is in range
   function getPoolState()
     external
@@ -51,6 +52,7 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
     returns (
       uint160 poolSqrtPrice,
       int24 poolTick,
+      bool locked,
       uint128 poolLiquidity
     );
 
