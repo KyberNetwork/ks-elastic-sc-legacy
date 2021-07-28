@@ -5,6 +5,7 @@ import {IProAMMPoolActions} from '../../interfaces/pool/IProAMMPoolActions.sol';
 import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from '../../interfaces/callback/IProAMMSwapCallback.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import 'hardhat/console.sol';
 
 contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
   IERC20 public token0;
@@ -105,9 +106,11 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
   ) external override {
     if (data.length > 0) {
       (bool sendLess0, bool sendLess1) = abi.decode(data, (bool, bool));
-      if (sendLess0) deltaQty0 -= 1;
-      if (sendLess1) deltaQty1 -= 1;
+      if (sendLess0 && deltaQty0 > 0) deltaQty0 -= 1;
+      if (sendLess1 && deltaQty1 > 0) deltaQty1 -= 1;
     }
+    console.log('mint deltaQty0', deltaQty0);
+    console.log('mint deltaQty1', deltaQty1);
     if (deltaQty0 > 0) token0.transferFrom(user, msg.sender, deltaQty0);
     if (deltaQty1 > 0) token1.transferFrom(user, msg.sender, deltaQty1);
   }
@@ -119,10 +122,14 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
   ) external override {
     if (data.length > 0) {
       (bool sendLess0, bool sendLess1) = abi.decode(data, (bool, bool));
-      if (sendLess0) deltaQty0 -= 1;
-      if (sendLess1) deltaQty1 -= 1;
+      if (sendLess0 && deltaQty0 > 0) deltaQty0 -= 1;
+      if (sendLess1 && deltaQty1 > 0) deltaQty1 -= 1;
     }
+    console.log('swap deltaQty0');
+    console.logInt(deltaQty0);
+    console.log('swap deltaQty1');
+    console.logInt(deltaQty1);
     if (deltaQty0 > 0) token0.transferFrom(user, msg.sender, uint256(deltaQty0));
-    if (deltaQty1 > 0) token0.transferFrom(user, msg.sender, uint256(deltaQty1));
+    if (deltaQty1 > 0) token1.transferFrom(user, msg.sender, uint256(deltaQty1));
   }
 }

@@ -17,6 +17,7 @@ import {SafeCast} from './libraries/SafeCast.sol';
 import {Tick, TickMath} from './libraries/Tick.sol';
 import {TickBitmap} from './libraries/TickBitmap.sol';
 import {Position} from './libraries/Position.sol';
+import 'hardhat/console.sol';
 
 contract ProAMMPool is IProAMMPool {
   using Clones for address;
@@ -151,7 +152,7 @@ contract ProAMMPool is IProAMMPool {
     locked = false; // unlock the pool
     int24 _initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
     // initial tick must be within lower and upper ticks
-    require(tickLower <= _initialTick && _initialTick <= tickUpper, 'price !in range');
+    require(tickLower <= _initialTick && _initialTick <= tickUpper, 'price not in range');
     poolTick = _initialTick;
     poolSqrtPrice = initialSqrtPrice;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
@@ -346,7 +347,7 @@ contract ProAMMPool is IProAMMPool {
     uint128 qty,
     bytes calldata data
   ) public override lock returns (uint256 qty0, uint256 qty1) {
-    require(qty > 0, 'zero qty');
+    require(qty > 0, '0 qty');
     (int256 qty0Int, int256 qty1Int, bool isInitialMint) = _tweakPosition(
       TweakPositionData({
         owner: recipient,
@@ -376,7 +377,7 @@ contract ProAMMPool is IProAMMPool {
     int24 tickUpper,
     uint128 qty
   ) external override lock returns (uint256 qty0, uint256 qty1) {
-    require(qty > 0, 'zero qty');
+    require(qty > 0, '0 qty');
     (int256 qty0Int, int256 qty1Int, ) = _tweakPosition(
       TweakPositionData({
         owner: msg.sender,

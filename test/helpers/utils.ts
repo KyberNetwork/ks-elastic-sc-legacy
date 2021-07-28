@@ -2,10 +2,14 @@ import bn from 'bignumber.js';
 import {ethers} from 'hardhat';
 import {BigNumber, BigNumberish} from 'ethers';
 import {MockTickMath} from '../../typechain/MockTickMath';
+import {MIN_TICK, MAX_TICK} from './helper';
 
 bn.config({EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40});
 
 export {BigNumber} from 'ethers';
+
+export const getMinTick = (tickSpacing: number) => Math.ceil(MIN_TICK.toNumber() / tickSpacing) * tickSpacing
+export const getMaxTick = (tickSpacing: number) => Math.floor(MAX_TICK.toNumber() / tickSpacing) * tickSpacing
 
 export function encodePriceSqrt(reserve1: BigNumberish, reserve0: BigNumberish): BigNumber {
   return BigNumber.from(
