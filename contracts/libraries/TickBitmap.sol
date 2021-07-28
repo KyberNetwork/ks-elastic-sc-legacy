@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.0;
 
-import './BitMath.sol';
+import {BitMath} from './BitMath.sol';
+import {MathConstants} from './MathConstants.sol';
 
 /// @title Packed tick initialized state library
 /// @notice Stores a packed mapping of tick index to its initialized state
@@ -62,6 +63,11 @@ library TickBitmap {
         ? (compressed + 1 + int24(uint24(BitMath.leastSignificantBit(masked) - bitPos))) *
           tickSpacing
         : (compressed + 1 + int24(uint24(type(uint8).max - bitPos))) * tickSpacing;
+      // if next exceeds tick by max distance, return the intermediate tick
+      if (tick + MathConstants.MAX_TICK_DISTANCE < next) {
+        next = tick + MathConstants.MAX_TICK_DISTANCE;
+        initialized = false;
+      }
     } else {
       (int16 wordPos, uint8 bitPos) = position(compressed);
       // all the 1s at or to the right of the current bitPos
@@ -74,6 +80,11 @@ library TickBitmap {
       next = initialized
         ? (compressed - int24(uint24(bitPos - BitMath.mostSignificantBit(masked)))) * tickSpacing
         : (compressed - int24(uint24(bitPos))) * tickSpacing;
+      // if next exceeds tick by max distance, return the intermediate tick
+      if (next + MathConstants.MAX_TICK_DISTANCE < tick) {
+        next = tick - MathConstants.MAX_TICK_DISTANCE;
+        initialized = false;
+      }
     }
   }
 }
