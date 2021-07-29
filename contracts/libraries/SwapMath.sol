@@ -53,7 +53,8 @@ library SwapMath {
   struct SwapParams {
     // if won't cross tick, deltaRemaining;
     // else, deltaNext (delta qty needed to cross next tick)
-    int256 delta;
+    int256 deltaRemaining;
+    int256 actualDelta;
     uint256 lpPluslf;
     uint256 lc;
     uint160 sqrtPc;
@@ -96,12 +97,12 @@ library SwapMath {
         swapParams.lpPluslf,
         swapParams.lc,
         swapParams.sqrtPc,
+        swapParams.isExactInput,
         swapParams.isToken0
       );
     }
-
     // calculate actualDelta
-    actualDelta += calcActualDelta(
+    actualDelta = swapParams.actualDelta + calcActualDelta(
       swapParams.lpPluslf,
       swapParams.sqrtPc,
       swapParams.sqrtPn,
@@ -143,18 +144,20 @@ library SwapMath {
     uint256 lpPluslf,
     uint256 lc,
     uint160 sqrtPc,
+    bool isExactInput,
     bool isToken0
   ) internal pure returns (uint160 sqrtPn) {
     uint256 numerator;
     if (isToken0) {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator + lpPluslf))
+      denominator = isExactInput ? lpPluslf + denominator : lpPluslf - denominator;
+      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator))
       .toUint160();
     } else {
-      numerator = absDelta + FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = FullMath
-      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
+      numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
+      numerator = isExactInput ? numerator + absDelta : numerator - absDelta;
+      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
       .toUint160();
     }
   }
@@ -177,21 +180,22 @@ library SwapMath {
       // exact output: actualDelta = (lp + lf)(sqrtPn - sqrtPc) + lc(sqrtPn)
 
       // result = lc(sqrtPn)
-      uint256 result = FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96);
+      int256 result = int256(FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96));
 
       if (isExactInput) {
         // actualDelta = -[(lp + lf)(sqrtPc - sqrtPn)] + result
-        actualDelta = int256(
-          type(uint256).max -
-            FullMath.mulDivFloor(lpPluslf, sqrtPc - sqrtPn, MathConstants.TWO_POW_96) +
-            1 +
-            result
-        );
+        actualDelta =
+          int256(
+            type(uint256).max -
+              FullMath.mulDivFloor(lpPluslf, sqrtPc - sqrtPn, MathConstants.TWO_POW_96) +
+              1
+          ) +
+          result;
       } else {
-        // actualDelta = (lp + lf)(sqrtPc - sqrtPn) + result
-        actualDelta = int256(
-          FullMath.mulDivFloor(lpPluslf, sqrtPn - sqrtPc, MathConstants.TWO_POW_96) + result
-        );
+        // actualDelta = (lp + lf)(sqrtPn - sqrtPc) + result
+        actualDelta =
+          int256(FullMath.mulDivFloor(lpPluslf, sqrtPn - sqrtPc, MathConstants.TWO_POW_96)) +
+          result;
       }
     } else {
       // actualDelta = -(lp + lf)/sqrtPc + (lp + lf + lc)/sqrtPn
