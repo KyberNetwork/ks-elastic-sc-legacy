@@ -57,11 +57,9 @@ library SwapMath {
     int256 delta;
     uint256 lpPluslf;
     uint256 lc;
-    uint256 governmentFee;
     uint160 sqrtPc;
     uint160 sqrtPn;
     uint16 swapFeeBps;
-    uint16 governmentFeeBps;
     bool isExactInput;
     bool isToken0;
     // true if needed to calculate final sqrt price, false otherwise
@@ -76,7 +74,6 @@ library SwapMath {
     returns (
       int256 actualDelta,
       uint256 lc,
-      uint256 governmentFee,
       uint160 sqrtPn
     )
   {
@@ -85,16 +82,13 @@ library SwapMath {
       ? uint256(swapParams.delta)
       : type(uint256).max - uint256(swapParams.delta) + 1;
     // calculate fee amounts
-    (swapParams.lc, governmentFeeQty) = calcSwapFeeAmounts(
+    swapParams.lc = calcSwapFeeAmounts(
       absDelta,
       swapParams.sqrtPc,
       swapParams.swapFeeBps,
-      swapParams.governmentFeeBps,
       swapParams.isExactInput,
       swapParams.isToken0
     );
-
-    swapParams.governmentFee += governmentFeeQty;
 
     if (swapParams.calcFinalPrice) {
       // calculate final sqrt price
@@ -117,17 +111,16 @@ library SwapMath {
       swapParams.isToken0
     );
 
-    return (actualDelta, swapParams.lc, swapParams.governmentFee, swapParams.sqrtPn);
+    return (actualDelta, swapParams.lc, swapParams.sqrtPn);
   }
 
   function calcSwapFeeAmounts(
     uint256 absDelta,
     uint160 sqrtPc,
     uint16 swapFeeBps,
-    uint16 governmentFeeBps,
     bool isExactInput,
     bool isToken0
-  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
+  ) internal pure returns (uint256 lc) {
     if (isToken0) {
       lc = FullMath.mulDivFloor(
         sqrtPc,
@@ -143,23 +136,6 @@ library SwapMath {
         2 * sqrtPc * (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
       );
     }
-    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
-    lc -= governmentFeeQty;
-  }
-
-  function calcFlashFeeAmounts(
-    uint256 swapFeeDelta,
-    uint160 sqrtPc,
-    uint16 governmentFeeBps,
-    bool isToken0
-  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
-    if (isToken0) {
-      lc = FullMath.mulDivFloor(sqrtPc, swapFeeDelta, 2 * MathConstants.TWO_POW_96);
-    } else {
-      lc = FullMath.mulDivFloor(MathConstants.TWO_POW_96, swapFeeDelta, 2 * sqrtPc);
-    }
-    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
-    lc -= governmentFeeQty;
   }
 
   // will round down sqrtPn
