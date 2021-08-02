@@ -6,4 +6,5 @@ library MathConstants {
   uint256 internal constant TWO_POW_96 = 2**96;
   uint8 internal constant RES_96 = 96;
   uint24 internal constant BPS = 10000;
+  int24 internal constant MAX_TICK_DISTANCE = 487; // ~5% price movement
 }
