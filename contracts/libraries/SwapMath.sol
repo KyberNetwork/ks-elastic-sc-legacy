@@ -8,6 +8,7 @@ import {SafeCast} from './SafeCast.sol';
 /// @title Contains helper functions for swaps
 library SwapMath {
   using SafeCast for uint256;
+  using SafeCast for int256;
 
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
   // from sqrtPc (price of current tick)
@@ -22,9 +23,8 @@ library SwapMath {
     // numerator = 2 * (lp + lf) * (diffInSqrtPrice)
     // we ensure diffInSqrtPrice > 0 first, the make negative
     // if exact output is specified
-    uint256 numerator = 2 * lpPluslf;
-    numerator = FullMath.mulDivFloor(
-      numerator,
+    uint256 numerator = FullMath.mulDivFloor(
+      2 * lpPluslf,
       (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc),
       MathConstants.TWO_POW_96
     );
@@ -44,9 +44,8 @@ library SwapMath {
       denominator =
         denominator /
         (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = (2 * sqrtPc - denominator) / MathConstants.TWO_POW_96;
-      numerator = FullMath.mulDivFloor(numerator, sqrtPc, MathConstants.TWO_POW_96);
-      deltaNext = int256(numerator / denominator);
+      denominator = (2 * sqrtPc - denominator);
+      deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
     }
     if (!isExactInput) deltaNext = -deltaNext;
   }
@@ -80,7 +79,7 @@ library SwapMath {
     uint256 governmentFeeQty;
     uint256 absDelta = swapParams.delta >= 0
       ? uint256(swapParams.delta)
-      : type(uint256).max - uint256(swapParams.delta) + 1;
+      : swapParams.delta.revToUint256();
     // calculate fee amounts
     swapParams.lc = calcSwapFeeAmounts(
       absDelta,
@@ -154,7 +153,8 @@ library SwapMath {
       .toUint160();
     } else {
       numerator = absDelta + FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
+      sqrtPn = FullMath
+      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
       .toUint160();
     }
   }
