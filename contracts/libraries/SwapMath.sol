@@ -30,15 +30,18 @@ library SwapMath {
     );
     uint256 denominator;
     if (isToken0) {
-      // calculate 2 * sqrtPn - sqrtPc * feeInBps
-      // divide by MathConstants.BPS | (MathConstants.BPS - feeInBps) for exact input | output
+      // denominator (exact input): calculate 2 * sqrtPn - feeInBps * sqrtPc / BPS
+      // denominator (exact output): calculate 2 * sqrtPn - feeInBps * BPS * sqrtPc / (BPS * (BPS - feeInBps))
+      // which is simplified to 2 * sqrtPn - feeInBps * sqrtPc / (BPS - feeInBps)
       denominator = sqrtPc * feeInBps;
       denominator =
         denominator /
         (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
       denominator = 2 * sqrtPn - denominator;
       denominator = FullMath.mulDivCeiling(sqrtPc, denominator, MathConstants.TWO_POW_96);
-      deltaNext = int256(FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator));
+      deltaNext = FullMath
+      .mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator)
+      .toInt256();
     } else {
       denominator = feeInBps * sqrtPn;
       denominator =
@@ -77,10 +80,9 @@ library SwapMath {
       uint160 sqrtPn
     )
   {
-    uint256 governmentFeeQty;
-    uint256 absDelta = swapParams.delta >= 0
-      ? uint256(swapParams.delta)
-      : swapParams.delta.revToUint256();
+    uint256 absDelta = swapParams.deltaRemaining >= 0
+      ? uint256(swapParams.deltaRemaining)
+      : swapParams.deltaRemaining.revToUint256();
     // calculate fee amounts
     swapParams.lc = calcSwapFeeAmounts(
       absDelta,
@@ -102,14 +104,16 @@ library SwapMath {
       );
     }
     // calculate actualDelta
-    actualDelta = swapParams.actualDelta + calcActualDelta(
-      swapParams.lpPluslf,
-      swapParams.sqrtPc,
-      swapParams.sqrtPn,
-      swapParams.lc,
-      swapParams.isExactInput,
-      swapParams.isToken0
-    );
+    actualDelta =
+      swapParams.actualDelta +
+      calcActualDelta(
+        swapParams.lpPluslf,
+        swapParams.sqrtPc,
+        swapParams.sqrtPn,
+        swapParams.lc,
+        swapParams.isExactInput,
+        swapParams.isToken0
+      );
 
     return (actualDelta, swapParams.lc, swapParams.sqrtPn);
   }
@@ -151,19 +155,25 @@ library SwapMath {
     if (isToken0) {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
-      denominator = isExactInput ? lpPluslf + denominator : lpPluslf - denominator;
-      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator))
+      sqrtPn = (FullMath.mulDivFloor(
+        numerator,
+        MathConstants.TWO_POW_96,
+        isExactInput ? lpPluslf + denominator : lpPluslf - denominator
+      ))
       .toUint160();
     } else {
       numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
       numerator = isExactInput ? numerator + absDelta : numerator - absDelta;
-      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
+      sqrtPn = FullMath
+      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
       .toUint160();
     }
   }
 
   // calculates actual output | input tokens in exchange for
   // user specified input | output
+  // round down when calculating actual output (isExactInput) so we avoid sending too much
+  // round up when calculating actual input (!isExactInput) so we get desired output amount
   function calcActualDelta(
     uint256 lpPluslf,
     uint160 sqrtPc,
@@ -176,32 +186,37 @@ library SwapMath {
       // require difference in sqrtPc and sqrtPn > 0
       // so that we can properly do the multiplication of (lp + lf)|sqrtPc - sqrtPn|
       // hence, if user specified
-      // exact input: actualDelta = -[(lp + lf)(sqrtPc - sqrtPn)] + lc(sqrtPn)
-      // exact output: actualDelta = (lp + lf)(sqrtPn - sqrtPc) + lc(sqrtPn)
-
-      // result = lc(sqrtPn)
-      int256 result = int256(FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96));
+      // exact input: actualDelta = lc(sqrtPn) - [(lp + lf)(sqrtPc - sqrtPn)]
+      // exact output: actualDelta = lc(sqrtPn) + (lp + lf)(sqrtPn - sqrtPc)
 
       if (isExactInput) {
-        // actualDelta = -[(lp + lf)(sqrtPc - sqrtPn)] + result
+        // round down actual output so we avoid sending too much
+        // actualDelta = lc(sqrtPn) - [(lp + lf)(sqrtPc - sqrtPn)]
         actualDelta =
-          int256(
-            type(uint256).max -
-              FullMath.mulDivFloor(lpPluslf, sqrtPc - sqrtPn, MathConstants.TWO_POW_96) +
-              1
-          ) +
-          result;
+          FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
+          FullMath
+          .mulDivCeiling(lpPluslf, sqrtPc - sqrtPn, MathConstants.TWO_POW_96)
+          .revToInt256();
       } else {
-        // actualDelta = (lp + lf)(sqrtPn - sqrtPc) + result
+        // round up actual input so we get desired output amount
+        // actualDelta = lc(sqrtPn) + (lp + lf)(sqrtPn - sqrtPc)
         actualDelta =
-          int256(FullMath.mulDivFloor(lpPluslf, sqrtPn - sqrtPc, MathConstants.TWO_POW_96)) +
-          result;
+          FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
+          FullMath.mulDivCeiling(lpPluslf, sqrtPn - sqrtPc, MathConstants.TWO_POW_96).toInt256();
       }
     } else {
-      // actualDelta = -(lp + lf)/sqrtPc + (lp + lf + lc)/sqrtPn
-      actualDelta =
-        FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256() +
-        FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256();
+      // actualDelta = (lp + lf + lc)/sqrtPn - (lp + lf)/sqrtPc
+      if (isExactInput) {
+        // round down actual output so we avoid sending too much
+        actualDelta =
+          FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
+          FullMath.mulDivCeiling(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
+      } else {
+        // round up actual input so we get desired output amount
+        actualDelta =
+          FullMath.mulDivCeiling(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
+          FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
+      }
     }
   }
 }

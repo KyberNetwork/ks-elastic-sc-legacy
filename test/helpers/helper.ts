@@ -23,3 +23,4 @@ export const MIN_SQRT_RATIO = BN.from('4295128739');
 export const MAX_SQRT_RATIO = BN.from('1461446703485210103287273052203988822378723970342');
 export const MIN_TICK = BN.from(-887272);
 export const MAX_TICK = BN.from(887272);
+export const MAX_TICK_DISTANCE = 487;

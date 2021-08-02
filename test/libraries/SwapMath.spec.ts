@@ -19,7 +19,7 @@ describe('SwapMath', () => {
   const fee = BN.from(30);
 
   it('from token0 -> token1 exact input', async () => {
-    const liquidity = PRECISION.mul(BN.from(1));
+    const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(100, 101);
     // calculate the amount of token0 to swap from 1 -> 1 / 1.01
@@ -29,7 +29,7 @@ describe('SwapMath', () => {
     const lc = await swapMath.calcSwapFeeAmounts(delta.sub(ONE), priceStart, fee, true, true);
     console.log(`lc=${lc.toString()}`); // 0.000007492638180401 = 0.004995092120267736 * 0.003 / 2
 
-    const finalPrice = await swapMath.calcFinalPrice(delta.sub(ONE), liquidity, lc, priceStart, true);
+    const finalPrice = await swapMath.calcFinalPrice(delta.sub(ONE), liquidity, lc, priceStart, true, true);
     console.log(`finalPrice=${finalPrice.toString()}`);
     expect(finalPrice).to.gte(priceEnd);
 
@@ -39,7 +39,7 @@ describe('SwapMath', () => {
   });
 
   it('from token0 -> token1 exact output', async () => {
-    const liquidity = PRECISION.mul(BN.from(1));
+    const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(100, 101);
     // calculate the amount of token0 to swap from 1 -> 1 / 1.01
@@ -60,6 +60,7 @@ describe('SwapMath', () => {
       liquidity,
       lc,
       priceStart,
+      false,
       false
     );
     console.log(`finalPrice=${finalPrice.toString()}`);
@@ -67,11 +68,11 @@ describe('SwapMath', () => {
 
     const amountOut = await swapMath.calcActualDelta(liquidity, priceStart, priceEnd, lc, false, false);
     expect(amountOut).to.gt(ZERO);
-    console.log(`amountOut=${amountOut.toString()}`); // 0.004995077217286491
+    console.log(`amountOut=${amountOut.toString()}`); // 0.004995077217286492
   });
 
   it('from token1 -> token0 exact input', async () => {
-    const liquidity = PRECISION.mul(BN.from(1));
+    const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(101, 100);
     // calculate the amount of token0 to swap from 1 -> 1.01
@@ -81,7 +82,7 @@ describe('SwapMath', () => {
     const lc = await swapMath.calcSwapFeeAmounts(delta.sub(ONE), priceStart, fee, true, false);
     console.log(`lc=${lc.toString()}`); // 0.000007492638180401 = 0.004995092120267736 * 0.003 / 2
 
-    const finalPrice = await swapMath.calcFinalPrice(delta.sub(ONE), liquidity, lc, priceStart, false);
+    const finalPrice = await swapMath.calcFinalPrice(delta.sub(ONE), liquidity, lc, priceStart, true, false);
     console.log(`finalPrice=${finalPrice.toString()}`);
     expect(finalPrice).to.lte(priceEnd); // 79623317895830914417022576523 >= 79623317895830914510639640423
 
@@ -91,7 +92,7 @@ describe('SwapMath', () => {
   });
 
   it('from token1 -> token0 exact output', async () => {
-    const liquidity = PRECISION.mul(BN.from(1));
+    const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(101, 100);
     // calculate the amount of token0 to swap from 1 -> 101
@@ -106,6 +107,7 @@ describe('SwapMath', () => {
       liquidity,
       lc,
       priceStart,
+      false,
       true
     );
     console.log(`finalPrice=${finalPrice.toString()}`);

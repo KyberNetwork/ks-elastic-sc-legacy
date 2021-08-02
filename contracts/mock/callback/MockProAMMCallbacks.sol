@@ -23,13 +23,9 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
   function unlockPool(
     IProAMMPoolActions pool,
     uint160 poolSqrtPrice,
-    address recipient,
-    int24 tickLower,
-    int24 tickUpper,
-    uint128 qty,
     bytes calldata data
   ) external {
-    pool.unlockPool(poolSqrtPrice, recipient, tickLower, tickUpper, qty, data);
+    pool.unlockPool(poolSqrtPrice, data);
   }
 
   function mint(
@@ -57,19 +53,11 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
   function badUnlockPool(
     IProAMMPoolActions pool,
     uint160 poolSqrtPrice,
-    address recipient,
-    int24 tickLower,
-    int24 tickUpper,
-    uint128 qty,
     bool sendLess0,
     bool sendLess1
   ) external {
     pool.unlockPool(
       poolSqrtPrice,
-      recipient,
-      tickLower,
-      tickUpper,
-      qty,
       abi.encode(sendLess0, sendLess1)
     );
   }
