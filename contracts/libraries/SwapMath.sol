@@ -195,12 +195,9 @@ library SwapMath {
       }
     } else {
       // actualDelta = -(lp + lf)/sqrtPc + (lp + lf + lc)/sqrtPn
-      actualDelta = int256(
-        type(uint256).max -
-          FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc) +
-          1 +
-          FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn)
-      );
+      actualDelta =
+        FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256() +
+        FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256();
     }
   }
 }
