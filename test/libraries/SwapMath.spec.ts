@@ -38,7 +38,7 @@ describe('SwapMath', () => {
     console.log(`amountOut=${amountOut.toString()}`); // -0.004955354336368578
   });
 
-  it('from token0 -> token1 exact output', async () => {
+  it.skip('from token0 -> token1 exact output', async () => {
     const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(100, 101);
@@ -91,7 +91,7 @@ describe('SwapMath', () => {
     console.log(`amountOut=${amountOut.toString()}`); // -0.004955354336368579
   });
 
-  it('from token1 -> token0 exact output', async () => {
+  it.skip('from token1 -> token0 exact output', async () => {
     const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(101, 100);

@@ -34,7 +34,7 @@ library SafeCast {
     z = -int256(y);
   }
 
-  /// @dev assume y <=0, return z = (-y)
+  /// @dev assume y < 0, return z = (-y)
   function revToUint256(int256 y) internal pure returns (uint256 z) {
     unchecked {
       return type(uint256).max - uint256(y) + 1;

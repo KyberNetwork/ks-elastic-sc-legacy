@@ -30,6 +30,8 @@ contract ProAMMPool is IProAMMPool {
   using Position for mapping(bytes32 => Position.Data);
   using Position for Position.Data;
 
+  address private constant LIQUIDITY_LOCKUP_ADDRESS = 0xD444422222222222222222222222222222222222;
+
   /// see IProAMMPool for explanations of the immutables below
   /// can't be set in constructor to be EIP-1167 compatible
   /// hence lacking immutable keyword
@@ -158,7 +160,7 @@ contract ProAMMPool is IProAMMPool {
     poolReinvestmentLiquidityLast = MathConstants.MIN_LIQUIDITY;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
     reinvestmentToken.initialize();
-    reinvestmentToken.mint(address(this), MathConstants.MIN_LIQUIDITY);
+    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MathConstants.MIN_LIQUIDITY * 100000);
     poolFeeGrowthGlobal = MathConstants.TWO_POW_96;
     emit Initialize(initialSqrtPrice, poolTick);
   }
@@ -266,6 +268,27 @@ contract ProAMMPool is IProAMMPool {
     uint256 _feeGrowthGlobal = poolFeeGrowthGlobal;
     uint256 lfLast = poolReinvestmentLiquidityLast;
 
+    // mint reinvestment tokens if necessary
+    if (liquidityDelta > 0 && (lf != lfLast)) {
+      // calculate rMintQty
+      uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+          lf,
+          lfLast,
+          lp,
+          reinvestmentToken.totalSupply()
+        );
+      // mint to pool
+      reinvestmentToken.mint(address(this), rMintQty);
+      // update fee global
+      _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
+        rMintQty,
+        lp
+      );
+      poolFeeGrowthGlobal = _feeGrowthGlobal;
+      // update poolReinvestmentLiquidityLast
+      poolReinvestmentLiquidityLast = lf;
+    }
+
     // update ticks if necessary
     bool flippedLower = ticks.update(
       tickLower,
@@ -288,27 +311,6 @@ contract ProAMMPool is IProAMMPool {
     );
     if (flippedUpper) {
       tickBitmap.flipTick(tickUpper, tickSpacing);
-    }
-
-    // mint reinvestment tokens if necessary
-    if (liquidityDelta > 0 && (lf != lfLast)) {
-      // calculate rMintQty
-      uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
-          lf,
-          lfLast,
-          lp,
-          reinvestmentToken.totalSupply()
-        );
-      // mint to pool
-      reinvestmentToken.mint(address(this), rMintQty);
-      // update fee global
-      _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
-        rMintQty,
-        lp
-      );
-      poolFeeGrowthGlobal = _feeGrowthGlobal;
-      // update poolReinvestmentLiquidityLast
-      poolReinvestmentLiquidityLast = lf;
     }
 
     // fees = feeGrowthInside
@@ -378,11 +380,11 @@ contract ProAMMPool is IProAMMPool {
     );
 
     if (qty0Int < 0) {
-      qty0 = type(uint256).max - uint256(qty0Int) + 1;
+      qty0 = qty0Int.revToUint256();
       token0.safeTransfer(msg.sender, qty0);
     }
     if (qty1Int < 0) {
-      qty1 = type(uint256).max - uint256(qty1Int) + 1;
+      qty1 = qty1Int.revToUint256();
       token1.safeTransfer(msg.sender, qty1);
     }
 
@@ -653,7 +655,7 @@ contract ProAMMPool is IProAMMPool {
       // outbound deltaQty0 (negative), inbound deltaQty1 (positive)
       // transfer deltaQty0 to recipient
       if (deltaQty0 < 0)
-        token0.safeTransfer(recipient, type(uint256).max - uint256(deltaQty0) + 1);
+        token0.safeTransfer(recipient, deltaQty0.revToUint256());
 
       // collect deltaQty1
       uint256 balance1Before = poolBalToken1();
@@ -663,7 +665,7 @@ contract ProAMMPool is IProAMMPool {
       // inbound deltaQty0 (positive), outbound deltaQty1 (negative)
       // transfer deltaQty1 to recipient
       if (deltaQty1 < 0)
-        token1.safeTransfer(recipient, type(uint256).max - uint256(deltaQty1) + 1);
+        token1.safeTransfer(recipient, deltaQty1.revToUint256());
 
       // collect deltaQty0
       uint256 balance0Before = poolBalToken0();
