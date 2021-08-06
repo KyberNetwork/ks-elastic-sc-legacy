@@ -8,6 +8,7 @@ import {SafeCast} from './SafeCast.sol';
 /// @title Contains helper functions for swaps
 library SwapMath {
   using SafeCast for uint256;
+  using SafeCast for int256;
 
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
   // from sqrtPc (price of current tick)
@@ -22,9 +23,8 @@ library SwapMath {
     // numerator = 2 * (lp + lf) * (diffInSqrtPrice)
     // we ensure diffInSqrtPrice > 0 first, the make negative
     // if exact output is specified
-    uint256 numerator = 2 * lpPluslf;
-    numerator = FullMath.mulDivFloor(
-      numerator,
+    uint256 numerator = FullMath.mulDivFloor(
+      2 * lpPluslf,
       (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc),
       MathConstants.TWO_POW_96
     );
@@ -44,9 +44,8 @@ library SwapMath {
       denominator =
         denominator /
         (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = (2 * sqrtPc - denominator) / MathConstants.TWO_POW_96;
-      numerator = FullMath.mulDivFloor(numerator, sqrtPc, MathConstants.TWO_POW_96);
-      deltaNext = int256(numerator / denominator);
+      denominator = (2 * sqrtPc - denominator);
+      deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
     }
     if (!isExactInput) deltaNext = -deltaNext;
   }
@@ -57,11 +56,9 @@ library SwapMath {
     int256 delta;
     uint256 lpPluslf;
     uint256 lc;
-    uint256 governmentFee;
     uint160 sqrtPc;
     uint160 sqrtPn;
     uint16 swapFeeBps;
-    uint16 governmentFeeBps;
     bool isExactInput;
     bool isToken0;
     // true if needed to calculate final sqrt price, false otherwise
@@ -76,25 +73,21 @@ library SwapMath {
     returns (
       int256 actualDelta,
       uint256 lc,
-      uint256 governmentFee,
       uint160 sqrtPn
     )
   {
     uint256 governmentFeeQty;
     uint256 absDelta = swapParams.delta >= 0
       ? uint256(swapParams.delta)
-      : type(uint256).max - uint256(swapParams.delta) + 1;
+      : swapParams.delta.revToUint256();
     // calculate fee amounts
-    (swapParams.lc, governmentFeeQty) = calcSwapFeeAmounts(
+    swapParams.lc = calcSwapFeeAmounts(
       absDelta,
       swapParams.sqrtPc,
       swapParams.swapFeeBps,
-      swapParams.governmentFeeBps,
       swapParams.isExactInput,
       swapParams.isToken0
     );
-
-    swapParams.governmentFee += governmentFeeQty;
 
     if (swapParams.calcFinalPrice) {
       // calculate final sqrt price
@@ -117,17 +110,16 @@ library SwapMath {
       swapParams.isToken0
     );
 
-    return (actualDelta, swapParams.lc, swapParams.governmentFee, swapParams.sqrtPn);
+    return (actualDelta, swapParams.lc, swapParams.sqrtPn);
   }
 
   function calcSwapFeeAmounts(
     uint256 absDelta,
     uint160 sqrtPc,
     uint16 swapFeeBps,
-    uint16 governmentFeeBps,
     bool isExactInput,
     bool isToken0
-  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
+  ) internal pure returns (uint256 lc) {
     if (isToken0) {
       lc = FullMath.mulDivFloor(
         sqrtPc,
@@ -143,23 +135,6 @@ library SwapMath {
         2 * sqrtPc * (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
       );
     }
-    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
-    lc -= governmentFeeQty;
-  }
-
-  function calcFlashFeeAmounts(
-    uint256 swapFeeDelta,
-    uint160 sqrtPc,
-    uint16 governmentFeeBps,
-    bool isToken0
-  ) internal pure returns (uint256 lc, uint256 governmentFeeQty) {
-    if (isToken0) {
-      lc = FullMath.mulDivFloor(sqrtPc, swapFeeDelta, 2 * MathConstants.TWO_POW_96);
-    } else {
-      lc = FullMath.mulDivFloor(MathConstants.TWO_POW_96, swapFeeDelta, 2 * sqrtPc);
-    }
-    governmentFeeQty = (lc * (MathConstants.BPS - governmentFeeBps)) / MathConstants.BPS;
-    lc -= governmentFeeQty;
   }
 
   // will round down sqrtPn
@@ -178,7 +153,8 @@ library SwapMath {
       .toUint160();
     } else {
       numerator = absDelta + FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = (FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc))
+      sqrtPn = FullMath
+      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
       .toUint160();
     }
   }
@@ -219,12 +195,9 @@ library SwapMath {
       }
     } else {
       // actualDelta = -(lp + lf)/sqrtPc + (lp + lf + lc)/sqrtPn
-      actualDelta = int256(
-        type(uint256).max -
-          FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc) +
-          1 +
-          FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn)
-      );
+      actualDelta =
+        FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256() +
+        FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256();
     }
   }
 }

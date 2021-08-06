@@ -546,17 +546,15 @@ contract ProAMMPool is IProAMMPool {
               : (swapData.deltaNext < swapData.deltaRemaining)
           )
       ) {
-        (swapData.actualDelta, swapData.lc, swapData.governmentFee, swapData.sqrtPn) = SwapMath
+        (swapData.actualDelta, swapData.lc, swapData.sqrtPn) = SwapMath
         .calcSwapInTick(
           SwapMath.SwapParams({
             delta: swapData.deltaRemaining,
             lpPluslf: swapData.lp + swapData.lf,
             lc: swapData.lc,
-            governmentFee: swapData.governmentFee,
             sqrtPc: swapData.sqrtPc,
             sqrtPn: swapData.sqrtPn,
             swapFeeBps: swapFeeBps,
-            governmentFeeBps: governmentFeeBps,
             isExactInput: isExactInput,
             isToken0: isToken0,
             calcFinalPrice: true
@@ -596,16 +594,14 @@ contract ProAMMPool is IProAMMPool {
       } else {
         // notice that swapData.sqrtPn isn't updated
         // and is kept as the sqrtPrice of the updated current tick
-        (swapData.actualDelta, swapData.lc, swapData.governmentFee, ) = SwapMath.calcSwapInTick(
+        (swapData.actualDelta, swapData.lc, ) = SwapMath.calcSwapInTick(
           SwapMath.SwapParams({
             delta: swapData.deltaNext,
             lpPluslf: swapData.lp + swapData.lf,
             lc: swapData.lc,
-            governmentFee: swapData.governmentFee,
             sqrtPc: swapData.sqrtPc,
             sqrtPn: swapData.sqrtPn,
             swapFeeBps: swapFeeBps,
-            governmentFeeBps: governmentFeeBps,
             isExactInput: isExactInput,
             isToken0: isToken0,
             calcFinalPrice: false
@@ -718,15 +714,8 @@ contract ProAMMPool is IProAMMPool {
   //     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   // }
 
+  // TODO add governance fee  
   // see IProAMMPoolActions
   function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {
-    (address feeTo, uint16 _governmentFeeBps) = factory.getFeeConfiguration();
-    governmentFeeBps = _governmentFeeBps;
-    if (collectedGovernmentFee > 0) {
-      governmentFeeQty = collectedGovernmentFee - 1;
-      // gas saving
-      collectedGovernmentFee = 1;
-      reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
-    }
   }
 }
