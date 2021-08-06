@@ -28,7 +28,7 @@ library ReinvestmentMath {
     rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lc + lf);
     newTokenSupply = tokenSupply + rMintQty;
     newFeeGrowthGlobal = feeGrowthGlobal;
-    if(lp != 0) {
+    if (lp != 0) {
       newFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
     }
     newLf = lf + lc;

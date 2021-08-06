@@ -310,7 +310,7 @@ contract ProAMMPool is IProAMMPool {
       // mint to pool
       reinvestmentToken.mint(address(this), rMintQty);
       // update fee global if lp != 0
-      if(lp != 0) {
+      if (lp != 0) {
         _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
       }
       poolFeeGrowthGlobal = _feeGrowthGlobal;
@@ -407,7 +407,7 @@ contract ProAMMPool is IProAMMPool {
         rTotalSupply
       );
       // mint tokens to pool
-      if(rMintQty > 0) {
+      if (rMintQty > 0) {
         reinvestmentToken.mint(address(this), rMintQty);
         poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
         rTotalSupply += rMintQty;
@@ -549,8 +549,7 @@ contract ProAMMPool is IProAMMPool {
               : (swapData.deltaNext < swapData.deltaRemaining)
           )
       ) {
-        (swapData.actualDelta, swapData.lc, swapData.sqrtPn) = SwapMath
-        .calcSwapInTick(
+        (swapData.actualDelta, swapData.lc, swapData.sqrtPn) = SwapMath.calcSwapInTick(
           SwapMath.SwapParams({
             delta: swapData.deltaRemaining,
             lpPluslf: swapData.lp + swapData.lf,
@@ -648,8 +647,7 @@ contract ProAMMPool is IProAMMPool {
     if (willUpTick) {
       // outbound deltaQty0 (negative), inbound deltaQty1 (positive)
       // transfer deltaQty0 to recipient
-      if (deltaQty0 < 0)
-        token0.safeTransfer(recipient, type(uint256).max - uint256(deltaQty0) + 1);
+      if (deltaQty0 < 0) token0.safeTransfer(recipient, deltaQty0.revToUint256());
 
       // collect deltaQty1
       uint256 balance1Before = poolBalToken1();
@@ -658,8 +656,7 @@ contract ProAMMPool is IProAMMPool {
     } else {
       // inbound deltaQty0 (positive), outbound deltaQty1 (negative)
       // transfer deltaQty1 to recipient
-      if (deltaQty1 < 0)
-        token1.safeTransfer(recipient, type(uint256).max - uint256(deltaQty1) + 1);
+      if (deltaQty1 < 0) token1.safeTransfer(recipient, deltaQty1.revToUint256());
 
       // collect deltaQty0
       uint256 balance0Before = poolBalToken0();
@@ -717,8 +714,7 @@ contract ProAMMPool is IProAMMPool {
   //     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   // }
 
-  // TODO add governance fee  
+  // TODO add governance fee
   // see IProAMMPoolActions
-  function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {
-  }
+  function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {}
 }
