@@ -13,6 +13,7 @@ import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {MathConstants, QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
 import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
 import {SwapMath} from './libraries/SwapMath.sol';
+import {FullMath} from './libraries/FullMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {Tick, TickMath} from './libraries/Tick.sol';
 import {TickBitmap} from './libraries/TickBitmap.sol';
@@ -308,11 +309,10 @@ contract ProAMMPool is IProAMMPool {
         );
       // mint to pool
       reinvestmentToken.mint(address(this), rMintQty);
-      // update fee global
-      _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
-        rMintQty,
-        (_feeGrowthGlobal == 0) ? uint128(liquidityDelta) : lp
-      );
+      // update fee global if lp != 0
+      if(lp != 0) {
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
+      }
       poolFeeGrowthGlobal = _feeGrowthGlobal;
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -398,27 +398,30 @@ contract ProAMMPool is IProAMMPool {
     uint128 lp = poolLiquidity;
     uint160 pc = poolSqrtPrice;
     uint256 rTotalSupply = reinvestmentToken.totalSupply();
-    // calculate rMintQty
-    uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
-      lf,
-      poolReinvestmentLiquidityLast,
-      lp,
-      rTotalSupply
-    );
-    // mint tokens to pool
-    reinvestmentToken.mint(address(this), rMintQty);
-    rTotalSupply += rMintQty;
+    // local scope for rMintQty - sync the value of reinvestment token to latest value
+    {
+      uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+        lf,
+        poolReinvestmentLiquidityLast,
+        lp,
+        rTotalSupply
+      );
+      // mint tokens to pool
+      if(rMintQty > 0) {
+        reinvestmentToken.mint(address(this), rMintQty);
+        poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
+        rTotalSupply += rMintQty;
+      }
+    }
     // burn _qty of caller
     // router should transfer _qty from user to itself, but not send it to the pool
     // for direct calls, msg.sender should have sufficient balance
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning
-    uint256 lfDelta = ReinvestmentMath.calcLfDelta(_qty, lf, rTotalSupply);
-    poolFeeGrowthGlobal =
-      poolFeeGrowthGlobal +
-      ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, poolLiquidity);
-    poolReinvestmentLiquidity = lf - lfDelta;
-    poolReinvestmentLiquidityLast = poolReinvestmentLiquidity;
+    uint256 lfDelta = FullMath.mulDivFloor(_qty, lf, rTotalSupply);
+    uint256 lfNew = lf - lfDelta;
+    poolReinvestmentLiquidity = lfNew;
+    poolReinvestmentLiquidityLast = lfNew;
     // finally, calculate and send token quantities to user
     uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(pc, lfDelta);
     if (tokenQty > 0) token0.safeTransfer(msg.sender, tokenQty);

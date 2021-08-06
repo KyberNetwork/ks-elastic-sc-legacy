@@ -8,6 +8,7 @@ import {FullMath} from './FullMath.sol';
 /// reinvestment variables, like token amount to be minted (rMintQty),
 /// new reinvestment token supply and fee growth
 library ReinvestmentMath {
+  /// rMintQty = tokenSupply * lp * lc / (lf * (lp + lc + lf))
   function updateReinvestments(
     uint128 lp,
     uint256 lf,
@@ -26,29 +27,24 @@ library ReinvestmentMath {
     uint256 rMintQty = FullMath.mulDivFloor(lp, lc, lf);
     rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lc + lf);
     newTokenSupply = tokenSupply + rMintQty;
-    newFeeGrowthGlobal = feeGrowthGlobal + calcFeeGrowthIncrement(rMintQty, lp);
+    newFeeGrowthGlobal = feeGrowthGlobal;
+    if(lp != 0) {
+      newFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
+    }
     newLf = lf + lc;
   }
 
-  function calcFeeGrowthIncrement(uint256 rMintQty, uint128 lp) internal pure returns (uint256) {
-    return FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
-  }
-
+  /// @dev calculate the mint amount with given lf, lfLast, lp and rTotalSupply
+  /// contribution of lp to the incrediment is calulated by the porpotion of lp with lf + lp
+  /// then rMintQty is calculated by mutiplying this with the liquidity per reinvestment token
+  /// rMintQty = rTotalSupply * (lf - lfLast) / lfLast * lp /(lp + lf)
   function calcrMintQtyInLiquidityDelta(
     uint256 lf,
     uint256 lfLast,
     uint128 lp,
-    uint256 tokenSupply
+    uint256 rTotalSupply
   ) internal pure returns (uint256 rMintQty) {
-    rMintQty = FullMath.mulDivFloor(lp, lf - lfLast, lfLast);
-    rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lf);
-  }
-
-  function calcLfDelta(
-    uint256 burnAmount,
-    uint256 lf,
-    uint256 tokenSupply
-  ) internal pure returns (uint256 lfDelta) {
-    lfDelta = FullMath.mulDivFloor(burnAmount, lf, tokenSupply);
+    uint256 lpContribution = FullMath.mulDivFloor(lp, lf - lfLast, lp + lf);
+    rMintQty = FullMath.mulDivFloor(rTotalSupply, lpContribution, lfLast);
   }
 }
