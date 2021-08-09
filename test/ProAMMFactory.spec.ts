@@ -38,7 +38,7 @@ describe('ProAMMFactory', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    return (await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address));
+    return await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address);
   }
 
   describe('#factory deployment and pool creation', async () => {
@@ -67,7 +67,8 @@ describe('ProAMMFactory', () => {
         tokenB.address,
         swapFeeBps
       );
-      let token0Address = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA.address : tokenB.address;
+      let token0Address =
+        tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA.address : tokenB.address;
       let token1Address = token0Address == tokenA.address ? tokenB.address : tokenA.address;
       await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
         .to.emit(factory, 'PoolCreated')

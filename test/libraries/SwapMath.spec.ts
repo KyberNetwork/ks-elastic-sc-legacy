@@ -46,13 +46,7 @@ describe('SwapMath', () => {
     const delta = await swapMath.calcDeltaNext(liquidity, priceStart, priceEnd, fee, false, false);
     console.log(`delta: ${delta.toString()}`); // -0.004970250488226176
 
-    const lc = await swapMath.calcSwapFeeAmounts(
-      delta.mul(NEGATIVE_ONE).sub(ONE),
-      priceStart,
-      fee,
-      false,
-      false
-    );
+    const lc = await swapMath.calcSwapFeeAmounts(delta.mul(NEGATIVE_ONE).sub(ONE), priceStart, fee, false, false);
     console.log(`lc=${lc.toString()}`); // 0.000007477809159818 = 0.004970250488226176 * 0.003 / (2 * 0.997)
 
     const finalPrice = await swapMath.calcFinalPrice(

@@ -25,10 +25,7 @@ interface IProAMMPoolActions {
   /// implement the mint callback as well
   /// @param poolSqrtPrice the initial sqrt price of the pool
   /// @param data Data (if any) to be passed through to the callback
-  function unlockPool(
-    uint160 poolSqrtPrice,
-    bytes calldata data
-  ) external;
+  function unlockPool(uint160 poolSqrtPrice, bytes calldata data) external;
 
   /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when

@@ -18,8 +18,18 @@ library QtyDeltaMath {
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = getQty0Delta(TickMath.MIN_SQRT_RATIO, initialSqrtPrice, MathConstants.MIN_LIQUIDITY, false);
-    qty1 = getQty1Delta(initialSqrtPrice, TickMath.MAX_SQRT_RATIO, MathConstants.MIN_LIQUIDITY, false);
+    qty0 = getQty0Delta(
+      TickMath.MIN_SQRT_RATIO,
+      initialSqrtPrice,
+      MathConstants.MIN_LIQUIDITY,
+      false
+    );
+    qty1 = getQty1Delta(
+      initialSqrtPrice,
+      TickMath.MAX_SQRT_RATIO,
+      MathConstants.MIN_LIQUIDITY,
+      false
+    );
   }
 
   /// @notice Gets the qty0 delta between two prices

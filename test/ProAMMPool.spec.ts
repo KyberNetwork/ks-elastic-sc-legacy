@@ -813,8 +813,8 @@ describe('ProAMMPool', () => {
         // push current tick to below tickLower
         await swapToDownTick(pool, user, tickLower);
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION))
-        .to.emit(token0, 'Transfer')
-        .to.not.emit(token1, 'Transfer');
+          .to.emit(token0, 'Transfer')
+          .to.not.emit(token1, 'Transfer');
       });
 
       it('should transfer token0 and token1 if current tick is within position burnt', async () => {
@@ -823,8 +823,8 @@ describe('ProAMMPool', () => {
         // push current tick to slightly above tickLower
         await swapToDownTick(pool, user, tickLower + 10);
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION))
-        .to.emit(token1, 'Transfer')
-        .to.emit(token0, 'Transfer');
+          .to.emit(token1, 'Transfer')
+          .to.emit(token0, 'Transfer');
       });
 
       it('should only transfer token1 if position burnt is below current tick', async () => {
@@ -832,8 +832,8 @@ describe('ProAMMPool', () => {
         await swapToUpTick(pool, user, tickUpper);
         // await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION))
-        .to.emit(token1, 'Transfer')
-        .to.not.emit(token0, 'Transfer');
+          .to.emit(token1, 'Transfer')
+          .to.not.emit(token0, 'Transfer');
       });
     });
   });
@@ -958,7 +958,14 @@ describe('ProAMMPool', () => {
       console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
       console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
       console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      await callback.swap(pool.address, user.address, BN.from('-1751372543351715671'), false, MIN_SQRT_RATIO.add(ONE), '0x');
+      await callback.swap(
+        pool.address,
+        user.address,
+        BN.from('-1751372543351715671'),
+        false,
+        MIN_SQRT_RATIO.add(ONE),
+        '0x'
+      );
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
       console.log(`=== AFTER SWAP ===`);

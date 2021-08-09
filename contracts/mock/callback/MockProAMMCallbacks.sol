@@ -56,10 +56,7 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.unlockPool(
-      poolSqrtPrice,
-      abi.encode(sendLess0, sendLess1)
-    );
+    pool.unlockPool(poolSqrtPrice, abi.encode(sendLess0, sendLess1));
   }
 
   function badMint(

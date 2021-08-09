@@ -155,11 +155,13 @@ library SwapMath {
     if (isToken0) {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = (FullMath.mulDivFloor(
-        numerator,
-        MathConstants.TWO_POW_96,
-        isExactInput ? lpPluslf + denominator : lpPluslf - denominator
-      ))
+      sqrtPn = (
+        FullMath.mulDivFloor(
+          numerator,
+          MathConstants.TWO_POW_96,
+          isExactInput ? lpPluslf + denominator : lpPluslf - denominator
+        )
+      )
       .toUint160();
     } else {
       numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);

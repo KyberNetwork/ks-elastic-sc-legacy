@@ -75,7 +75,7 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
 
   /// @notice Look up information about a specific tick in the pool
   /// @param tick The tick to look up
-  /// @return liquidityGross the total amount of position liquidity 
+  /// @return liquidityGross the total amount of position liquidity
   /// that uses the pool either as tick lower or tick upper
   /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
   /// feeGrowthOutside the fee growth on the other side of the tick from the current tick
