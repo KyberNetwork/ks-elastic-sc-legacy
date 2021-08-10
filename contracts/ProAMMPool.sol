@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.6;
+pragma solidity 0.8.4;
 
 import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
 import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
@@ -430,34 +430,37 @@ contract ProAMMPool is IProAMMPool {
   struct SwapData {
     // the quantity remaining to be swapped in/out of the input/output asset
     int256 deltaRemaining;
-    // the quantity needed to cross to the next tick
-    int256 deltaNext;
     // the quantity already swapped out/in of the output/input asset
     int256 actualDelta;
     // current sqrt(price), multiplied by 2^96
     uint160 sqrtPc;
-    // next sqrt(price), multiplied by 2^96
-    uint160 sqrtPn;
     // the tick associated with the current price
     int24 currentTick;
-    // the tick associated with the next price
-    int24 nextTick;
-    // whether nextTick is initialized
-    bool initialized;
-    // the global fee growth of the input token, multiplied by 2^96
-    uint256 feeGrowthGlobal;
     // LP token qty paid as government fee
     uint256 governmentFee;
     // the current pool liquidity
     uint128 lp;
     // the current reinvestment liquidity
     uint256 lf;
-    // collected liquidity
-    uint256 lc;
-    // total reinvestment token supply, possibly incremented
+    // collected liquidity - only load when crossing a tick
+    uint256 lfLast;
+    // total reinvestment token supply, possibly incremented - only load when crossing a tick
     uint256 rTotalSupply;
-    // initial total reinvestment token supply, to cache the value
+    // initial total reinvestment token supply, to cache the value - only load when crossing a tick
     uint256 rTotalSupplyInitial;
+    // the global fee growth of the input token, multiplied by 2^96 - only load when crossing a tick
+    uint256 feeGrowthGlobal;
+  }
+
+  struct SwapStep {
+    bool initialized;
+    // the tick associated with the next price
+    int24 nextTick;
+    uint160 nextSqrtP;
+    uint160 targetSqrtP;
+    int256 deltaNext;
+    int256 actualDelta;
+    uint256 lc;
   }
 
   // see IProAMMPoolActions
@@ -483,166 +486,112 @@ contract ProAMMPool is IProAMMPool {
 
     SwapData memory swapData = SwapData({
       deltaRemaining: swapQty,
-      deltaNext: 0,
       actualDelta: 0,
       sqrtPc: poolSqrtPrice,
-      sqrtPn: 0,
       currentTick: poolTick,
-      nextTick: 0,
-      initialized: false,
       feeGrowthGlobal: 0,
       governmentFee: 0,
       lp: poolLiquidity,
       lf: poolReinvestmentLiquidity,
-      lc: 0,
+      lfLast: 0,
       rTotalSupply: 0,
       rTotalSupplyInitial: 0
     });
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
-      (swapData.nextTick, swapData.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+      SwapStep memory step;
+      (step.nextTick, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
         swapData.currentTick,
         tickSpacing,
         willUpTick
       );
 
       // ensure that next tick does not exceed min / max tick
-      if (swapData.nextTick < TickMath.MIN_TICK) {
-        swapData.nextTick = TickMath.MIN_TICK;
-      } else if (swapData.nextTick > TickMath.MAX_TICK) {
-        swapData.nextTick = TickMath.MAX_TICK;
+      if (step.nextTick < TickMath.MIN_TICK) {
+        step.nextTick = TickMath.MIN_TICK;
+      } else if (step.nextTick > TickMath.MAX_TICK) {
+        step.nextTick = TickMath.MAX_TICK;
       }
 
       // get next sqrt price for the new tick
-      swapData.sqrtPn = TickMath.getSqrtRatioAtTick(swapData.nextTick);
+      step.nextSqrtP = TickMath.getSqrtRatioAtTick(step.nextTick);
+      step.targetSqrtP = step.nextSqrtP;
       // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-      if (
-        willUpTick
-          ? (swapData.sqrtPn > sqrtPriceLimit && swapData.nextTick != TickMath.MAX_TICK)
-          : (swapData.sqrtPn < sqrtPriceLimit && swapData.nextTick != TickMath.MIN_TICK)
-      ) {
-        swapData.sqrtPn = sqrtPriceLimit;
-        swapData.nextTick = TickMath.getTickAtSqrtRatio(sqrtPriceLimit);
+      if (willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
+        step.targetSqrtP = sqrtPriceLimit;
       }
-      // calculate deltaNext
-      swapData.deltaNext = SwapMath.calcDeltaNext(
+
+      (step.deltaNext, step.actualDelta, step.lc, swapData.sqrtPc) = SwapMath.computeSwapStep(
         swapData.lp + swapData.lf,
         swapData.sqrtPc,
-        swapData.sqrtPn,
+        step.targetSqrtP,
         swapFeeBps,
-        isExactInput,
-        isToken0
+        swapData.deltaRemaining,
+        isExactInput
       );
+      swapData.deltaRemaining -= step.deltaNext;
+      swapData.actualDelta += step.actualDelta;
+      swapData.lf += step.lc;
+
       // TODO: R&D into finding another solution
       // which consumes less gas, or be able to relax the equality
-      // if (
-      //   isExactInput
-      //     ? (swapData.deltaNext >= swapData.deltaRemaining)
-      //     : (swapData.deltaNext <= swapData.deltaRemaining)
-      // )
-      if (
-        isExactInput
-          ? (
-            (isToken0)
-              ? (swapData.deltaNext >= swapData.deltaRemaining)
-              : (swapData.deltaNext > swapData.deltaRemaining)
-          )
-          : (
-            (isToken0)
-              ? (swapData.deltaNext <= swapData.deltaRemaining)
-              : (swapData.deltaNext < swapData.deltaRemaining)
-          )
-      ) {
-        (swapData.actualDelta, swapData.lc, swapData.sqrtPc) = SwapMath.calcSwapInTick(
-          SwapMath.SwapParams({
-            deltaRemaining: swapData.deltaRemaining,
-            actualDelta: swapData.actualDelta,
-            lpPluslf: swapData.lp + swapData.lf,
-            lc: swapData.lc,
-            sqrtPc: swapData.sqrtPc,
-            sqrtPn: swapData.sqrtPn,
-            swapFeeBps: swapFeeBps,
-            isExactInput: isExactInput,
-            isToken0: isToken0,
-            calcFinalPrice: true
-          })
-        );
+      // swap cross next tick
+      if (swapData.sqrtPc == step.nextSqrtP) {
+        if (step.initialized) {
+          if (swapData.rTotalSupplyInitial == 0) {
+            swapData.lfLast = poolReinvestmentLiquidityLast;
+            swapData.feeGrowthGlobal = poolFeeGrowthGlobal;
+            swapData.rTotalSupplyInitial = reinvestmentToken.totalSupply();
+            swapData.rTotalSupply = swapData.rTotalSupplyInitial;
+          }
 
-        // set deltaRemaining to 0 to exit loop
-        swapData.deltaRemaining = 0;
-        // set current tick to new value
-        swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
-      } else {
-        // notice that swapData.sqrtPn isn't updated
-        // and is kept as the sqrtPrice of the updated current tick
-        (swapData.actualDelta, swapData.lc, ) = SwapMath.calcSwapInTick(
-          SwapMath.SwapParams({
-            deltaRemaining: swapData.deltaNext,
-            actualDelta: swapData.actualDelta,
-            lpPluslf: swapData.lp + swapData.lf,
-            lc: swapData.lc,
-            sqrtPc: swapData.sqrtPc,
-            sqrtPn: swapData.sqrtPn,
-            swapFeeBps: swapFeeBps,
-            isExactInput: isExactInput,
-            isToken0: isToken0,
-            calcFinalPrice: false
-          })
-        );
+          // update rTotalSupply, feeGrowthGlobal and lf
+          uint256 rMint = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+            swapData.lf,
+            swapData.lfLast,
+            swapData.lp,
+            swapData.rTotalSupply
+          );
+          if (rMint != 0) {
+            swapData.rTotalSupply += rMint;
+            swapData.feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
+              rMint,
+              swapData.lp
+            );
+          }
+          swapData.lfLast = swapData.lf;
 
-        // reduce deltaRemaining by deltaNext
-        swapData.deltaRemaining -= swapData.deltaNext;
-        // update currentSqrtPrice
-        swapData.sqrtPc = swapData.sqrtPn;
-        // init rTotalSupply, rTotalSupplyInitial and feeGrowthGlobal if uninitialized
-        if (swapData.rTotalSupply == 0) {
-          swapData.feeGrowthGlobal = poolFeeGrowthGlobal;
-          swapData.rTotalSupplyInitial = reinvestmentToken.totalSupply();
-          swapData.rTotalSupply = swapData.rTotalSupplyInitial;
-        }
-        // update rTotalSupply, feeGrowthGlobal and lf
-        (swapData.rTotalSupply, swapData.feeGrowthGlobal, swapData.lf) = ReinvestmentMath
-        .updateReinvestments(
-          swapData.lp,
-          swapData.lf,
-          swapData.lc,
-          swapData.rTotalSupply,
-          swapData.feeGrowthGlobal
-        );
-        // cross ticks if it's initialized
-        if (swapData.initialized) {
-          int128 liquidityNet = ticks.crossToTick(swapData.nextTick, swapData.feeGrowthGlobal);
+          int128 liquidityNet = ticks.crossToTick(step.nextTick, swapData.feeGrowthGlobal);
           // need to switch signs for decreasing tick
           if (!willUpTick) liquidityNet = -liquidityNet;
           swapData.lp = LiqDeltaMath.addLiquidityDelta(swapData.lp, liquidityNet);
         }
-        // if tick moves down, need to decrease by 1
-        swapData.currentTick = (willUpTick) ? swapData.nextTick : swapData.nextTick - 1;
+        swapData.currentTick = (willUpTick) ? step.nextTick : step.nextTick - 1;
+      } else {
+        swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
       }
     }
 
-    // update pool variables
-    poolSqrtPrice = swapData.sqrtPc;
-    poolReinvestmentLiquidity = swapData.lf + swapData.lc;
-    poolTick = swapData.currentTick;
-    collectedGovernmentFee += swapData.governmentFee;
     // calculate and mint reinvestment tokens if necessary
-    if (swapData.rTotalSupply != 0) {
-      // update rTotalSupply, feeGrowthGlobal and lf
-      (swapData.rTotalSupply, swapData.feeGrowthGlobal, swapData.lf) = ReinvestmentMath
-      .updateReinvestments(
-        swapData.lp,
-        swapData.lf,
-        swapData.lc,
-        swapData.rTotalSupply,
-        swapData.feeGrowthGlobal
-      );
-      reinvestmentToken.mint(address(this), swapData.rTotalSupply - swapData.rTotalSupplyInitial);
+    if (swapData.rTotalSupplyInitial != 0) {
+      if (swapData.rTotalSupply > swapData.rTotalSupplyInitial) {
+        unchecked {
+          reinvestmentToken.mint(
+            address(this),
+            swapData.rTotalSupply - swapData.rTotalSupplyInitial
+          );
+        }
+      }
+      poolReinvestmentLiquidityLast = swapData.lfLast;
       poolFeeGrowthGlobal = swapData.feeGrowthGlobal;
-      poolLiquidity = swapData.lp;
-      poolReinvestmentLiquidityLast = swapData.lf;
     }
+
+    // update pool variables
+    poolLiquidity = swapData.lp;
+    poolTick = swapData.currentTick;
+    poolSqrtPrice = swapData.sqrtPc;
+    poolReinvestmentLiquidity = swapData.lf;
 
     (deltaQty0, deltaQty1) = isToken0
       ? (swapQty - swapData.deltaRemaining, swapData.actualDelta)

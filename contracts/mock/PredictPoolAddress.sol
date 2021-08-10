@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.6;
+pragma solidity 0.8.4;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.6;
+pragma solidity 0.8.4;
 
 import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
@@ -21,7 +21,7 @@ contract ProAMMFactory is IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   mapping(uint16 => int24) public override feeAmountTickSpacing;
   /// @inheritdoc IProAMMFactory
-  mapping(IERC20 => mapping(IERC20 => mapping(uint16 => address))) public override getPool;
+  mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
   constructor(address _reinvestmentTokenMaster, address _poolMaster) {
     feeToSetter = msg.sender;
@@ -37,18 +37,18 @@ contract ProAMMFactory is IProAMMFactory {
 
   /// @inheritdoc IProAMMFactory
   function createPool(
-    IERC20 tokenA,
-    IERC20 tokenB,
+    address tokenA,
+    address tokenB,
     uint16 swapFeeBps
   ) external override returns (address pool) {
     require(tokenA != tokenB, 'identical tokens');
-    (IERC20 token0, IERC20 token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-    require(token0 != IERC20(address(0)), 'null address');
+    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+    require(token0 != address(0), 'null address');
     int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
     pool = poolMaster.cloneDeterministic(keccak256(abi.encode(token0, token1, swapFeeBps)));
-    IProAMMPoolActions(pool).initialize(address(this), token0, token1, swapFeeBps, tickSpacing);
+    IProAMMPoolActions(pool).initialize(address(this), IERC20(token0), IERC20(token1), swapFeeBps, tickSpacing);
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
     getPool[token1][token0][swapFeeBps] = pool;
