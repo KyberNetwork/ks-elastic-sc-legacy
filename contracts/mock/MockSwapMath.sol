@@ -11,7 +11,7 @@ contract MockSwapMath {
     uint16 feeInBps,
     bool isExactInput,
     bool isToken0
-  ) external view returns (int256) {
+  ) external pure returns (int256) {
     return SwapMath.calcDeltaNext(lpPluslf, sqrtPc, sqrtPn, feeInBps, isExactInput, isToken0);
   }
 
@@ -20,9 +20,10 @@ contract MockSwapMath {
     uint256 lpPluslf,
     uint256 lc,
     uint160 sqrtPc,
+    bool isExactInput,
     bool isToken0
   ) external pure returns (uint256) {
-    return SwapMath.calcFinalPrice(absDelta, lpPluslf, lc, sqrtPc, isToken0);
+    return SwapMath.calcFinalPrice(absDelta, lpPluslf, lc, sqrtPc, isExactInput, isToken0);
   }
 
   function calcSwapFeeAmounts(

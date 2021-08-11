@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BN, PRECISION, ZERO_ADDRESS, BPS_PLUS_ONE, ZERO, ONE, BPS} from './helpers/helper';
 import chai from 'chai';
-const {solidity} = waffle;
+const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
 import {
@@ -14,12 +14,8 @@ import {
   PredictPoolAddress,
 } from '../typechain';
 import {deployFactory, deployProAMMPoolMaster, deployReinvestmentTokenMaster} from './helpers/proAMMSetup';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
 
 let Token: MockToken__factory;
-let admin;
-let operator;
-let feeToSetter;
 let factory: ProAMMFactory;
 let poolAddressPredictor: PredictPoolAddress;
 let reinvestmentMaster: ReinvestmentTokenMaster;
@@ -34,7 +30,7 @@ let snapshotId: any;
 describe('ProAMMFactory', () => {
   const [operator, admin, feeToSetter] = waffle.provider.getWallets();
 
-  before('setup', async () => {
+  async function fixture() {
     let poolAddressPredictorFactory = await ethers.getContractFactory('PredictPoolAddress');
     poolAddressPredictor = (await poolAddressPredictorFactory.deploy()) as PredictPoolAddress;
     reinvestmentMaster = await deployReinvestmentTokenMaster(ethers);
@@ -42,14 +38,12 @@ describe('ProAMMFactory', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    factory = await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address);
-    snapshotId = await snapshot();
-  });
+    return (await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address));
+  }
 
   describe('#factory deployment and pool creation', async () => {
-    beforeEach('revert to snapshot', async () => {
-      await revertToSnapshot(snapshotId);
-      snapshotId = await snapshot();
+    beforeEach('load fixture', async () => {
+      factory = await loadFixture(fixture);
       swapFeeBps = 5;
       tickSpacing = 10;
     });
@@ -65,7 +59,7 @@ describe('ProAMMFactory', () => {
       expect(result._governmentFeeBps).to.eql(0);
     });
 
-    it.skip('should be able to deploy a pool', async () => {
+    it('should be able to deploy a pool', async () => {
       let expectedPoolAddress = await poolAddressPredictor.predictPoolAddress(
         factory.address,
         poolMaster.address,
@@ -73,7 +67,7 @@ describe('ProAMMFactory', () => {
         tokenB.address,
         swapFeeBps
       );
-      let token0Address = tokenA.address < tokenB.address ? tokenA.address : tokenB.address;
+      let token0Address = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA.address : tokenB.address;
       let token1Address = token0Address == tokenA.address ? tokenB.address : tokenA.address;
       await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
         .to.emit(factory, 'PoolCreated')
@@ -130,21 +124,26 @@ describe('ProAMMFactory', () => {
 
     describe('#updateFeeToSetter', async () => {
       it('should revert if msg.sender != feeToSetter', async () => {
-        await expect(factory.connect(operator).updateFeeToSetter(operator.address)).to.be.revertedWith('forbidden');
+        await expect(factory.connect(operator).updateFeeToSetter(feeToSetter.address)).to.be.revertedWith('forbidden');
       });
 
       it('should correctly update feeToSetter and emit event', async () => {
-        await expect(factory.connect(admin).updateFeeToSetter(operator.address))
+        await expect(factory.connect(admin).updateFeeToSetter(feeToSetter.address))
           .to.emit(factory, 'FeeToSetterUpdated')
-          .withArgs(admin.address, operator.address);
+          .withArgs(admin.address, feeToSetter.address);
 
-        expect(await factory.feeToSetter()).to.eql(operator.address);
+        expect(await factory.feeToSetter()).to.eql(feeToSetter.address);
         // admin should not be able to update configurations
-        await expect(factory.connect(admin).updateFeeToSetter(operator.address)).to.be.revertedWith('forbidden');
+        await expect(factory.connect(admin).updateFeeToSetter(feeToSetter.address)).to.be.revertedWith('forbidden');
         await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing)).to.be.revertedWith('forbidden');
         await expect(factory.connect(admin).setFeeConfiguration(admin.address, swapFeeBps)).to.be.revertedWith(
           'forbidden'
         );
+        // feeToSetter should be able to update
+        swapFeeBps = 20;
+        tickSpacing = 100;
+        await factory.connect(feeToSetter).enableSwapFee(swapFeeBps, tickSpacing);
+        await factory.connect(feeToSetter).setFeeConfiguration(admin.address, swapFeeBps);
       });
     });
 

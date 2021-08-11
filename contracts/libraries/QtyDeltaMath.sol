@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 import {MathConstants} from './MathConstants.sol';
+import {TickMath} from './TickMath.sol';
 import {FullMath} from './FullMath.sol';
 import {SafeCast} from './SafeCast.sol';
 
@@ -11,6 +12,15 @@ import {SafeCast} from './SafeCast.sol';
 library QtyDeltaMath {
   using SafeCast for uint256;
   using SafeCast for int128;
+
+  function getQtysForInitialLockup(uint160 initialSqrtPrice)
+    internal
+    pure
+    returns (uint256 qty0, uint256 qty1)
+  {
+    qty0 = getQty0Delta(TickMath.MIN_SQRT_RATIO, initialSqrtPrice, MathConstants.MIN_LIQUIDITY, false);
+    qty1 = getQty1Delta(initialSqrtPrice, TickMath.MAX_SQRT_RATIO, MathConstants.MIN_LIQUIDITY, false);
+  }
 
   /// @notice Gets the qty0 delta between two prices
   /// @dev Calculates liquidity / sqrt(lower) - liquidity / sqrt(upper),
@@ -72,11 +82,10 @@ library QtyDeltaMath {
     uint160 sqrtPriceB,
     int128 liquidity
   ) internal pure returns (int256) {
-    if (liquidity < 0) {
-      return getQty0Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256();
-    } else {
-      return getQty0Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
-    }
+    return
+      (liquidity < 0)
+        ? getQty0Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256()
+        : getQty0Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
   }
 
   /// @notice Helper that gets signed token1 delta
@@ -89,11 +98,10 @@ library QtyDeltaMath {
     uint160 sqrtPriceB,
     int128 liquidity
   ) internal pure returns (int256) {
-    if (liquidity < 0) {
-      return getQty1Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256();
-    } else {
-      return getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
-    }
+    return
+      liquidity < 0
+        ? getQty1Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256()
+        : getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
   }
 
   /// @notice Calculates the token0 quantity proportion to be sent to the user

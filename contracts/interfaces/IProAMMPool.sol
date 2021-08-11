@@ -44,6 +44,7 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
   /// @notice Fetches the pool's current price, tick and liquidity
   /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)
   /// @return poolTick pool's current tick
+  /// @return locked true if pool is locked, false otherwise
   /// @return poolLiquidity pool's current liquidity that is in range
   function getPoolState()
     external
@@ -51,6 +52,7 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
     returns (
       uint160 poolSqrtPrice,
       int24 poolTick,
+      bool locked,
       uint128 poolLiquidity
     );
 
@@ -73,9 +75,9 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
 
   /// @notice Look up information about a specific tick in the pool
   /// @param tick The tick to look up
-  /// @return liquidityGross the total amount of position liquidity that uses the pool either as tick lower or
-  /// tick upper,
-  /// liquidityNet how much liquidity changes when the pool price crosses the tick,
+  /// @return liquidityGross the total amount of position liquidity 
+  /// that uses the pool either as tick lower or tick upper
+  /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
   /// feeGrowthOutside the fee growth on the other side of the tick from the current tick
   /// initialized True iff liquidityGross is greater than 0, otherwise equal to false.
   function ticks(int24 tick)

@@ -31,6 +31,7 @@ library ReinvestmentMath {
   }
 
   function calcFeeGrowthIncrement(uint256 rMintQty, uint128 lp) internal pure returns (uint256) {
+    if (lp == 0) return 0;
     return FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
   }
 

@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "yarn hardhat test --no-compile",
+    "test": "TS_NODE_TRANSPILE_ONLY=1 yarn hardhat test --no-compile",
     "t": "./test.sh",
     "compile": "yarn hardhat compile",
     "c": "printf 'yes' | yarn hardhat compile",
@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "dotenv": "8.2.0",
-    "solc": "0.8.6",
+    "solc": "0.8.4",
     "solhint": "3.3.2"
   },
   "devDependencies": {

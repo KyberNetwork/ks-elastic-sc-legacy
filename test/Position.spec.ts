@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {ZERO, ONE, TWO, TWO_POW_96, PRECISION, MAX_INT_128, MAX_UINT} from './helpers/helper';
 import chai from 'chai';
-const {solidity} = waffle;
+const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
 import {MockPosition__factory, MockPosition} from '../typechain';
@@ -19,15 +19,13 @@ let snapshotId: any;
 describe('Position', () => {
   [user] = waffle.provider.getWallets();
 
-  before('position setup', async () => {
-    let PositionFactory = (await ethers.getContractFactory('MockPosition')) as MockPosition__factory;
-    position = (await PositionFactory.deploy()) as MockPosition;
-    snapshotId = await snapshot();
-  });
+  async function fixture() {
+    const PositionFactory = (await ethers.getContractFactory('MockPosition')) as MockPosition__factory;
+    return (await PositionFactory.deploy()) as MockPosition;
+  }
 
-  beforeEach('revert to snapshot', async () => {
-    await revertToSnapshot(snapshotId);
-    snapshotId = await snapshot();
+  beforeEach('position setup', async () => {
+    position = await loadFixture(fixture);
   });
 
   describe('test updating position', async () => {
