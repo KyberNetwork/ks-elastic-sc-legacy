@@ -13,8 +13,8 @@ interface IProAMMFactory {
   /// @param tickSpacing Minimum number of ticks between initialized ticks
   /// @param pool The address of the created pool
   event PoolCreated(
-    IERC20 indexed token0,
-    IERC20 indexed token1,
+    address indexed token0,
+    address indexed token1,
     uint16 indexed swapFeeBps,
     int24 tickSpacing,
     address pool
@@ -62,8 +62,8 @@ interface IProAMMFactory {
   /// @param swapFeeBps Fee to be collected upon every swap in the pool, in basis points
   /// @return pool The pool address. Returns null address if it does not exist
   function getPool(
-    IERC20 tokenA,
-    IERC20 tokenB,
+    address tokenA,
+    address tokenB,
     uint16 swapFeeBps
   ) external view returns (address pool);
 
@@ -78,8 +78,8 @@ interface IProAMMFactory {
   ///     3) invalid token arguments
   /// @return pool The address of the newly created pool
   function createPool(
-    IERC20 tokenA,
-    IERC20 tokenB,
+    address tokenA,
+    address tokenB,
     uint16 swapFeeBps
   ) external returns (address pool);
 

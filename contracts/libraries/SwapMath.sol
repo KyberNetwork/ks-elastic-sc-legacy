@@ -10,6 +10,49 @@ library SwapMath {
   using SafeCast for uint256;
   using SafeCast for int256;
 
+  function computeSwapStep(
+    uint256 liquidity,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
+    uint16 feeInBps,
+    int256 amountRemaining,
+    bool isExactInput
+  )
+    internal
+    pure
+    returns (
+      int256 delta,
+      int256 actualDelta,
+      uint256 fee,
+      uint160 nextSqrtP
+    )
+  {
+    // if isExactInput, isToken0 == !willUpTick else isToken0 = willUpTick;
+    bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
+
+    delta = calcDeltaNext(liquidity, currentSqrtP, targetSqrtP, feeInBps, isExactInput, isToken0);
+
+    if (isExactInput) {
+      if (delta >= amountRemaining) {
+        delta = amountRemaining;
+      } else {
+        nextSqrtP = targetSqrtP;
+      }
+    } else {
+      if (delta <= amountRemaining) {
+        delta = amountRemaining;
+      } else {
+        nextSqrtP = targetSqrtP;
+      }
+    }
+    uint256 absDelta = delta >= 0 ? uint256(delta) : delta.revToUint256();
+    fee = calcSwapFeeAmounts(absDelta, currentSqrtP, feeInBps, isExactInput, isToken0);
+    if (nextSqrtP == 0) {
+      nextSqrtP = calcFinalPrice(absDelta, liquidity, fee, currentSqrtP, isExactInput, isToken0);
+    }
+    actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
+  }
+
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
   // from sqrtPc (price of current tick)
   function calcDeltaNext(
@@ -53,71 +96,6 @@ library SwapMath {
     if (!isExactInput) deltaNext = -deltaNext;
   }
 
-  struct SwapParams {
-    // if won't cross tick, deltaRemaining;
-    // else, deltaNext (delta qty needed to cross next tick)
-    int256 deltaRemaining;
-    int256 actualDelta;
-    uint256 lpPluslf;
-    uint256 lc;
-    uint160 sqrtPc;
-    uint160 sqrtPn;
-    uint16 swapFeeBps;
-    bool isExactInput;
-    bool isToken0;
-    // true if needed to calculate final sqrt price, false otherwise
-    bool calcFinalPrice;
-  }
-
-  // calculates actual delta and fee amounts (lc and governmentFee)
-  // in addition, will return non-zero sqrtPn if calcFinalPrice is true
-  function calcSwapInTick(SwapParams memory swapParams)
-    internal
-    pure
-    returns (
-      int256 actualDelta,
-      uint256 lc,
-      uint160 sqrtPn
-    )
-  {
-    uint256 absDelta = swapParams.deltaRemaining >= 0
-      ? uint256(swapParams.deltaRemaining)
-      : swapParams.deltaRemaining.revToUint256();
-    // calculate fee amounts
-    swapParams.lc = calcSwapFeeAmounts(
-      absDelta,
-      swapParams.sqrtPc,
-      swapParams.swapFeeBps,
-      swapParams.isExactInput,
-      swapParams.isToken0
-    );
-
-    if (swapParams.calcFinalPrice) {
-      // calculate final sqrt price
-      swapParams.sqrtPn = calcFinalPrice(
-        absDelta,
-        swapParams.lpPluslf,
-        swapParams.lc,
-        swapParams.sqrtPc,
-        swapParams.isExactInput,
-        swapParams.isToken0
-      );
-    }
-    // calculate actualDelta
-    actualDelta =
-      swapParams.actualDelta +
-      calcActualDelta(
-        swapParams.lpPluslf,
-        swapParams.sqrtPc,
-        swapParams.sqrtPn,
-        swapParams.lc,
-        swapParams.isExactInput,
-        swapParams.isToken0
-      );
-
-    return (actualDelta, swapParams.lc, swapParams.sqrtPn);
-  }
-
   function calcSwapFeeAmounts(
     uint256 absDelta,
     uint160 sqrtPc,
@@ -155,11 +133,13 @@ library SwapMath {
     if (isToken0) {
       numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
-      sqrtPn = (FullMath.mulDivFloor(
-        numerator,
-        MathConstants.TWO_POW_96,
-        isExactInput ? lpPluslf + denominator : lpPluslf - denominator
-      ))
+      sqrtPn = (
+        FullMath.mulDivFloor(
+          numerator,
+          MathConstants.TWO_POW_96,
+          isExactInput ? lpPluslf + denominator : lpPluslf - denominator
+        )
+      )
       .toUint160();
     } else {
       numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
