@@ -155,7 +155,7 @@ library SwapMath {
       uint256 c = liquidity * feeInBps * absDelta;
       if (isToken0) {
         // solving fee * lc^2 - 2 * [(1 - fee) * liquidity - absDelta * sqrtPc] * lc + liquidity * fee * absDelta * sqrtPc = 0
-        // multiply both sides by BPS to avoid the 'a' variable becoming 0
+        // multiply both sides by BPS to avoid the 'a' coefficient becoming 0
         // a = feeInBps
         // b = 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc]
         // c = liquidity * feeInBps * absDelta * sqrtPc

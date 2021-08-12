@@ -35,7 +35,7 @@ library ReinvestmentMath {
     return FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
   }
 
-  function calcrMintQtyInLiquidityDelta(
+  function calcrMintQty(
     uint256 lf,
     uint256 lfLast,
     uint128 lp,

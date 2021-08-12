@@ -267,7 +267,7 @@ contract ProAMMPool is IProAMMPool {
 
     // local scope rMintQty - for mint reinvestment tokens if necessary
     {
-      uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+      uint256 rMintQty = ReinvestmentMath.calcrMintQty(
         lf,
         lfLast,
         lp,
@@ -398,7 +398,7 @@ contract ProAMMPool is IProAMMPool {
     uint160 pc = poolSqrtPrice;
     uint256 rTotalSupply = reinvestmentToken.totalSupply();
     // calculate rMintQty
-    uint256 rMintQty = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+    uint256 rMintQty = ReinvestmentMath.calcrMintQty(
       lf,
       poolReinvestmentLiquidityLast,
       lp,
@@ -534,8 +534,6 @@ contract ProAMMPool is IProAMMPool {
       swapData.actualDelta += step.actualDelta;
       swapData.lf += step.lc;
 
-      // TODO: R&D into finding another solution
-      // which consumes less gas, or be able to relax the equality
       // swap cross next tick
       if (swapData.sqrtPc == step.nextSqrtP) {
         if (step.initialized) {
@@ -547,7 +545,7 @@ contract ProAMMPool is IProAMMPool {
           }
 
           // update rTotalSupply, feeGrowthGlobal and lf
-          uint256 rMint = ReinvestmentMath.calcrMintQtyInLiquidityDelta(
+          uint256 rMint = ReinvestmentMath.calcrMintQty(
             swapData.lf,
             swapData.lfLast,
             swapData.lp,
