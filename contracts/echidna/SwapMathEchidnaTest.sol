@@ -2,17 +2,22 @@
 pragma solidity ^0.8.0;
 
 import '../libraries/SwapMath.sol';
+import '../libraries/TickMath.sol';
 import './EchidnaAssert.sol';
 
-/// @dev this contract must be compiled by sol 7 because echidna is not compatible with sol 8
 contract SwapMathEchidnaTest is EchidnaAssert {
   function checkCalcDeltaNextInvariants(
-    uint256 liquidity,
+    uint128 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint8 feeInBps
   ) external {
     bool isToken0 = currentSqrtP > targetSqrtP;
+    if (isToken0) {
+      require(currentSqrtP * 95 < targetSqrtP * 100);
+    } else {
+      require(currentSqrtP * 100 > targetSqrtP * 95);
+    }
     int256 deltaNext = SwapMath.calcDeltaNext(
       liquidity,
       currentSqrtP,
@@ -35,9 +40,20 @@ contract SwapMathEchidnaTest is EchidnaAssert {
       isToken0
     );
     if (isToken0) {
-      isTrue(nextSqrtP > targetSqrtP);
+      isTrue(nextSqrtP >= targetSqrtP);
     } else {
-      isTrue(nextSqrtP < targetSqrtP);
+      if (nextSqrtP > targetSqrtP) {
+        int256 revDelta = SwapMath.calcActualDelta(
+          liquidity,
+          currentSqrtP,
+          targetSqrtP,
+          fee,
+          false,
+          true
+        );
+        isTrue(revDelta > 0);
+        isTrue(absDelta >= uint256(revDelta));
+      }
     }
   }
 }

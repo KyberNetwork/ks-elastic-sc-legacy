@@ -49,6 +49,10 @@ library SwapMath {
     fee = calcSwapFeeAmounts(absDelta, currentSqrtP, feeInBps, isExactInput, isToken0);
     if (nextSqrtP == 0) {
       nextSqrtP = calcFinalPrice(absDelta, liquidity, fee, currentSqrtP, isExactInput, isToken0);
+      // special case when nextSqrtP > targetSqrtP > currentSqrtP due to rounding problems
+      if (!isToken0 && isExactInput && nextSqrtP > targetSqrtP) {
+        nextSqrtP = targetSqrtP;
+      }
     }
     actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
   }
@@ -76,22 +80,36 @@ library SwapMath {
       // denominator (exact input): calculate 2 * sqrtPn - feeInBps * sqrtPc / BPS
       // denominator (exact output): calculate 2 * sqrtPn - feeInBps * BPS * sqrtPc / (BPS * (BPS - feeInBps))
       // which is simplified to 2 * sqrtPn - feeInBps * sqrtPc / (BPS - feeInBps)
-      denominator = sqrtPc * feeInBps;
-      denominator =
-        denominator /
-        (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = 2 * sqrtPn - denominator;
-      denominator = FullMath.mulDivCeiling(sqrtPc, denominator, MathConstants.TWO_POW_96);
-      deltaNext = FullMath
-      .mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator)
-      .toInt256();
+      if (isExactInput) {
+        denominator = 2 * sqrtPn * MathConstants.BPS - feeInBps * sqrtPc;
+        uint256 tmp = FullMath.mulDivFloor(
+          2 * lpPluslf,
+          (sqrtPc - sqrtPn) * MathConstants.BPS,
+          denominator
+        );
+        deltaNext = FullMath.mulDivFloor(tmp, MathConstants.TWO_POW_96, sqrtPc).toInt256();
+      } else {
+        denominator = (sqrtPc * feeInBps) / (MathConstants.BPS - feeInBps);
+        denominator = 2 * sqrtPn - denominator;
+        denominator = FullMath.mulDivCeiling(sqrtPc, denominator, MathConstants.TWO_POW_96);
+        deltaNext = FullMath
+        .mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator)
+        .toInt256();
+      }
     } else {
-      denominator = feeInBps * sqrtPn;
-      denominator =
-        denominator /
-        (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = (2 * sqrtPc - denominator);
-      deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
+      if (isExactInput) {
+        denominator = 2 * sqrtPc * MathConstants.BPS - feeInBps * sqrtPn;
+        uint256 tmp = FullMath.mulDivFloor(
+          2 * lpPluslf,
+          (sqrtPn - sqrtPc) * MathConstants.BPS,
+          MathConstants.TWO_POW_96
+        );
+        deltaNext = FullMath.mulDivFloor(tmp, sqrtPc, denominator).toInt256();
+      } else {
+        denominator = (feeInBps * sqrtPn) / (MathConstants.BPS - feeInBps);
+        denominator = (2 * sqrtPc - denominator);
+        deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
+      }
     }
     if (!isExactInput) deltaNext = -deltaNext;
   }
@@ -129,23 +147,21 @@ library SwapMath {
     bool isExactInput,
     bool isToken0
   ) internal pure returns (uint160 sqrtPn) {
-    uint256 numerator;
     if (isToken0) {
-      numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
-      uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
+      // round Up
+      uint256 denominator = FullMath.mulDivFloor(absDelta, sqrtPc, MathConstants.TWO_POW_96);
       sqrtPn = (
-        FullMath.mulDivFloor(
-          numerator,
-          MathConstants.TWO_POW_96,
+        FullMath.mulDivCeiling(
+          lpPluslf + lc,
+          sqrtPc,
           isExactInput ? lpPluslf + denominator : lpPluslf - denominator
         )
       )
       .toUint160();
     } else {
-      numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
-      numerator = isExactInput ? numerator + absDelta : numerator - absDelta;
-      sqrtPn = FullMath
-      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
+      // round down
+      sqrtPn = (FullMath.mulDivFloor(lpPluslf, sqrtPc, lpPluslf + lc) +
+        FullMath.mulDivFloor(absDelta, MathConstants.TWO_POW_96, lpPluslf + lc))
       .toUint160();
     }
   }
