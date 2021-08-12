@@ -919,14 +919,14 @@ describe('ProAMMPool', () => {
     });
   });
 
-  describe.skip('test swap', async () => {
+  describe('test swap', async () => {
     beforeEach('unlock pool with initial price of 2:1', async () => {
       initialPrice = encodePriceSqrt(TWO, ONE);
       await callback.unlockPool(pool.address, initialPrice, '0x');
       nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
     });
 
-    it('tests exactInput', async () => {
+    it('tests token0 exactInput (move down tick)', async () => {
       tickLower = nearestTickToPrice - 500 * tickSpacing;
       tickUpper = nearestTickToPrice + 2 * tickSpacing;
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
@@ -944,11 +944,11 @@ describe('ProAMMPool', () => {
       console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
       console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
       console.log(`=== BALANCE CHANGES ===`);
-      console.log(`actual token0 input: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`actual token1 output: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
+      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
     });
 
-    it('tests exactOutput', async () => {
+    it('tests token1 exactOutput (move down tick)', async () => {
       tickLower = nearestTickToPrice - 500 * tickSpacing;
       tickUpper = nearestTickToPrice + 2 * tickSpacing;
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
@@ -973,8 +973,59 @@ describe('ProAMMPool', () => {
       console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
       console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
       console.log(`=== BALANCE CHANGES ===`);
-      console.log(`actual token0 input: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`actual token1 output: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
+      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+    });
+
+    it('tests token1 exactInput (move up tick)', async () => {
+      tickLower = nearestTickToPrice - 2 * tickSpacing;
+      tickUpper = nearestTickToPrice + 500 * tickSpacing;
+      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+      let token0BalanceBefore = await token0.balanceOf(user.address);
+      let token1BalanceBefore = await token1.balanceOf(user.address);
+      console.log(`=== BEFORE SWAP ===`);
+      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
+      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
+      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO.sub(ONE), '0x');
+      let token0BalanceAfter = await token0.balanceOf(user.address);
+      let token1BalanceAfter = await token1.balanceOf(user.address);
+      console.log(`=== AFTER SWAP ===`);
+      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
+      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
+      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      console.log(`=== BALANCE CHANGES ===`);
+      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
+      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+    });
+
+    it('tests token0 exactOutput (move up tick)', async () => {
+      tickLower = nearestTickToPrice - 2 * tickSpacing;
+      tickUpper = nearestTickToPrice + 500 * tickSpacing;
+      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+      let token0BalanceBefore = await token0.balanceOf(user.address);
+      let token1BalanceBefore = await token1.balanceOf(user.address);
+      console.log(`=== BEFORE SWAP ===`);
+      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
+      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
+      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await callback.swap(
+        pool.address,
+        user.address,
+        BN.from('-466751634178795577'),
+        true,
+        MAX_SQRT_RATIO.sub(ONE),
+        '0x'
+      );
+      let token0BalanceAfter = await token0.balanceOf(user.address);
+      let token1BalanceAfter = await token1.balanceOf(user.address);
+      console.log(`=== AFTER SWAP ===`);
+      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
+      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
+      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      console.log(`=== BALANCE CHANGES ===`);
+      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
+      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
     });
   });
 });

@@ -428,6 +428,12 @@ contract ProAMMPool is IProAMMPool {
 
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
+    // true if exact input is specified, false otherwise
+    bool isExactInput;
+    // true if tick (token1Amt/token0Amt) will increase due to swap, false otherwise
+    // in other words, true when token0ExactOutput or token1ExactInput is specified
+    // false when token0ExactInput or token1ExactOutput is specified
+    bool willUpTick;
     // the quantity remaining to be swapped in/out of the input/output asset
     int256 deltaRemaining;
     // the quantity already swapped out/in of the output/input asset
@@ -464,8 +470,7 @@ contract ProAMMPool is IProAMMPool {
   }
 
   // see IProAMMPoolActions
-  // for specified exact output, swaps will execute up to sqrtPriceLimit,
-  // even if target swapQty is not reached
+  // swaps will execute up to sqrtPriceLimit, even if target swapQty is not reached
   function swap(
     address recipient,
     int256 swapQty,
@@ -474,29 +479,23 @@ contract ProAMMPool is IProAMMPool {
     bytes calldata data
   ) external override lock returns (int256 deltaQty0, int256 deltaQty1) {
     require(swapQty != 0, '0 swapQty');
-    bool isExactInput = swapQty > 0;
+    SwapData memory swapData;
+    swapData.isExactInput = swapQty > 0;
     // tick (token1Amt/token0Amt) will increase for token0Output or token1Input
-    bool willUpTick = (!isExactInput && isToken0) || (isExactInput && !isToken0);
+    swapData.willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
     require(
-      willUpTick
+      swapData.willUpTick
         ? (sqrtPriceLimit > poolSqrtPrice && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO)
         : (sqrtPriceLimit < poolSqrtPrice && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO),
       'bad sqrtPriceLimit'
     );
 
-    SwapData memory swapData = SwapData({
-      deltaRemaining: swapQty,
-      actualDelta: 0,
-      sqrtPc: poolSqrtPrice,
-      currentTick: poolTick,
-      feeGrowthGlobal: 0,
-      governmentFee: 0,
-      lp: poolLiquidity,
-      lf: poolReinvestmentLiquidity,
-      lfLast: 0,
-      rTotalSupply: 0,
-      rTotalSupplyInitial: 0
-    });
+    // initialize other params of swapData
+    swapData.deltaRemaining = swapQty;
+    swapData.sqrtPc = poolSqrtPrice;
+    swapData.currentTick = poolTick;
+    swapData.lp = poolLiquidity;
+    swapData.lf = poolReinvestmentLiquidity;
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
@@ -504,7 +503,7 @@ contract ProAMMPool is IProAMMPool {
       (step.nextTick, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
         swapData.currentTick,
         tickSpacing,
-        willUpTick
+        swapData.willUpTick
       );
 
       // ensure that next tick does not exceed min / max tick
@@ -518,7 +517,7 @@ contract ProAMMPool is IProAMMPool {
       step.nextSqrtP = TickMath.getSqrtRatioAtTick(step.nextTick);
       step.targetSqrtP = step.nextSqrtP;
       // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-      if (willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
+      if (swapData.willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
         step.targetSqrtP = sqrtPriceLimit;
       }
 
@@ -528,7 +527,8 @@ contract ProAMMPool is IProAMMPool {
         step.targetSqrtP,
         swapFeeBps,
         swapData.deltaRemaining,
-        isExactInput
+        swapData.isExactInput,
+        isToken0
       );
       swapData.deltaRemaining -= step.deltaNext;
       swapData.actualDelta += step.actualDelta;
@@ -564,10 +564,10 @@ contract ProAMMPool is IProAMMPool {
 
           int128 liquidityNet = ticks.crossToTick(step.nextTick, swapData.feeGrowthGlobal);
           // need to switch signs for decreasing tick
-          if (!willUpTick) liquidityNet = -liquidityNet;
+          if (!swapData.willUpTick) liquidityNet = -liquidityNet;
           swapData.lp = LiqDeltaMath.addLiquidityDelta(swapData.lp, liquidityNet);
         }
-        swapData.currentTick = (willUpTick) ? step.nextTick : step.nextTick - 1;
+        swapData.currentTick = (swapData.willUpTick) ? step.nextTick : step.nextTick - 1;
       } else {
         swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
       }
@@ -598,7 +598,7 @@ contract ProAMMPool is IProAMMPool {
       : (swapData.actualDelta, swapQty - swapData.deltaRemaining);
 
     // handle token transfers, make and callback
-    if (willUpTick) {
+    if (swapData.willUpTick) {
       // outbound deltaQty0 (negative), inbound deltaQty1 (positive)
       // transfer deltaQty0 to recipient
       if (deltaQty0 < 0) token0.safeTransfer(recipient, deltaQty0.revToUint256());
