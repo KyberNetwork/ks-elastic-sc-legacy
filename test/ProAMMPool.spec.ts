@@ -318,6 +318,14 @@ describe('ProAMMPool', () => {
             expect(await token1.balanceOf(pool.address)).to.be.eql(poolBalToken1);
           });
 
+          it('should take larger token0 qty for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token0Taken = (await token0.balanceOf(pool.address)).sub(poolBalToken0);
+            poolBalToken0 = await token0.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
+          });
+
           it('should mint for extreme max position', async () => {
             let maxLiquidityGross = await pool.maxLiquidityPerTick();
             await callback.mint(
@@ -448,6 +456,17 @@ describe('ProAMMPool', () => {
               .to.emit(token1, 'Transfer');
             expect(await token0.balanceOf(pool.address)).to.be.gt(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
+          });
+
+          it('should take larger token0 and token1 qtys for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token0Taken = (await token0.balanceOf(pool.address)).sub(poolBalToken0);
+            let token1Taken = (await token1.balanceOf(pool.address)).sub(poolBalToken1);
+            poolBalToken0 = await token0.balanceOf(pool.address);
+            poolBalToken1 = await token1.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
           });
 
           it('should mint for extreme position', async () => {
@@ -581,6 +600,14 @@ describe('ProAMMPool', () => {
               .to.not.emit(token0, 'Transfer');
             expect(await token0.balanceOf(pool.address)).to.be.eql(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
+          });
+
+          it('should take larger token1 qty for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token1Taken = (await token1.balanceOf(pool.address)).sub(poolBalToken1);
+            poolBalToken1 = await token1.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
           });
 
           it('should mint for extreme position', async () => {
@@ -919,7 +946,7 @@ describe('ProAMMPool', () => {
     });
   });
 
-  describe('test swap', async () => {
+  describe.skip('test swap', async () => {
     beforeEach('unlock pool with initial price of 2:1', async () => {
       initialPrice = encodePriceSqrt(TWO, ONE);
       await callback.unlockPool(pool.address, initialPrice, '0x');
