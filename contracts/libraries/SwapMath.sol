@@ -268,15 +268,13 @@ library SwapMath {
       // exact output: actualDelta = lc(sqrtPn) + (liquidity)(sqrtPn - sqrtPc)
 
       if (isExactInput) {
-        // round down actual output so we avoid sending too much
+        // minimise actual output (<0, make less negative) so we avoid sending too much
         // actualDelta = lc(sqrtPn) - [(liquidity)(sqrtPc - sqrtPn)]
         actualDelta =
-          FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
-          FullMath
-          .mulDivCeiling(liquidity, sqrtPc - sqrtPn, MathConstants.TWO_POW_96)
-          .revToInt256();
+          FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
+          FullMath.mulDivFloor(liquidity, sqrtPc - sqrtPn, MathConstants.TWO_POW_96).revToInt256();
       } else {
-        // round up actual input so we get desired output amount
+        // maximise actual input (>0) so we get desired output amount
         // actualDelta = lc(sqrtPn) + (liquidity)(sqrtPn - sqrtPc)
         actualDelta =
           FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
@@ -284,17 +282,11 @@ library SwapMath {
       }
     } else {
       // actualDelta = (liquidity + lc)/sqrtPn - (liquidity)/sqrtPc
-      if (isExactInput) {
-        // round down actual output so we avoid sending too much
-        actualDelta =
-          FullMath.mulDivFloor(liquidity + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
-          FullMath.mulDivCeiling(liquidity, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
-      } else {
-        // round up actual input so we get desired output amount
-        actualDelta =
-          FullMath.mulDivCeiling(liquidity + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
-          FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
-      }
+      // if exactInput, minimise actual output (<0, make less negative) so we avoid sending too much
+      // if exactOutput, maximise actual input (>0) so we get desired output amount
+      actualDelta =
+        FullMath.mulDivCeiling(liquidity + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
+        FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
     }
   }
 }
