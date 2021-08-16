@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {MathConstants} from './MathConstants.sol';
+import {MathConstants as C} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
 import {QuadMath} from './QuadMath.sol';
 import {SafeCast} from './SafeCast.sol';
@@ -101,49 +101,47 @@ library SwapMath {
       if (isToken0) {
         // numerator = 2 * liquidity * absPriceDiff
         // denominator = sqrtPc * (2 * sqrtPn - sqrtPc * feeInBps / BPS)
-        denominator = 2 * sqrtPn * MathConstants.BPS - feeInBps * sqrtPc;
-        numerator = FullMath.mulDivFloor(
-          liquidity,
-          absPriceDiff * 2 * MathConstants.BPS,
-          denominator
-        );
-        deltaNext = FullMath.mulDivFloor(numerator, MathConstants.TWO_POW_96, sqrtPc).toInt256();
+        unchecked {
+          // overflow should not happen because the absPriceDiff is capped to ~5%
+          denominator = C.TWO_BPS * sqrtPn - feeInBps * sqrtPc;
+          numerator = FullMath.mulDivFloor(liquidity, C.TWO_BPS * absPriceDiff, denominator);
+          deltaNext = FullMath.mulDivFloor(numerator, C.TWO_POW_96, sqrtPc).toInt256();
+        }
       } else {
         // numerator = 2 * liquidity * absPriceDiff * sqrtPc
         // denominator = 2 * sqrtPc - sqrtPn * feeInBps / BPS
-        denominator = 2 * sqrtPc * MathConstants.BPS - feeInBps * sqrtPn;
-        numerator = FullMath.mulDivFloor(
-          liquidity,
-          absPriceDiff * 2 * MathConstants.BPS,
-          MathConstants.TWO_POW_96
-        );
-        deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
+        unchecked {
+          // overflow should not happen because the absPriceDiff is capped to ~5%
+          denominator = C.TWO_BPS * sqrtPc - feeInBps * sqrtPn;
+          numerator = FullMath.mulDivFloor(liquidity, C.TWO_BPS * absPriceDiff, denominator);
+          deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, C.TWO_POW_96).toInt256();
+        }
       }
     } else {
       // we will perform negation as the last step
       // common terms in both cases are (liquidity)(absPriceDiff) and fee * (sqrtPc + sqrtPn)
       // hence can calculate these terms first
       // we round down so that we require less output qty to move ticks
-      numerator = liquidity * absPriceDiff;
-      uint256 feeMulSumPrices = (feeInBps * (sqrtPc + sqrtPn)) / MathConstants.BPS;
       if (isToken0) {
         // numerator: (liquidity)(absPriceDiff)(2 * sqrtPc - fee * (sqrtPc + sqrtPn))
         // denominator: (sqrtPc * sqrtPn) * (2 * sqrtPc - fee * sqrtPn)
-        denominator = FullMath.mulDivCeiling(sqrtPc, sqrtPn, MathConstants.TWO_POW_96);
-        denominator = denominator * (2 * sqrtPc - (feeInBps * sqrtPn) / MathConstants.BPS);
-        deltaNext = FullMath
-        .mulDivFloor(numerator, 2 * sqrtPc - feeMulSumPrices, denominator)
-        .toInt256();
+        unchecked {
+          // overflow should not happen because the absPriceDiff is capped to ~5%
+          denominator = C.TWO_BPS * sqrtPc - feeInBps * sqrtPn;
+          numerator = denominator - feeInBps * sqrtPc;
+          numerator = FullMath.mulDivFloor(liquidity << C.RES_96, numerator, denominator);
+          deltaNext = (FullMath.mulDivFloor(numerator, absPriceDiff, sqrtPc) / sqrtPn).toInt256();
+        }
       } else {
         // numerator: (liquidity)(absPriceDiff)(2 * sqrtPn - fee * (sqrtPn + sqrtPc))
         // denominator: (2 * sqrtPn - fee * sqrtPc)
-        numerator = FullMath.mulDivFloor(
-          numerator,
-          2 * sqrtPn - feeMulSumPrices,
-          MathConstants.TWO_POW_96
-        );
-        denominator = 2 * sqrtPn - (feeInBps * sqrtPc) / MathConstants.BPS;
-        deltaNext = (numerator / denominator).toInt256();
+        unchecked {
+          // overflow should not happen because the absPriceDiff is capped to ~5%
+          denominator = C.TWO_BPS * sqrtPn - feeInBps * sqrtPc;
+          numerator = denominator - feeInBps * sqrtPn;
+          numerator = FullMath.mulDivFloor(liquidity, numerator, denominator);
+          deltaNext = FullMath.mulDivFloor(numerator, absPriceDiff, C.TWO_POW_96).toInt256();
+        }
       }
       deltaNext = -deltaNext;
     }
@@ -160,25 +158,17 @@ library SwapMath {
     if (isExactInput) {
       if (isToken0) {
         // lc = fee * absDelta * sqrtPc / 2
-        lc = FullMath.mulDivFloor(
-          sqrtPc,
-          absDelta * feeInBps,
-          2 * MathConstants.TWO_POW_96 * MathConstants.BPS
-        );
+        lc = FullMath.mulDivFloor(sqrtPc, absDelta * feeInBps, C.TWO_BPS << C.RES_96);
       } else {
         // lc = fee * absDelta * / (sqrtPc * 2)
-        lc = FullMath.mulDivFloor(
-          MathConstants.TWO_POW_96,
-          absDelta * feeInBps,
-          2 * sqrtPc * MathConstants.BPS
-        );
+        lc = FullMath.mulDivFloor(C.TWO_POW_96, absDelta * feeInBps, C.TWO_BPS * sqrtPc);
       }
     } else {
       // obtain the smaller root of the quadratic equation
       // ax^2 - 2bx + c = 0 such that b > 0, and x denotes lc
       // we define the common terms that are used in both cases here
       uint256 a = feeInBps;
-      uint256 b = (MathConstants.BPS - feeInBps) * liquidity;
+      uint256 b = (C.BPS - feeInBps) * liquidity;
       uint256 c = feeInBps * liquidity * absDelta;
       if (isToken0) {
         // solving fee * lc^2 - 2 * [(1 - fee) * liquidity - absDelta * sqrtPc] * lc + fee * liquidity * absDelta * sqrtPc = 0
@@ -187,8 +177,8 @@ library SwapMath {
         // a = feeInBps
         // b = (BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc
         // c = feeInBps * liquidity * absDelta * sqrtPc
-        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, sqrtPc, MathConstants.TWO_POW_96);
-        c = FullMath.mulDivFloor(c, sqrtPc, MathConstants.TWO_POW_96);
+        b -= FullMath.mulDivFloor(C.BPS * absDelta, sqrtPc, C.TWO_POW_96);
+        c = FullMath.mulDivFloor(c, sqrtPc, C.TWO_POW_96);
       } else {
         // solving fee * sqrtPc * lc^2 - 2 * [(1 - fee) * liquidity * sqrtPc - absDelta] * lc + fee * liquidity * absDelta = 0
         // multiply both sides by BPS, divide by sqrtPc (since sqrtPc != 0)
@@ -196,8 +186,8 @@ library SwapMath {
         // a = feeInBps
         // b = (BPS - feeInBps) * liquidity - BPS * absDelta / sqrtPc
         // c = liquidity * feeInBps * absDelta / sqrtPc
-        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, MathConstants.TWO_POW_96, sqrtPc);
-        c = FullMath.mulDivFloor(c, MathConstants.TWO_POW_96, sqrtPc);
+        b -= FullMath.mulDivFloor(C.BPS * absDelta, C.TWO_POW_96, sqrtPc);
+        c = FullMath.mulDivFloor(c, C.TWO_POW_96, sqrtPc);
       }
       lc = QuadMath.getSmallerRootOfQuadEqn(a, b, c);
     }
@@ -214,15 +204,15 @@ library SwapMath {
     if (isToken0) {
       // lc = sqrtPn * (liquidity / sqrtPc +/- absDelta)) - liquidity
       // needs to be minimum
-      lc = FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc);
+      lc = FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPc);
       lc = isExactInput ? lc + absDelta : lc - absDelta;
-      lc = FullMath.mulDivFloor(sqrtPn, lc, MathConstants.TWO_POW_96) - liquidity;
+      lc = FullMath.mulDivFloor(sqrtPn, lc, C.TWO_POW_96) - liquidity;
     } else {
       // lc = (liquidity * sqrtPc +/- absDelta) / sqrtPn - liquidity
       // needs to be minimum
-      lc = FullMath.mulDivFloor(liquidity, sqrtPc, MathConstants.TWO_POW_96);
+      lc = FullMath.mulDivFloor(liquidity, sqrtPc, C.TWO_POW_96);
       lc = isExactInput ? lc + absDelta : lc - absDelta;
-      lc = FullMath.mulDivFloor(lc, MathConstants.TWO_POW_96, sqrtPn) - liquidity;
+      lc = FullMath.mulDivFloor(lc, C.TWO_POW_96, sqrtPn) - liquidity;
     }
   }
 
@@ -237,7 +227,7 @@ library SwapMath {
   ) internal pure returns (uint160 sqrtPn) {
     if (isToken0) {
       // round Up
-      uint256 denominator = FullMath.mulDivFloor(absDelta, sqrtPc, MathConstants.TWO_POW_96);
+      uint256 denominator = FullMath.mulDivFloor(absDelta, sqrtPc, C.TWO_POW_96);
       sqrtPn = (
         FullMath.mulDivCeiling(
           liquidity + lc,
@@ -249,7 +239,7 @@ library SwapMath {
     } else {
       // round down
       uint256 tmp1 = FullMath.mulDivFloor(liquidity, sqrtPc, liquidity + lc);
-      uint256 tmp2 = FullMath.mulDivFloor(absDelta, MathConstants.TWO_POW_96, liquidity + lc);
+      uint256 tmp2 = FullMath.mulDivFloor(absDelta, C.TWO_POW_96, liquidity + lc);
       sqrtPn = (isExactInput ? (tmp1 + tmp2) : (tmp1 - tmp2)).toUint160();
     }
   }
@@ -277,22 +267,22 @@ library SwapMath {
         // minimise actual output (<0, make less negative) so we avoid sending too much
         // actualDelta = lc(sqrtPn) - [(liquidity)(sqrtPc - sqrtPn)]
         actualDelta =
-          FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
-          FullMath.mulDivFloor(liquidity, sqrtPc - sqrtPn, MathConstants.TWO_POW_96).revToInt256();
+          FullMath.mulDivCeiling(lc, sqrtPn, C.TWO_POW_96).toInt256() +
+          FullMath.mulDivFloor(liquidity, sqrtPc - sqrtPn, C.TWO_POW_96).revToInt256();
       } else {
         // maximise actual input (>0) so we get desired output amount
         // actualDelta = lc(sqrtPn) + (liquidity)(sqrtPn - sqrtPc)
         actualDelta =
-          FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
-          FullMath.mulDivCeiling(liquidity, sqrtPn - sqrtPc, MathConstants.TWO_POW_96).toInt256();
+          FullMath.mulDivCeiling(lc, sqrtPn, C.TWO_POW_96).toInt256() +
+          FullMath.mulDivCeiling(liquidity, sqrtPn - sqrtPc, C.TWO_POW_96).toInt256();
       }
     } else {
       // actualDelta = (liquidity + lc)/sqrtPn - (liquidity)/sqrtPc
       // if exactInput, minimise actual output (<0, make less negative) so we avoid sending too much
       // if exactOutput, maximise actual input (>0) so we get desired output amount
       actualDelta =
-        FullMath.mulDivCeiling(liquidity + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
-        FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
+        FullMath.mulDivCeiling(liquidity + lc, C.TWO_POW_96, sqrtPn).toInt256() +
+        FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPc).revToInt256();
     }
   }
 }

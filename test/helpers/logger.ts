@@ -1,4 +1,4 @@
-import { BigNumber } from './utils';
+import {BigNumber} from './utils';
 import {ProAMMPool} from '../../typechain';
 export enum SwapTitle {
   BEFORE_SWAP,
@@ -19,7 +19,7 @@ export async function logSwapState(title: SwapTitle, pool: ProAMMPool) {
 }
 
 export function logBalanceChange(token0Change: BigNumber, token1Change: BigNumber) {
-    console.log(`=== BALANCE CHANGES ===`);
-    console.log(`token0 delta: ${token0Change.toString()}`);
-    console.log(`token1 delta: ${token1Change.toString()}`);
+  console.log(`=== BALANCE CHANGES ===`);
+  console.log(`token0 delta: ${token0Change.toString()}`);
+  console.log(`token1 delta: ${token1Change.toString()}`);
 }

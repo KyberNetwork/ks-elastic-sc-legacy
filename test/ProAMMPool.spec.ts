@@ -33,7 +33,7 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
-import { logBalanceChange, logSwapState, SwapTitle } from './helpers/logger';
+import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
