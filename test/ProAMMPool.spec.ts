@@ -1006,7 +1006,7 @@ async function doRandomSwaps(pool: ProAMMPool, user: Wallet, iterations: number,
       priceLimit = MIN_SQRT_RATIO.add(ONE);
     }
     // console.log(`swapping ${swapQty.toString()}`);
-    // console.log(`isToken0 ${isToken0}`);
+    // console.log(`isToken0=${isToken0} isExactInput=${isExactInput}`);
     await callback.connect(user).swap(pool.address, user.address, swapQty, isToken0, priceLimit, '0x');
   }
 }

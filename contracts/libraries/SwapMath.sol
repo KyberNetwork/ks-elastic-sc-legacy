@@ -160,9 +160,9 @@ library SwapMath {
       .toUint160();
     } else {
       // round down
-      sqrtPn = (FullMath.mulDivFloor(lpPluslf, sqrtPc, lpPluslf + lc) +
-        FullMath.mulDivFloor(absDelta, MathConstants.TWO_POW_96, lpPluslf + lc))
-      .toUint160();
+      uint256 tmp1 = FullMath.mulDivFloor(lpPluslf, sqrtPc, lpPluslf + lc);
+      uint256 tmp2 = FullMath.mulDivFloor(absDelta, MathConstants.TWO_POW_96, lpPluslf + lc);
+      sqrtPn = (isExactInput ? (tmp1 + tmp2) : (tmp1 - tmp2)).toUint160();
     }
   }
 
