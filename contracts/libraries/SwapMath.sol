@@ -5,6 +5,7 @@ import {MathConstants} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
 import {QuadMath} from './QuadMath.sol';
 import {SafeCast} from './SafeCast.sol';
+
 // import 'hardhat/console.sol';
 
 /// @title Contains helper functions for swaps
@@ -163,32 +164,28 @@ library SwapMath {
       }
     } else {
       // obtain the smaller root of the quadratic equation
-      // ax^2 - bx + c = 0 such that b > 0, and x denotes lc
-      uint256 a;
-      uint256 b;
-      uint256 c = liquidity * feeInBps * absDelta;
+      // ax^2 - 2bx + c = 0 such that b > 0, and x denotes lc
+      // we define the common terms that are used in both cases here
+      uint256 a = feeInBps;
+      uint256 b = (MathConstants.BPS - feeInBps) * liquidity;
+      uint256 c = feeInBps * liquidity * absDelta;
       if (isToken0) {
-        // solving fee * lc^2 - 2 * [(1 - fee) * liquidity - absDelta * sqrtPc] * lc + liquidity * fee * absDelta * sqrtPc = 0
+        // solving fee * lc^2 - 2 * [(1 - fee) * liquidity - absDelta * sqrtPc] * lc + fee * liquidity * absDelta * sqrtPc = 0
         // multiply both sides by BPS to avoid the 'a' coefficient becoming 0
+        // => feeInBps * lc^2 - 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc] * lc + feeInBps * liquidity * absDelta * sqrtPc = 0
         // a = feeInBps
-        // b = 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc]
-        // c = liquidity * feeInBps * absDelta * sqrtPc
-        a = feeInBps;
-        b = FullMath.mulDivFloor(MathConstants.BPS * absDelta, sqrtPc, MathConstants.TWO_POW_96);
-        b = 2 * ((MathConstants.BPS - feeInBps) * liquidity - b);
+        // b = (BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc
+        // c = feeInBps * liquidity * absDelta * sqrtPc
+        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, sqrtPc, MathConstants.TWO_POW_96);
         c = FullMath.mulDivFloor(c, sqrtPc, MathConstants.TWO_POW_96);
       } else {
-        // solving fee * sqrtPc * lc^2 - 2 * [liquidity * sqrtPc * (1 - fee) - absDelta] * lc) + liquidity * fee * absDelta = 0
-        // multiply both sides by BPS, divide by sqrtPc
+        // solving fee * sqrtPc * lc^2 - 2 * [(1 - fee) * liquidity * sqrtPc - absDelta] * lc + fee * liquidity * absDelta = 0
+        // multiply both sides by BPS, divide by sqrtPc (since sqrtPc != 0)
+        // => feeInBps * lc^2 - 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta / sqrtPc] * lc + feeInBps * liquidity * absDelta / sqrtPc = 0
         // a = feeInBps
-        // b = 2 * [liquidity * (BPS - feeInBps) + BPS * absDelta / sqrtPc]
+        // b = (BPS - feeInBps) * liquidity - BPS * absDelta / sqrtPc
         // c = liquidity * feeInBps * absDelta / sqrtPc
-        a = feeInBps;
-        b =
-          2 *
-          (liquidity *
-            (MathConstants.BPS - feeInBps) +
-            FullMath.mulDivFloor(MathConstants.BPS * absDelta, MathConstants.TWO_POW_96, sqrtPc));
+        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, MathConstants.TWO_POW_96, sqrtPc);
         c = FullMath.mulDivFloor(c, MathConstants.TWO_POW_96, sqrtPc);
       }
       lc = QuadMath.getSmallerRootOfQuadEqn(a, b, c);

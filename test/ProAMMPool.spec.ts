@@ -988,7 +988,7 @@ describe('ProAMMPool', () => {
       await callback.swap(
         pool.address,
         user.address,
-        BN.from('-1751372543351715671'),
+        BN.from('-1751372543351715667'),
         false,
         MIN_SQRT_RATIO.add(ONE),
         '0x'
@@ -1039,7 +1039,7 @@ describe('ProAMMPool', () => {
       await callback.swap(
         pool.address,
         user.address,
-        BN.from('-466751634178795577'),
+        BN.from('-466751634178795570'),
         true,
         MAX_SQRT_RATIO.sub(ONE),
         '0x'
