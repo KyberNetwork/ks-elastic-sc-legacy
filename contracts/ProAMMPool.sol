@@ -482,7 +482,9 @@ contract ProAMMPool is IProAMMPool {
     SwapData memory swapData;
     swapData.isExactInput = swapQty > 0;
     // tick (token1Amt/token0Amt) will increase for token0Output or token1Input
-    swapData.willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
+    swapData.willUpTick =
+      (!swapData.isExactInput && isToken0) ||
+      (swapData.isExactInput && !isToken0);
     require(
       swapData.willUpTick
         ? (sqrtPriceLimit > poolSqrtPrice && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO)
@@ -517,7 +519,9 @@ contract ProAMMPool is IProAMMPool {
       step.nextSqrtP = TickMath.getSqrtRatioAtTick(step.nextTick);
       step.targetSqrtP = step.nextSqrtP;
       // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-      if (swapData.willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
+      if (
+        swapData.willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)
+      ) {
         step.targetSqrtP = sqrtPriceLimit;
       }
 
