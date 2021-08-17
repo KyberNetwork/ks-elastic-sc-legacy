@@ -86,7 +86,10 @@ library SwapMath {
     bool isExactInput,
     bool isToken0
   ) internal pure returns (int256 deltaNext) {
-    uint256 absPriceDiff = (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc);
+    uint256 absPriceDiff;
+    unchecked {
+      absPriceDiff = (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc);
+    }
     uint256 numerator;
     uint256 denominator;
     if (isExactInput) {

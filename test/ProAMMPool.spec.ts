@@ -33,6 +33,7 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
+import { logBalanceChange, logSwapState, SwapTitle } from './helpers/logger';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -959,20 +960,12 @@ describe('ProAMMPool', () => {
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
 
     it('tests token1 exactOutput (move down tick)', async () => {
@@ -981,10 +974,7 @@ describe('ProAMMPool', () => {
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(
         pool.address,
         user.address,
@@ -995,13 +985,8 @@ describe('ProAMMPool', () => {
       );
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
 
     it('tests token1 exactInput (move up tick)', async () => {
@@ -1010,20 +995,12 @@ describe('ProAMMPool', () => {
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO.sub(ONE), '0x');
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
 
     it('tests token0 exactOutput (move up tick)', async () => {
@@ -1032,10 +1009,7 @@ describe('ProAMMPool', () => {
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(
         pool.address,
         user.address,
@@ -1046,13 +1020,8 @@ describe('ProAMMPool', () => {
       );
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`user token0 delta: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`user token1 delta: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
   });
 });
