@@ -26,14 +26,26 @@ contract MockSwapMath {
     return SwapMath.calcFinalPrice(absDelta, lpPluslf, lc, sqrtPc, isExactInput, isToken0);
   }
 
-  function calcSwapFeeAmounts(
+  function calcFinalSwapFeeAmount(
     uint256 absDelta,
+    uint256 liquidity,
     uint160 sqrtPc,
-    uint16 swapFeeBps,
+    uint16 feeInBps,
     bool isExactInput,
     bool isToken0
   ) external pure returns (uint256) {
-    return SwapMath.calcSwapFeeAmounts(absDelta, sqrtPc, swapFeeBps, isExactInput, isToken0);
+    return SwapMath.calcFinalSwapFeeAmount(absDelta, liquidity, sqrtPc, feeInBps, isExactInput, isToken0);
+  }
+
+  function calcStepSwapFeeAmount(
+    uint256 absDelta,
+    uint256 liquidity,
+    uint160 sqrtPc,
+    uint160 sqrtPn,
+    bool isExactInput,
+    bool isToken0
+  ) external pure returns (uint256) {
+    return SwapMath.calcStepSwapFeeAmount(absDelta, liquidity, sqrtPc, sqrtPn, isExactInput, isToken0);
   }
 
   function calcActualDelta(

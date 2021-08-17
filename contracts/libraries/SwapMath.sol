@@ -3,7 +3,10 @@ pragma solidity >=0.8.0;
 
 import {MathConstants} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
+import {QuadMath} from './QuadMath.sol';
 import {SafeCast} from './SafeCast.sol';
+
+// import 'hardhat/console.sol';
 
 /// @title Contains helper functions for swaps
 library SwapMath {
@@ -16,7 +19,8 @@ library SwapMath {
     uint160 targetSqrtP,
     uint16 feeInBps,
     int256 amountRemaining,
-    bool isExactInput
+    bool isExactInput,
+    bool isToken0
   )
     internal
     pure
@@ -27,9 +31,10 @@ library SwapMath {
       uint160 nextSqrtP
     )
   {
-    // if isExactInput, isToken0 == !willUpTick else isToken0 = willUpTick;
-    bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
-
+    // in the event currentSqrtP == targetSqrtP because of tick movements, return
+    // eg. swapped up tick where specified price limit is on an initialised tick
+    // then swapping down tick will cause next tick to be the same as the current tick
+    if (currentSqrtP == targetSqrtP) return (0, 0, 0, currentSqrtP);
     delta = calcDeltaNext(liquidity, currentSqrtP, targetSqrtP, feeInBps, isExactInput, isToken0);
 
     if (isExactInput) {
@@ -46,84 +51,177 @@ library SwapMath {
       }
     }
     uint256 absDelta = delta >= 0 ? uint256(delta) : delta.revToUint256();
-    fee = calcSwapFeeAmounts(absDelta, currentSqrtP, feeInBps, isExactInput, isToken0);
     if (nextSqrtP == 0) {
+      fee = calcFinalSwapFeeAmount(
+        absDelta,
+        liquidity,
+        currentSqrtP,
+        feeInBps,
+        isExactInput,
+        isToken0
+      );
       nextSqrtP = calcFinalPrice(absDelta, liquidity, fee, currentSqrtP, isExactInput, isToken0);
+    } else {
+      fee = calcStepSwapFeeAmount(
+        absDelta,
+        liquidity,
+        currentSqrtP,
+        nextSqrtP,
+        isExactInput,
+        isToken0
+      );
     }
     actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
   }
 
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
   // from sqrtPc (price of current tick)
+  // each of the 4 possible scenarios (isExactInput | isToken0)
+  // have vastly different formulas which are elaborated in each branch
   function calcDeltaNext(
-    uint256 lpPluslf,
+    uint256 liquidity,
     uint160 sqrtPc,
     uint160 sqrtPn,
     uint16 feeInBps,
     bool isExactInput,
     bool isToken0
   ) internal pure returns (int256 deltaNext) {
-    // numerator = 2 * (lp + lf) * (diffInSqrtPrice)
-    // we ensure diffInSqrtPrice > 0 first, the make negative
-    // if exact output is specified
-    uint256 numerator = FullMath.mulDivFloor(
-      2 * lpPluslf,
-      (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc),
-      MathConstants.TWO_POW_96
-    );
-    uint256 denominator;
-    if (isToken0) {
-      // denominator (exact input): calculate 2 * sqrtPn - feeInBps * sqrtPc / BPS
-      // denominator (exact output): calculate 2 * sqrtPn - feeInBps * BPS * sqrtPc / (BPS * (BPS - feeInBps))
-      // which is simplified to 2 * sqrtPn - feeInBps * sqrtPc / (BPS - feeInBps)
-      denominator = sqrtPc * feeInBps;
-      denominator =
-        denominator /
-        (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = 2 * sqrtPn - denominator;
-      denominator = FullMath.mulDivCeiling(sqrtPc, denominator, MathConstants.TWO_POW_96);
-      deltaNext = FullMath
-      .mulDivFloor(numerator, MathConstants.TWO_POW_96, denominator)
-      .toInt256();
-    } else {
-      denominator = feeInBps * sqrtPn;
-      denominator =
-        denominator /
-        (isExactInput ? MathConstants.BPS : (MathConstants.BPS - feeInBps));
-      denominator = (2 * sqrtPc - denominator);
-      deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
+    uint256 absPriceDiff;
+    unchecked {
+      absPriceDiff = (sqrtPc >= sqrtPn) ? (sqrtPc - sqrtPn) : (sqrtPn - sqrtPc);
     }
-    if (!isExactInput) deltaNext = -deltaNext;
+    uint256 numerator;
+    uint256 denominator;
+    if (isExactInput) {
+      // we round down so that we avoid taking giving away too much for the specified input
+      // ie. require less input qty to move ticks
+      if (isToken0) {
+        // numerator = 2 * liquidity * absPriceDiff
+        // overflow should not happen because the absPriceDiff is capped to ~5%
+        // denominator = sqrtPc * (2 * sqrtPn - sqrtPc * feeInBps / BPS)
+        numerator = 2 * liquidity * absPriceDiff;
+        denominator = 2 * sqrtPn - (sqrtPc * feeInBps) / MathConstants.BPS;
+        denominator = FullMath.mulDivCeiling(sqrtPc, denominator, MathConstants.TWO_POW_96);
+        deltaNext = (numerator / denominator).toInt256();
+      } else {
+        // numerator = 2 * liquidity * absPriceDiff
+        // overflow should not happen because the absPriceDiff is capped to ~5%
+        // denominator = 2 * sqrtPc - sqrtPn * feeInBps / BPS
+        numerator = FullMath.mulDivFloor(2 * liquidity, absPriceDiff, MathConstants.TWO_POW_96);
+        denominator = 2 * sqrtPc - (sqrtPn * feeInBps) / MathConstants.BPS;
+        deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, denominator).toInt256();
+      }
+    } else {
+      // we will perform negation as the last step
+      // common terms in both cases are (liquidity)(absPriceDiff) and fee * (sqrtPc + sqrtPn)
+      // hence can calculate these terms first
+      // we round down so that we require less output qty to move ticks
+      numerator = liquidity * absPriceDiff;
+      uint256 feeMulSumPrices = (feeInBps * (sqrtPc + sqrtPn)) / MathConstants.BPS;
+      if (isToken0) {
+        // numerator: (liquidity)(absPriceDiff)(2 * sqrtPc - fee * (sqrtPc + sqrtPn))
+        // denominator: (sqrtPc * sqrtPn) * (2 * sqrtPc - fee * sqrtPn)
+        denominator = FullMath.mulDivCeiling(sqrtPc, sqrtPn, MathConstants.TWO_POW_96);
+        denominator = denominator * (2 * sqrtPc - (feeInBps * sqrtPn) / MathConstants.BPS);
+        deltaNext = FullMath
+        .mulDivFloor(numerator, 2 * sqrtPc - feeMulSumPrices, denominator)
+        .toInt256();
+      } else {
+        // numerator: (liquidity)(absPriceDiff)(2 * sqrtPn - fee * (sqrtPn + sqrtPc))
+        // denominator: (2 * sqrtPn - fee * sqrtPc)
+        numerator = FullMath.mulDivFloor(
+          numerator,
+          2 * sqrtPn - feeMulSumPrices,
+          MathConstants.TWO_POW_96
+        );
+        denominator = 2 * sqrtPn - (feeInBps * sqrtPc) / MathConstants.BPS;
+        deltaNext = (numerator / denominator).toInt256();
+      }
+      deltaNext = -deltaNext;
+    }
   }
 
-  function calcSwapFeeAmounts(
+  function calcFinalSwapFeeAmount(
     uint256 absDelta,
+    uint256 liquidity,
     uint160 sqrtPc,
-    uint16 swapFeeBps,
+    uint16 feeInBps,
+    bool isExactInput,
+    bool isToken0
+  ) internal pure returns (uint256 lc) {
+    if (isExactInput) {
+      if (isToken0) {
+        // lc = fee * absDelta * sqrtPc / 2
+        lc = FullMath.mulDivFloor(
+          sqrtPc,
+          absDelta * feeInBps,
+          2 * MathConstants.TWO_POW_96 * MathConstants.BPS
+        );
+      } else {
+        // lc = fee * absDelta * / (sqrtPc * 2)
+        lc = FullMath.mulDivFloor(
+          MathConstants.TWO_POW_96,
+          absDelta * feeInBps,
+          2 * sqrtPc * MathConstants.BPS
+        );
+      }
+    } else {
+      // obtain the smaller root of the quadratic equation
+      // ax^2 - 2bx + c = 0 such that b > 0, and x denotes lc
+      // we define the common terms that are used in both cases here
+      uint256 a = feeInBps;
+      uint256 b = (MathConstants.BPS - feeInBps) * liquidity;
+      uint256 c = feeInBps * liquidity * absDelta;
+      if (isToken0) {
+        // solving fee * lc^2 - 2 * [(1 - fee) * liquidity - absDelta * sqrtPc] * lc + fee * liquidity * absDelta * sqrtPc = 0
+        // multiply both sides by BPS to avoid the 'a' coefficient becoming 0
+        // => feeInBps * lc^2 - 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc] * lc + feeInBps * liquidity * absDelta * sqrtPc = 0
+        // a = feeInBps
+        // b = (BPS - feeInBps) * liquidity - BPS * absDelta * sqrtPc
+        // c = feeInBps * liquidity * absDelta * sqrtPc
+        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, sqrtPc, MathConstants.TWO_POW_96);
+        c = FullMath.mulDivFloor(c, sqrtPc, MathConstants.TWO_POW_96);
+      } else {
+        // solving fee * sqrtPc * lc^2 - 2 * [(1 - fee) * liquidity * sqrtPc - absDelta] * lc + fee * liquidity * absDelta = 0
+        // multiply both sides by BPS, divide by sqrtPc (since sqrtPc != 0)
+        // => feeInBps * lc^2 - 2 * [(BPS - feeInBps) * liquidity - BPS * absDelta / sqrtPc] * lc + feeInBps * liquidity * absDelta / sqrtPc = 0
+        // a = feeInBps
+        // b = (BPS - feeInBps) * liquidity - BPS * absDelta / sqrtPc
+        // c = liquidity * feeInBps * absDelta / sqrtPc
+        b -= FullMath.mulDivFloor(MathConstants.BPS * absDelta, MathConstants.TWO_POW_96, sqrtPc);
+        c = FullMath.mulDivFloor(c, MathConstants.TWO_POW_96, sqrtPc);
+      }
+      lc = QuadMath.getSmallerRootOfQuadEqn(a, b, c);
+    }
+  }
+
+  function calcStepSwapFeeAmount(
+    uint256 absDelta,
+    uint256 liquidity,
+    uint160 sqrtPc,
+    uint160 sqrtPn,
     bool isExactInput,
     bool isToken0
   ) internal pure returns (uint256 lc) {
     if (isToken0) {
-      lc = FullMath.mulDivFloor(
-        sqrtPc,
-        absDelta * swapFeeBps,
-        2 *
-          MathConstants.TWO_POW_96 *
-          (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
-      );
+      // lc = sqrtPn * (liquidity / sqrtPc +/- absDelta)) - liquidity
+      // needs to be minimum
+      lc = FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc);
+      lc = isExactInput ? lc + absDelta : lc - absDelta;
+      lc = FullMath.mulDivFloor(sqrtPn, lc, MathConstants.TWO_POW_96) - liquidity;
     } else {
-      lc = FullMath.mulDivFloor(
-        MathConstants.TWO_POW_96,
-        absDelta * swapFeeBps,
-        2 * sqrtPc * (isExactInput ? MathConstants.BPS : MathConstants.BPS - swapFeeBps)
-      );
+      // lc = (liquidity * sqrtPc +/- absDelta) / sqrtPn - liquidity
+      // needs to be minimum
+      lc = FullMath.mulDivFloor(liquidity, sqrtPc, MathConstants.TWO_POW_96);
+      lc = isExactInput ? lc + absDelta : lc - absDelta;
+      lc = FullMath.mulDivFloor(lc, MathConstants.TWO_POW_96, sqrtPn) - liquidity;
     }
   }
 
   // will round down sqrtPn
   function calcFinalPrice(
     uint256 absDelta,
-    uint256 lpPluslf,
+    uint256 liquidity,
     uint256 lc,
     uint160 sqrtPc,
     bool isExactInput,
@@ -131,21 +229,21 @@ library SwapMath {
   ) internal pure returns (uint160 sqrtPn) {
     uint256 numerator;
     if (isToken0) {
-      numerator = FullMath.mulDivFloor(lpPluslf + lc, sqrtPc, MathConstants.TWO_POW_96);
+      numerator = FullMath.mulDivFloor(liquidity + lc, sqrtPc, MathConstants.TWO_POW_96);
       uint256 denominator = FullMath.mulDivCeiling(absDelta, sqrtPc, MathConstants.TWO_POW_96);
       sqrtPn = (
         FullMath.mulDivFloor(
           numerator,
           MathConstants.TWO_POW_96,
-          isExactInput ? lpPluslf + denominator : lpPluslf - denominator
+          isExactInput ? liquidity + denominator : liquidity - denominator
         )
       )
       .toUint160();
     } else {
-      numerator = FullMath.mulDivFloor(lpPluslf, sqrtPc, MathConstants.TWO_POW_96);
+      numerator = FullMath.mulDivFloor(liquidity, sqrtPc, MathConstants.TWO_POW_96);
       numerator = isExactInput ? numerator + absDelta : numerator - absDelta;
       sqrtPn = FullMath
-      .mulDivFloor(numerator, MathConstants.TWO_POW_96, lpPluslf + lc)
+      .mulDivFloor(numerator, MathConstants.TWO_POW_96, liquidity + lc)
       .toUint160();
     }
   }
@@ -155,7 +253,7 @@ library SwapMath {
   // round down when calculating actual output (isExactInput) so we avoid sending too much
   // round up when calculating actual input (!isExactInput) so we get desired output amount
   function calcActualDelta(
-    uint256 lpPluslf,
+    uint256 liquidity,
     uint160 sqrtPc,
     uint160 sqrtPn,
     uint256 lc,
@@ -164,39 +262,31 @@ library SwapMath {
   ) internal pure returns (int256 actualDelta) {
     if (isToken0) {
       // require difference in sqrtPc and sqrtPn > 0
-      // so that we can properly do the multiplication of (lp + lf)|sqrtPc - sqrtPn|
+      // so that we can properly do the multiplication of (liquidity)|sqrtPc - sqrtPn|
       // hence, if user specified
-      // exact input: actualDelta = lc(sqrtPn) - [(lp + lf)(sqrtPc - sqrtPn)]
-      // exact output: actualDelta = lc(sqrtPn) + (lp + lf)(sqrtPn - sqrtPc)
+      // exact input: actualDelta = lc(sqrtPn) - [(liquidity)(sqrtPc - sqrtPn)]
+      // exact output: actualDelta = lc(sqrtPn) + (liquidity)(sqrtPn - sqrtPc)
 
       if (isExactInput) {
-        // round down actual output so we avoid sending too much
-        // actualDelta = lc(sqrtPn) - [(lp + lf)(sqrtPc - sqrtPn)]
-        actualDelta =
-          FullMath.mulDivFloor(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
-          FullMath
-          .mulDivCeiling(lpPluslf, sqrtPc - sqrtPn, MathConstants.TWO_POW_96)
-          .revToInt256();
-      } else {
-        // round up actual input so we get desired output amount
-        // actualDelta = lc(sqrtPn) + (lp + lf)(sqrtPn - sqrtPc)
+        // minimise actual output (<0, make less negative) so we avoid sending too much
+        // actualDelta = lc(sqrtPn) - [(liquidity)(sqrtPc - sqrtPn)]
         actualDelta =
           FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
-          FullMath.mulDivCeiling(lpPluslf, sqrtPn - sqrtPc, MathConstants.TWO_POW_96).toInt256();
+          FullMath.mulDivFloor(liquidity, sqrtPc - sqrtPn, MathConstants.TWO_POW_96).revToInt256();
+      } else {
+        // maximise actual input (>0) so we get desired output amount
+        // actualDelta = lc(sqrtPn) + (liquidity)(sqrtPn - sqrtPc)
+        actualDelta =
+          FullMath.mulDivCeiling(lc, sqrtPn, MathConstants.TWO_POW_96).toInt256() +
+          FullMath.mulDivCeiling(liquidity, sqrtPn - sqrtPc, MathConstants.TWO_POW_96).toInt256();
       }
     } else {
-      // actualDelta = (lp + lf + lc)/sqrtPn - (lp + lf)/sqrtPc
-      if (isExactInput) {
-        // round down actual output so we avoid sending too much
-        actualDelta =
-          FullMath.mulDivFloor(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
-          FullMath.mulDivCeiling(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
-      } else {
-        // round up actual input so we get desired output amount
-        actualDelta =
-          FullMath.mulDivCeiling(lpPluslf + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
-          FullMath.mulDivFloor(lpPluslf, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
-      }
+      // actualDelta = (liquidity + lc)/sqrtPn - (liquidity)/sqrtPc
+      // if exactInput, minimise actual output (<0, make less negative) so we avoid sending too much
+      // if exactOutput, maximise actual input (>0) so we get desired output amount
+      actualDelta =
+        FullMath.mulDivCeiling(liquidity + lc, MathConstants.TWO_POW_96, sqrtPn).toInt256() +
+        FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPc).revToInt256();
     }
   }
 }

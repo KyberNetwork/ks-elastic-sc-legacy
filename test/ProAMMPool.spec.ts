@@ -33,6 +33,7 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
+import { logBalanceChange, logSwapState, SwapTitle } from './helpers/logger';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -318,6 +319,14 @@ describe('ProAMMPool', () => {
             expect(await token1.balanceOf(pool.address)).to.be.eql(poolBalToken1);
           });
 
+          it('should take larger token0 qty for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token0Taken = (await token0.balanceOf(pool.address)).sub(poolBalToken0);
+            poolBalToken0 = await token0.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
+          });
+
           it('should mint for extreme max position', async () => {
             let maxLiquidityGross = await pool.maxLiquidityPerTick();
             await callback.mint(
@@ -448,6 +457,17 @@ describe('ProAMMPool', () => {
               .to.emit(token1, 'Transfer');
             expect(await token0.balanceOf(pool.address)).to.be.gt(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
+          });
+
+          it('should take larger token0 and token1 qtys for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token0Taken = (await token0.balanceOf(pool.address)).sub(poolBalToken0);
+            let token1Taken = (await token1.balanceOf(pool.address)).sub(poolBalToken1);
+            poolBalToken0 = await token0.balanceOf(pool.address);
+            poolBalToken1 = await token1.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
           });
 
           it('should mint for extreme position', async () => {
@@ -581,6 +601,14 @@ describe('ProAMMPool', () => {
               .to.not.emit(token0, 'Transfer');
             expect(await token0.balanceOf(pool.address)).to.be.eql(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
+          });
+
+          it('should take larger token1 qty for larger liquidity', async () => {
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.div(MIN_LIQUIDITY), '0x');
+            let token1Taken = (await token1.balanceOf(pool.address)).sub(poolBalToken1);
+            poolBalToken1 = await token1.balanceOf(pool.address);
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
           });
 
           it('should mint for extreme position', async () => {
@@ -926,55 +954,74 @@ describe('ProAMMPool', () => {
       nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
     });
 
-    it('tests exactInput', async () => {
+    it('tests token0 exactInput (move down tick)', async () => {
       tickLower = nearestTickToPrice - 500 * tickSpacing;
       tickUpper = nearestTickToPrice + 2 * tickSpacing;
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`actual token0 input: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`actual token1 output: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
 
-    it('tests exactOutput', async () => {
+    it('tests token1 exactOutput (move down tick)', async () => {
       tickLower = nearestTickToPrice - 500 * tickSpacing;
       tickUpper = nearestTickToPrice + 2 * tickSpacing;
       await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
-      console.log(`=== BEFORE SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
       await callback.swap(
         pool.address,
         user.address,
-        BN.from('-1751372543351715671'),
+        BN.from('-1751372543351715667'),
         false,
         MIN_SQRT_RATIO.add(ONE),
         '0x'
       );
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
-      console.log(`=== AFTER SWAP ===`);
-      console.log(`tick: ${(await pool.getPoolState())._poolTick.toString()}`);
-      console.log(`price: ${(await pool.getPoolState())._poolSqrtPrice.toString()}`);
-      console.log(`reinvestment: ${(await pool.getReinvestmentState())._poolReinvestmentLiquidity.toString()}`);
-      console.log(`=== BALANCE CHANGES ===`);
-      console.log(`actual token0 input: ${token0BalanceAfter.sub(token0BalanceBefore).toString()}`);
-      console.log(`actual token1 output: ${token1BalanceAfter.sub(token1BalanceBefore).toString()}`);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+    });
+
+    it('tests token1 exactInput (move up tick)', async () => {
+      tickLower = nearestTickToPrice - 2 * tickSpacing;
+      tickUpper = nearestTickToPrice + 500 * tickSpacing;
+      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+      let token0BalanceBefore = await token0.balanceOf(user.address);
+      let token1BalanceBefore = await token1.balanceOf(user.address);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+      await callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO.sub(ONE), '0x');
+      let token0BalanceAfter = await token0.balanceOf(user.address);
+      let token1BalanceAfter = await token1.balanceOf(user.address);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+    });
+
+    it('tests token0 exactOutput (move up tick)', async () => {
+      tickLower = nearestTickToPrice - 2 * tickSpacing;
+      tickUpper = nearestTickToPrice + 500 * tickSpacing;
+      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+      let token0BalanceBefore = await token0.balanceOf(user.address);
+      let token1BalanceBefore = await token1.balanceOf(user.address);
+      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+      await callback.swap(
+        pool.address,
+        user.address,
+        BN.from('-466751634178795570'),
+        true,
+        MAX_SQRT_RATIO.sub(ONE),
+        '0x'
+      );
+      let token0BalanceAfter = await token0.balanceOf(user.address);
+      let token1BalanceAfter = await token1.balanceOf(user.address);
+      await logSwapState(SwapTitle.AFTER_SWAP, pool);
+      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
     });
   });
 });
