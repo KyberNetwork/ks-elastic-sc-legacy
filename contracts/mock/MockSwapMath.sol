@@ -48,23 +48,36 @@ contract MockSwapMath {
   function calcStepSwapFeeAmount(
     uint256 absDelta,
     uint256 liquidity,
-    uint160 sqrtPc,
-    uint160 sqrtPn,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (uint256) {
-    return
-      SwapMath.calcStepSwapFeeAmount(absDelta, liquidity, sqrtPc, sqrtPn, isExactInput, isToken0);
+  ) external pure returns (uint256 rLiquidity) {
+    rLiquidity = SwapMath.calcStepSwapFeeAmount(
+      absDelta,
+      liquidity,
+      currentSqrtP,
+      targetSqrtP,
+      isExactInput,
+      isToken0
+    );
   }
 
   function calcActualDelta(
-    uint256 lpPluslf,
-    uint160 sqrtPc,
-    uint160 sqrtPn,
-    uint128 lc,
+    uint256 liquidity,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
+    uint128 rLiquidity,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (int256) {
-    return SwapMath.calcActualDelta(lpPluslf, sqrtPc, sqrtPn, lc, isExactInput, isToken0);
+  ) external pure returns (int256 actualDelta) {
+    actualDelta = SwapMath.calcActualDelta(
+      liquidity,
+      currentSqrtP,
+      targetSqrtP,
+      rLiquidity,
+      isExactInput,
+      isToken0
+    );
   }
 }

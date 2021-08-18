@@ -10,32 +10,34 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     uint128 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
-    uint8 feeInBps
+    uint8 feeInBps,
+    bool isExactInput
   ) external {
-    bool isToken0 = currentSqrtP > targetSqrtP;
-    if (isToken0) {
-      require(currentSqrtP * 95 < targetSqrtP * 100);
-    } else {
-      require(currentSqrtP * 100 > targetSqrtP * 95);
-    }
+    bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
+    require(currentSqrtP * 95 < targetSqrtP * 100 && targetSqrtP * 100 < currentSqrtP * 105);
     int256 deltaNext = SwapMath.calcDeltaNext(
       liquidity,
       currentSqrtP,
       targetSqrtP,
       feeInBps,
-      true,
+      isExactInput,
       isToken0
     );
-    isTrue(deltaNext >= 0);
+    if (isExactInput) {
+      isTrue(deltaNext >= 0);
+    } else {
+      isTrue(deltaNext <= 0);
+    }
 
-    uint256 absDelta = uint256(deltaNext) - 1;
+    uint256 absDelta = isExactInput ? uint256(deltaNext) : uint256(-deltaNext);
+    absDelta -= 1;
 
     uint256 fee = SwapMath.calcFinalSwapFeeAmount(
       absDelta,
       liquidity,
       currentSqrtP,
       feeInBps,
-      true,
+      isExactInput,
       isToken0
     );
     uint256 nextSqrtP = SwapMath.calcFinalPrice(
@@ -43,23 +45,27 @@ contract SwapMathEchidnaTest is EchidnaAssert {
       liquidity,
       fee,
       currentSqrtP,
-      true,
+      isExactInput,
       isToken0
     );
-    if (isToken0) {
+    if (currentSqrtP > targetSqrtP) {
       isTrue(nextSqrtP >= targetSqrtP);
     } else {
-      if (nextSqrtP > targetSqrtP) {
-        int256 revDelta = SwapMath.calcActualDelta(
-          liquidity,
-          currentSqrtP,
-          targetSqrtP,
-          fee,
-          false,
-          true
-        );
-        isTrue(revDelta > 0);
-        isTrue(absDelta >= uint256(revDelta));
+      if (isExactInput) {
+        if (nextSqrtP > targetSqrtP) {
+          int256 revDelta = SwapMath.calcActualDelta(
+            liquidity,
+            currentSqrtP,
+            targetSqrtP,
+            fee,
+            false,
+            true
+          );
+          isTrue(revDelta > 0);
+          isTrue(absDelta >= uint256(revDelta));
+        }
+      } else {
+        isTrue(nextSqrtP <= targetSqrtP);
       }
     }
   }

@@ -36,6 +36,9 @@ describe('SwapMath', () => {
     const amountOut = await swapMath.calcActualDelta(liquidity, priceStart, priceEnd, lc, true, true);
     expect(amountOut).to.lt(ZERO);
     console.log(`amountOut=${amountOut.toString()}`); // -0.004955354336368578
+
+    const lc2 = await swapMath.calcStepSwapFeeAmount(delta, liquidity, priceStart, priceEnd, true, true);
+    console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 
   it('from token0 -> token1 exact output', async () => {
@@ -70,6 +73,16 @@ describe('SwapMath', () => {
     const amountOut = await swapMath.calcActualDelta(liquidity, priceStart, priceEnd, lc, false, false);
     expect(amountOut).to.gt(ZERO);
     console.log(`amountOut=${amountOut.toString()}`); // 0.004995077217286492
+
+    const lc2 = await swapMath.calcStepSwapFeeAmount(
+      delta.mul(NEGATIVE_ONE),
+      liquidity,
+      priceStart,
+      priceEnd,
+      false,
+      false
+    );
+    console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 
   it('from token1 -> token0 exact input', async () => {
@@ -90,10 +103,13 @@ describe('SwapMath', () => {
     const amountOut = await swapMath.calcActualDelta(liquidity, priceStart, priceEnd, lc, true, false);
     expect(amountOut).to.lt(ZERO);
     console.log(`amountOut=${amountOut.toString()}`); // -0.004955354336368579
+
+    const lc2 = await swapMath.calcStepSwapFeeAmount(delta, liquidity, priceStart, priceEnd, true, false);
+    console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 
   /// special case when calcDeltaNext can not get the exact amount to targetP
-  it('from token1 -> token0 exact input', async () => {
+  it('special case', async () => {
     const liquidity = BN.from('6548'); // 192073834856665992950.399764417470809969
     const priceStart = BN.from('6317994584605150086931651985499439318'); // 477890273.1633855103814976986899259721398278666861
     const priceEnd = BN.from('6608956417514708620265096070220155361'); // 499965702.7726882736764249983351854726444387766131
@@ -153,5 +169,15 @@ describe('SwapMath', () => {
     const amountOut = await swapMath.calcActualDelta(liquidity, priceStart, priceEnd, lc, false, true);
     expect(amountOut).to.gt(ZERO);
     console.log(`amountOut=${amountOut.toString()}`); // 0.004995077217286491
+
+    const lc2 = await swapMath.calcStepSwapFeeAmount(
+      delta.mul(NEGATIVE_ONE),
+      liquidity,
+      priceStart,
+      priceEnd,
+      false,
+      true
+    );
+    console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 });
