@@ -17,7 +17,7 @@ library SwapMath {
     uint256 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
-    uint16 feeInBps,
+    uint256 feeInBps,
     int256 amountRemaining,
     bool isExactInput,
     bool isToken0
@@ -85,7 +85,7 @@ library SwapMath {
     uint256 liquidity,
     uint160 sqrtPc,
     uint160 sqrtPn,
-    uint16 feeInBps,
+    uint256 feeInBps,
     bool isExactInput,
     bool isToken0
   ) internal pure returns (int256 deltaNext) {
@@ -151,7 +151,7 @@ library SwapMath {
     uint256 absDelta,
     uint256 liquidity,
     uint160 sqrtPc,
-    uint16 feeInBps,
+    uint256 feeInBps,
     bool isExactInput,
     bool isToken0
   ) internal pure returns (uint256 lc) {

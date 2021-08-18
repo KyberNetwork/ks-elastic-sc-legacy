@@ -108,35 +108,6 @@ describe('SwapMath', () => {
     console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 
-  /// special case when calcDeltaNext can not get the exact amount to targetP
-  it('special case', async () => {
-    const liquidity = BN.from('6548'); // 192073834856665992950.399764417470809969
-    const priceStart = BN.from('6317994584605150086931651985499439318'); // 477890273.1633855103814976986899259721398278666861
-    const priceEnd = BN.from('6608956417514708620265096070220155361'); // 499965702.7726882736764249983351854726444387766131
-    const fee = BN.from(3);
-
-    console.log(`priceEnd=${sqrtPriceToString(priceStart)}`);
-    console.log(`priceEnd=${sqrtPriceToString(priceEnd)}`);
-    const delta = await swapMath.calcDeltaNext(liquidity, priceStart, priceEnd, fee, true, false);
-    console.log(`delta: ${delta.toString()}`); // 161683723081087082937.095506066046676757
-
-    const testAmount = delta.sub(BN.from(1));
-
-    const lc = await swapMath.calcFinalSwapFeeAmount(testAmount, liquidity, priceStart, fee, true, false);
-    console.log(`lc=${lc.toString()}`); // 16916406.564505359636169345
-
-    const finalPrice = await swapMath.calcFinalPrice(
-      testAmount,
-      liquidity,
-      lc.add(BN.from(1)),
-      priceStart,
-      true,
-      false
-    );
-    console.log(`finalPrice=${finalPrice.toString()} : ${sqrtPriceToString(finalPrice)}`);
-    expect(finalPrice).to.lte(priceEnd); // 79623317895830914417022576523 >= 79623317895830914510639640423
-  });
-
   it('from token1 -> token0 exact output', async () => {
     const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
@@ -179,5 +150,34 @@ describe('SwapMath', () => {
       true
     );
     console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
+  });
+
+  /// special case when calcDeltaNext can not get the exact amount to targetP
+  it('special case', async () => {
+    const liquidity = BN.from('6548'); // 192073834856665992950.399764417470809969
+    const priceStart = BN.from('6317994584605150086931651985499439318'); // 477890273.1633855103814976986899259721398278666861
+    const priceEnd = BN.from('6608956417514708620265096070220155361'); // 499965702.7726882736764249983351854726444387766131
+    const fee = BN.from(3);
+
+    console.log(`priceEnd=${sqrtPriceToString(priceStart)}`);
+    console.log(`priceEnd=${sqrtPriceToString(priceEnd)}`);
+    const delta = await swapMath.calcDeltaNext(liquidity, priceStart, priceEnd, fee, true, false);
+    console.log(`delta: ${delta.toString()}`); // 161683723081087082937.095506066046676757
+
+    const testAmount = delta.sub(BN.from(1));
+
+    const lc = await swapMath.calcFinalSwapFeeAmount(testAmount, liquidity, priceStart, fee, true, false);
+    console.log(`lc=${lc.toString()}`); // 16916406.564505359636169345
+
+    const finalPrice = await swapMath.calcFinalPrice(
+      testAmount,
+      liquidity,
+      lc.add(BN.from(1)),
+      priceStart,
+      true,
+      false
+    );
+    console.log(`finalPrice=${finalPrice.toString()} : ${sqrtPriceToString(finalPrice)}`);
+    expect(finalPrice).to.lte(priceEnd); // 79623317895830914417022576523 >= 79623317895830914510639640423
   });
 });
