@@ -53,6 +53,11 @@ async function deployTickMath() {
   return (await (await ethers.getContractFactory('MockTickMath')).deploy()) as MockTickMath;
 }
 
+import chai from 'chai';
+
+import {jestSnapshotPlugin} from 'mocha-chai-jest-snapshot';
+chai.use(jestSnapshotPlugin());
+
 export async function snapshotGasCost(response: TransactionResponse) {
   const receipt = await response.wait();
   expect(`${receipt.gasUsed.toString()}`).toMatchSnapshot();

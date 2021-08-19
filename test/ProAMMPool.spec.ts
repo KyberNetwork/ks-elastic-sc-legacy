@@ -21,9 +21,6 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {jestSnapshotPlugin} from 'mocha-chai-jest-snapshot';
-chai.use(jestSnapshotPlugin());
-
 import {
   ProAMMFactory,
   ProAMMPool,
