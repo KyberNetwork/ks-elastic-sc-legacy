@@ -119,8 +119,6 @@ library SwapMath {
       }
     } else {
       // we will perform negation as the last step
-      // common terms in both cases are (liquidity)(absPriceDiff) and fee * (sqrtPc + sqrtPn)
-      // hence can calculate these terms first
       // we round down so that we require less output qty to move ticks
       if (isToken0) {
         // numerator: (liquidity)(absPriceDiff)(2 * sqrtPc - fee * (sqrtPc + sqrtPn))
@@ -216,7 +214,6 @@ library SwapMath {
     }
   }
 
-  // will round down sqrtPn
   function calcFinalPrice(
     uint256 absDelta,
     uint256 liquidity,
