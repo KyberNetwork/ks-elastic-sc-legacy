@@ -12,6 +12,9 @@ import {
   MockToken,
   MockToken__factory,
   PredictPoolAddress,
+  ReinvestmentTokenMaster__factory,
+  ProAMMPool__factory,
+  ProAMMFactory__factory,
 } from '../typechain';
 import {deployFactory} from './helpers/proAMMSetup';
 
@@ -36,7 +39,16 @@ describe('ProAMMFactory', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    return await deployFactory(admin);
+    const ReinvestmentMaster = (await ethers.getContractFactory(
+      'ReinvestmentTokenMaster'
+    )) as ReinvestmentTokenMaster__factory;
+    reinvestmentMaster = await ReinvestmentMaster.deploy();
+  
+    const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+    poolMaster = await ProAMMPoolContract.deploy();
+  
+    const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
+    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, poolMaster.address);
   }
 
   describe('#factory deployment and pool creation', async () => {
@@ -48,8 +60,6 @@ describe('ProAMMFactory', () => {
 
     it('should have initialized with the expected settings', async () => {
       expect(await factory.feeToSetter()).to.eql(admin.address);
-      expect(await factory.reinvestmentTokenMaster()).to.eql(reinvestmentMaster.address);
-      expect(await factory.poolMaster()).to.eql(poolMaster.address);
       expect(await factory.feeAmountTickSpacing(5)).to.eql(10);
       expect(await factory.feeAmountTickSpacing(30)).to.eql(60);
       let result = await factory.getFeeConfiguration();

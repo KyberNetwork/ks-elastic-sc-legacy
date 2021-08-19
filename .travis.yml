@@ -7,6 +7,6 @@ install:
 
 script:
   - yarn prettier -c contracts/*
-  - yarn prettier -c test/*
+  - yarn prettier -c test/**/*.ts
   - yarn compile
   - yarn test
