@@ -36,14 +36,12 @@ contract ProAMMPool is IProAMMPool {
   uint128 private constant MIN_LIQUIDITY = 100000;
 
   /// see IProAMMPool for explanations of the immutables below
-  /// can't be set in constructor to be EIP-1167 compatible
-  /// hence lacking immutable keyword
-  IProAMMFactory public override factory;
-  IERC20 public override token0;
-  IERC20 public override token1;
-  uint128 public override maxLiquidityPerTick;
-  uint16 public override swapFeeBps;
-  int24 public override tickSpacing;
+  IProAMMFactory public override immutable factory;
+  IERC20 public override immutable token0;
+  IERC20 public override immutable token1;
+  uint128 public override immutable maxLiquidityPerTick;
+  uint16 public override immutable swapFeeBps;
+  int24 public override immutable tickSpacing;
 
   // the current government fee as a percentage of the swap fee taken on withdrawal
   // value is fetched from factory and updated whenever a position is modified
@@ -75,14 +73,13 @@ contract ProAMMPool is IProAMMPool {
     locked = false;
   }
 
-  function initialize(
+  constructor(
     address _factory,
     IERC20 _token0,
     IERC20 _token1,
     uint16 _swapFeeBps,
     int24 _tickSpacing
-  ) external override {
-    require(address(factory) == address(0), 'already inited');
+  ) {
     (factory, token0, token1, swapFeeBps, tickSpacing) = (
       IProAMMFactory(_factory),
       _token0,

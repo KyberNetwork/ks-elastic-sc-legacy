@@ -4,21 +4,6 @@ pragma solidity >=0.5.0;
 import {IERC20, IProAMMFactory} from '../IProAMMFactory.sol';
 
 interface IProAMMPoolActions {
-  /// @notice Initializes most of the params for pool deployment
-  /// @dev Called by the ProAMMPoolDeployer after cloning of the pool
-  /// @param factory ProAMMFactory address
-  /// @param token0 First pool token by address sort order
-  /// @param token1 Second pool token of the pool by address sort order
-  /// @param swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @param tickSpacing Minimum number of ticks between initialized ticks
-  function initialize(
-    address factory,
-    IERC20 token0,
-    IERC20 token1,
-    uint16 swapFeeBps,
-    int24 tickSpacing
-  ) external;
-
   /// @notice Adds initial liquidity and sets initial price for the pool
   /// @dev Function calls IProAMMMintCallback#proAMMMintCallback to receive
   /// required tokens from the caller. Hence, the caller is required to

@@ -1,15 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"224753"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"217363"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"173988"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"166842"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"259337"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"269717"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"258687"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"232311"`;
 
-exports[`ProAMMPool #unlockPool should have initialized the pool and created first position 1`] = `"412984"`;
+exports[`ProAMMPool #unlockPool should have initialized the pool and created first position 1`] = `"426303"`;
 
-exports[`ProAMMPool test swap tests token0 exactInput (move down tick) 1`] = `"159575"`;
+exports[`ProAMMPool test swap tests token0 exactInput (move down tick) 1`] = `"149485"`;
 
-exports[`ProAMMPool test swap tests token1 exactOutput (move down tick) 1`] = `"169920"`;
+exports[`ProAMMPool test swap tests token1 exactOutput (move down tick) 1`] = `"159830"`;

@@ -129,32 +129,6 @@ describe('ProAMMPool', () => {
       expect(await pool.tickSpacing()).to.be.eql(tickSpacing);
       expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
     });
-
-    it('should be unable to call initialize() on the pool again', async () => {
-      await expect(
-        pool.initialize(factory.address, token0.address, token1.address, swapFeeBps, tickSpacing)
-      ).to.be.revertedWith('already inited');
-      await expect(
-        pool.initialize(ZERO_ADDRESS, token1.address, token0.address, swapFeeBps, tickSpacing)
-      ).to.be.revertedWith('already inited');
-    });
-
-    it('pool creation should be unaffected by poolMaster configuration', async () => {
-      pool = (await ethers.getContractAt('ProAMMPool', await factory.poolMaster())) as ProAMMPool;
-      // init poolMaster
-      await pool.initialize(factory.address, token0.address, token1.address, swapFeeBps, tickSpacing);
-      // init new tickSpacing that is not in array
-      swapFeeBps = 101;
-      tickSpacing = 10;
-      await factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing);
-
-      // should still be able to create pool even though poolMaster was inited
-      await factory.createPool(token0.address, token1.address, swapFeeBps);
-      // verify address not null
-      expect(await factory.getPool(token0.address, token1.address, swapFeeBps)).to.not.eql(ZERO_ADDRESS);
-      // reset swapFeeBps
-      swapFeeBps = swapFeeBpsArray[0];
-    });
   });
 
   describe('#unlockPool', async () => {

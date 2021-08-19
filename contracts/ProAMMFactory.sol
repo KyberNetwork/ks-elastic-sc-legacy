@@ -4,15 +4,16 @@ pragma solidity 0.8.4;
 import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
+import {BaseSplitCodeFactory} from './libraries/BaseSplitCodeFactory.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+import {ProAMMPool} from './ProAMMPool.sol';
 
 /// @title ProAMM factory
 /// @notice Deploys ProAMM pools and manages control over government fees
-contract ProAMMFactory is IProAMMFactory {
+contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   using Clones for address;
   /// @inheritdoc IProAMMFactory
   address public immutable override reinvestmentTokenMaster;
-  address public immutable override poolMaster;
   address public override feeToSetter;
 
   address private feeTo;
@@ -23,10 +24,9 @@ contract ProAMMFactory is IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
-  constructor(address _reinvestmentTokenMaster, address _poolMaster) {
+  constructor(address _reinvestmentTokenMaster) BaseSplitCodeFactory(type(ProAMMPool).creationCode) {
     feeToSetter = msg.sender;
     reinvestmentTokenMaster = _reinvestmentTokenMaster;
-    poolMaster = _poolMaster;
     emit FeeToSetterUpdated(address(0), feeToSetter);
 
     feeAmountTickSpacing[5] = 10;
@@ -47,13 +47,14 @@ contract ProAMMFactory is IProAMMFactory {
     int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
-    pool = poolMaster.cloneDeterministic(keccak256(abi.encode(token0, token1, swapFeeBps)));
-    IProAMMPoolActions(pool).initialize(
-      address(this),
-      IERC20(token0),
-      IERC20(token1),
-      swapFeeBps,
-      tickSpacing
+    pool = _create(
+      abi.encode(
+        address(this),
+        IERC20(token0),
+        IERC20(token1),
+        swapFeeBps,
+        tickSpacing
+      )
     );
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
