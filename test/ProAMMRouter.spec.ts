@@ -19,6 +19,9 @@ import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
 import {encodePath} from './helpers/swapPath.ts';
 
+const showGasUsed = false;
+const provider = ethers.provider;
+
 let Token: MockToken__factory;
 let Callback: MockProAMMCallbacks__factory;
 let admin;
@@ -40,6 +43,13 @@ let ticks: number[];
 
 let firstSnapshot: any;
 let snapshotId: any;
+
+let getBalances: (
+  who: string
+) => Promise<{
+  ethBalance: BigNumber,
+  tokenBalances: BigNumber[] // weth, tokenA, tokenB
+}>
 
 describe('ProAMMRouter', () => {
   const [user, admin] = waffle.provider.getWallets();
@@ -67,6 +77,25 @@ describe('ProAMMRouter', () => {
 
     initialPrice = encodePriceSqrt(1, 1);
     ticks = [-100 * tickSpacingArray[0], 100 * tickSpacingArray[0]];
+
+    await weth.connect(user).deposit({ value: PRECISION.mul(BN.from(10)) });
+    await weth.connect(user).approve(router.address, BN.from(2).pow(255));
+    await tokenA.connect(user).approve(router.address, BN.from(2).pow(255));
+    await tokenB.connect(user).approve(router.address, BN.from(2).pow(255));
+
+    snapshotId = await snapshot();
+
+    getBalances = async (account: string) => {
+      const balances = await Promise.all([
+        weth.balanceOf(account),
+        tokenA.balanceOf(account),
+        tokenB.balanceOf(account),
+      ]);
+      return {
+        ethBalance: await provider.getBalance(account),
+        tokenBalances: balances
+      }
+    }
   });
 
   const setupCallback = async function (tokenA: MockToken, tokenB: MockToken) {
@@ -92,115 +121,105 @@ describe('ProAMMRouter', () => {
     return pool;
   }
 
-  const swapExactInSingleAndVerify = async function (
-    tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber
+  const swapExactInputSingle = async function (
+    tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
+    let isSrcEth = tokenIn == weth.address && useEth;
+    let isDestEth = tokenIn == weth.address && useEth;
+
+    const swapParams = {
+      tokenIn: tokenIn, tokenOut: tokenOut, fee: fee,
+      recipient: user.address, deadline: BN.from(2).pow(255),
+      amountIn: amount, amountOutMinimum: BN.from(0),
+      sqrtPriceLimitX96: initialPrice
+    };
+    if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
+
+    let multicallData = [router.interface.encodeFunctionData('swapExactInputSingle', [swapParams])];
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+
     let tx = await router
       .connect(user)
-      .swapExactInputSingle({
-        tokenIn: tokenIn, tokenOut: tokenOut, fee: fee,
-        recipient: user.address, deadline: BN.from(2).pow(255),
-        amountIn: amount, amountOutMinimum: BN.from(0),
-        sqrtPriceLimitX96: initialPrice
-        },
-        { value: tokenIn == weth.address ? amount : BN.from(0) }
-      );
+      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0) });
+
     return tx;
   }
 
-  const swapExactInAndVerify = async function (
-    tokens: string[], fee: number, amount: BigNumber
+  const swapExactInput = async function (
+    tokens: string[], fee: number, amount: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
+    let isSrcEth = tokens[0] == weth.address && useEth;
+    let isDestEth = tokens[tokens.length - 1] == weth.address && useEth;
+
+    const swapParams = {
+      path: encodePath(tokens, new Array(tokens.length - 1).fill(fee)),
+      recipient: user.address, deadline: BN.from(2).pow(255),
+      amountIn: amount, amountOutMinimum: BN.from(0)
+    };
+    if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
+
+    let multicallData = [router.interface.encodeFunctionData('swapExactInput', [swapParams])];
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+
     let tx = await router
       .connect(user)
-      .swapExactInput({
-        path: encodePath(tokens, new Array(tokens.length - 1).fill(fee)),
-        recipient: user.address, deadline: BN.from(2).pow(255),
-        amountIn: amount, amountOutMinimum: BN.from(0)
-        },
-        { value: tokens[0] == weth.address ? amount : BN.from(0) }
-      );
+      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0) });
     return tx;
   }
 
-  const swapExactOutSingleAndVerify = async function (
-    tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber
+  const swapExactOutputSingle = async function (
+    tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
+    let isSrcEth = tokenIn == weth.address && useEth;
+    let isDestEth = tokenIn == weth.address && useEth;
+
     const swapParams = {
       tokenIn: tokenIn, tokenOut: tokenOut, fee: fee,
       recipient: user.address, deadline: BN.from(2).pow(255),
       amountOut: amount, amountInMaximum: PRECISION,
       sqrtPriceLimitX96: initialPrice
     }
+    if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
+
     let multicallData = [router.interface.encodeFunctionData('swapExactOutputSingle', [swapParams])];
-    if (tokenIn == weth.address) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+
     let tx = await router
       .connect(user)
-      .multicall(multicallData,
-        { value: tokenIn == weth.address ? PRECISION : BN.from(0) }
-      );
+      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0) });
     return tx;
   }
 
-  const swapExactOutAndVerify = async function (
-    tokens: string[], fee: number, amount: BigNumber
+  const swapExactOutput = async function (
+    tokens: string[], fee: number, amount: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
+    let isSrcEth = tokens[0] == weth.address && useEth;
+    let isDestEth = tokens[tokens.length - 1] == weth.address && useEth;
     let encodeTokens = tokens.slice().reverse();
+
     const swapParams = {
       path: encodePath(encodeTokens, new Array(encodeTokens.length - 1).fill(fee)),
       recipient: user.address, deadline: BN.from(2).pow(255),
       amountOut: amount, amountInMaximum: PRECISION,
       }
+    if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
+
     let multicallData = [router.interface.encodeFunctionData('swapExactOutput', [swapParams])];
-    if (tokens[0] == weth.address) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
     let tx = await router
       .connect(user)
-      .multicall(multicallData,
-        { value: tokens[0] == weth.address ? PRECISION : BN.from(0) }
-      );
+      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0) });
     return tx;
   }
 
-  describe('Test swap single pool', async () => {
-    before('deploy pools and take snapshot', async () => {
-      // for revert to before pool creation
-      firstSnapshot = await snapshot();
-      await weth.connect(user).deposit({ value: PRECISION.mul(BN.from(10)) });
-      await tokenA.connect(user).approve(router.address, BN.from(2).pow(255));
-      await tokenB.connect(user).approve(router.address, BN.from(2).pow(255));
-      snapshotId = await snapshot();
-    });
-
+  describe('#swapExactInputSingle', async () => {
     beforeEach('revert to snapshot', async () => {
       await revertToSnapshot(snapshotId);
       snapshotId = await snapshot();
-    });
-
-    after('revert to first snapshot', async () => {
-      await revertToSnapshot(firstSnapshot);
-      poolArray = [];
-    });
-
-    it('swapExactIn: eth - token', async () => {
-      let gasUsed = BN.from(0);
-      let numRuns = swapFeeBpsArray.length;
-      for (let i = 0; i < numRuns; i++) {
-        await setupPool(
-          weth.address, tokenB.address, swapFeeBpsArray[i],
-          initialPrice, [-100 * tickSpacingArray[i], 100 * tickSpacingArray[i]]
-        );
-        // swap eth -> token
-        let tx = await swapExactInSingleAndVerify(
-          weth.address, tokenB.address, swapFeeBpsArray[i], BN.from(10000000), BN.from(0)
-        );
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        // swap token -> weth
-        tx = await swapExactInSingleAndVerify(
-          tokenB.address, weth.address, swapFeeBpsArray[i], BN.from(10000000), BN.from(0)
-        );
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-      }
-      console.log(`Average gas used for ${numRuns * 2} swapExactInSingle: ${(gasUsed.div(BN.from(numRuns * 2))).toString()}`);
     });
 
     it('swapExactIn: token - token', async () => {
@@ -217,58 +236,116 @@ describe('ProAMMRouter', () => {
         let token1 = tokenA.address < tokenB.address ? tokenB : tokenA;
         let tx;
         // token0 -> token1
-        tx = await swapExactInSingleAndVerify(
-          token0.address, token1.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickLower)
+        tx = await swapExactInputSingle(
+          token0.address, token1.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickLower), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
         // token1 -> token0
-        tx = await swapExactInSingleAndVerify(
-          token1.address, token0.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickUpper)
+        tx = await swapExactInputSingle(
+          token1.address, token0.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickUpper), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
-      console.log(`Average gas used for ${numRuns * 2} swapExactInSingle: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
+      if (showGasUsed) {
+        console.log(`Average gas used for ${numRuns * 2} swapExactInputSingle: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
+      }
     });
 
-    it('swapExactOut: token - token', async () => {
-      let gasUsed = BN.from(0);
-      let numRuns = swapFeeBpsArray.length;
-      for (let i = 0; i < 1; i++) {
-        await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, ticks);
-        let tx = await swapExactOutSingleAndVerify(
-          tokenA.address, tokenB.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0)
-        );
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactOutSingleAndVerify(
-          tokenB.address, tokenA.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0)
-        );
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-      }
-      console.log(`Average gas used for ${numRuns * 2} swapExactOutSingle: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
+    it('eth -> token', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await swapExactInputSingle(
+        weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true
+      );
+    });
+
+    it('token -> eth', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await swapExactInputSingle(
+        tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true
+      );
+    });
+
+    it('test reverts', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await expect(
+        router.connect(user).swapExactInputSingle({
+          tokenIn: tokenA.address, tokenOut: tokenB.address, fee: fee,
+          recipient: user.address, deadline: BN.from(2).pow(255),
+          amountIn: amount, amountOutMinimum: PRECISION,
+          sqrtPriceLimitX96: BN.from(0)
+        })
+      ).to.be.revertedWith('ProAMMRouter: insufficient amount out');
     });
   });
 
-  describe('Test swap multiple pools', async () => {
-    before('deploy pools and take snapshot', async () => {
-      // for revert to before pool creation
-      firstSnapshot = await snapshot();
-      await weth.connect(user).deposit({ value: PRECISION.mul(BN.from(10)) });
-      await tokenA.connect(user).approve(router.address, BN.from(2).pow(255));
-      await tokenB.connect(user).approve(router.address, BN.from(2).pow(255));
-      snapshotId = await snapshot();
-    });
-
+  describe('#swapExactOutputSingle', async () => {
     beforeEach('revert to snapshot', async () => {
       await revertToSnapshot(snapshotId);
       snapshotId = await snapshot();
     });
 
-    after('revert to first snapshot', async () => {
-      await revertToSnapshot(firstSnapshot);
-      poolArray = [];
+    it('token - token', async () => {
+      let gasUsed = BN.from(0);
+      let numRuns = swapFeeBpsArray.length;
+      for (let i = 0; i < 1; i++) {
+        await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, ticks);
+        let tx = await swapExactOutputSingle(
+          tokenA.address, tokenB.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0), false
+        );
+        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+        tx = await swapExactOutputSingle(
+          tokenB.address, tokenA.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0), false
+        );
+        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+      }
+      if (showGasUsed) {
+        console.log(`Average gas used for ${numRuns * 2} swapExactOutSingle: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
+      }
     });
 
-    it('swapExactIn with only one pool', async () => {
+    it('eth -> token', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      // eth -> tokenB
+      await swapExactOutputSingle(
+        weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true
+      );
+    });
+
+    it('token -> eth', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await swapExactOutputSingle(
+        tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true
+      );
+    });
+
+    it('test reverts', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await expect(
+        router.connect(user).swapExactOutputSingle({
+          tokenIn: tokenA.address, tokenOut: tokenB.address, fee: fee,
+          recipient: user.address, deadline: BN.from(2).pow(255),
+          amountOut: amount, amountInMaximum: BN.from(0),
+          sqrtPriceLimitX96: BN.from(0)
+        })
+      ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
+    });
+  });
+
+  describe(`#swapExactInput`, async () => {
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+    });
+
+    it('one pool', async () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
       let gasUsed = BN.from(0);
@@ -276,15 +353,78 @@ describe('ProAMMRouter', () => {
       let numRuns = firstTokens.length;
       for(let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
-        let tx = await swapExactInAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000));
+        let tx = await swapExactInput([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactInAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000));
+        tx = await swapExactInput([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
-      console.log(`Average gas used for ${numRuns * 2} swapExactIn: ${(gasUsed.div(BN.from(numRuns * 2))).toString()}`);
+      if (showGasUsed) {
+        console.log(`Average gas used for ${numRuns * 2} swapExactIn: ${(gasUsed.div(BN.from(numRuns * 2))).toString()}`);
+      }
     });
 
-    it('swapExactOut with only one pool', async () => {
+    it('2 pools', async () => {
+      let fee = swapFeeBpsArray[0];
+      let gasUsed = BN.from(0);
+      let amount = BN.from(1000000);
+      await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      // swap eth -> tokenA -> tokenB
+      let tx = await swapExactInput(
+        [weth.address, tokenA.address, tokenB.address], fee, amount, false
+      );
+      gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+      // swap tokenB -> tokenA -> eth
+      tx = await swapExactInput(
+        [tokenB.address, tokenA.address, weth.address], fee, amount, false
+      );
+      gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+      if (showGasUsed) {
+        console.log(`Average gas used for 2 swapExactIn 2 pools: ${(gasUsed.div(BN.from(2))).toString()}`);
+      }
+    });
+
+    it('eth -> token', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      // eth -> tokenB -> tokenA
+      await swapExactInput(
+        [weth.address, tokenB.address, tokenA.address], fee, BN.from(1000000), true
+      );
+    });
+
+    it('token -> eth', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await swapExactInput(
+        [tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true
+      );
+    });
+
+    it('test reverts', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await setupPool(tokenB.address, weth.address, fee, initialPrice, ticks);
+      await expect(
+        router.connect(user).swapExactInput({
+          path: encodePath([tokenA.address, tokenB.address, weth.address], [fee, fee]),
+          recipient: user.address, deadline: BN.from(2).pow(255),
+          amountIn: amount, amountOutMinimum: PRECISION
+        })
+      ).to.be.revertedWith('ProAMMRouter: insufficient amount out')
+    });
+  });
+
+  describe(`#swapExactOutput`, async () => {
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+    });
+
+    it('one pool', async () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
       let gasUsed = BN.from(0);
@@ -292,50 +432,75 @@ describe('ProAMMRouter', () => {
       let numRuns = firstTokens.length;
       for(let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
-        let tx = await swapExactOutAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000));
+        let tx = await swapExactOutput([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactOutAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000));
+        tx = await swapExactOutput([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
-      console.log(`Average gas used for ${numRuns * 2} swapExactOut: ${(gasUsed.div(BN.from(numRuns * 2))).toString()}`);
+      if (showGasUsed) {
+        console.log(`Average gas used for ${numRuns * 2} swapExactOut: ${(gasUsed.div(BN.from(numRuns * 2))).toString()}`);
+      }
     });
 
-    it('swapExactIn 2 pools', async () => {
+    it('2 pools', async () => {
       let fee = swapFeeBpsArray[0];
       let gasUsed = BN.from(0);
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // swap eth -> tokenA -> tokenB
-      let tx = await swapExactInAndVerify(
-        [weth.address, tokenA.address, tokenB.address], fee, amount
+      let tx = await swapExactOutput(
+        [weth.address, tokenA.address, tokenB.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       // swap tokenB -> tokenA -> eth
-      tx = await swapExactInAndVerify(
-        [tokenB.address, tokenA.address, weth.address], fee, amount
+      tx = await swapExactOutput(
+        [tokenB.address, tokenA.address, weth.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-      console.log(`Average gas used for 2 swapExactIn 2 pools: ${(gasUsed.div(BN.from(2))).toString()}`);
+      if (showGasUsed) {
+        console.log(`Average gas used for 2 swapExactIn 2 pools: ${(gasUsed.div(BN.from(2))).toString()}`);
+      }
     });
 
-    it('swapExactOut 2 pools', async () => {
+    it('eth -> token', async () => {
       let fee = swapFeeBpsArray[0];
-      let gasUsed = BN.from(0);
-      let amount = BN.from(1000000);
-      await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
-      // swap eth -> tokenA -> tokenB
-      let tx = await swapExactOutAndVerify(
-        [weth.address, tokenA.address, tokenB.address], fee, amount
+      // eth -> tokenB -> tokenA
+      await swapExactOutput(
+        [weth.address, tokenB.address, tokenA.address], fee, BN.from(1000000), true
       );
-      gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-      // swap tokenB -> tokenA -> eth
-      tx = await swapExactOutAndVerify(
-        [tokenB.address, tokenA.address, weth.address], fee, amount
+    });
+
+    it('token -> eth', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await swapExactOutput(
+        [tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true
       );
-      gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-      console.log(`Average gas used for 2 swapExactIn 2 pools: ${(gasUsed.div(BN.from(2))).toString()}`);
+    });
+
+    it('test reverts', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      await setupPool(tokenB.address, weth.address, fee, initialPrice, ticks);
+      await expect(
+        router.connect(user).swapExactOutput({
+          path: encodePath([tokenA.address, tokenB.address, weth.address], [fee, fee]),
+          recipient: user.address, deadline: BN.from(2).pow(255),
+          amountOut: amount, amountInMaximum: BN.from(0),
+        })
+      ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
+    });
+  });
+
+  describe(`#others`, async () => {
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
     });
 
     it('swap a loop with 3 pools', async () => {
@@ -345,15 +510,27 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactInAndVerify(
-        [weth.address, tokenA.address, tokenB.address, weth.address], fee, amount
+      await swapExactInput(
+        [weth.address, tokenA.address, tokenB.address, weth.address], fee, amount, false
       );
-      await swapExactInAndVerify(
-        [tokenA.address, weth.address, tokenB.address, tokenA.address], fee, amount
+      await swapExactInput(
+        [tokenA.address, weth.address, tokenB.address, tokenA.address], fee, amount, false
       );
-      await swapExactOutAndVerify(
-        [tokenB.address, tokenA.address, weth.address, tokenB.address], fee, amount
+      await swapExactOutput(
+        [tokenB.address, tokenA.address, weth.address, tokenB.address], fee, amount, false
       );
-    })
+    });
+
+    it('callback: invalid data', async () => {
+      await expect(
+        router.connect(user).proAMMSwapCallback(0, 0, "0x")
+      ).to.be.revertedWith('ProAMMRouter: invalid delta qties');
+      await expect(
+        router.connect(user).proAMMSwapCallback(-1, 0, "0x")
+      ).to.be.revertedWith('ProAMMRouter: invalid delta qties');
+      await expect(
+        router.connect(user).proAMMSwapCallback(0, -1, "0x")
+      ).to.be.revertedWith('ProAMMRouter: invalid delta qties');
+    });
   });
 });
