@@ -13,7 +13,7 @@ import {
   MockToken__factory,
   PredictPoolAddress,
 } from '../typechain';
-import {deployFactory, deployProAMMPoolMaster, deployReinvestmentTokenMaster} from './helpers/proAMMSetup';
+import {deployFactory} from './helpers/proAMMSetup';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -33,12 +33,10 @@ describe('ProAMMFactory', () => {
   async function fixture() {
     let poolAddressPredictorFactory = await ethers.getContractFactory('PredictPoolAddress');
     poolAddressPredictor = (await poolAddressPredictorFactory.deploy()) as PredictPoolAddress;
-    reinvestmentMaster = await deployReinvestmentTokenMaster(ethers);
-    poolMaster = await deployProAMMPoolMaster(ethers);
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    return await deployFactory(ethers, admin, reinvestmentMaster.address, poolMaster.address);
+    return await deployFactory(admin);
   }
 
   describe('#factory deployment and pool creation', async () => {

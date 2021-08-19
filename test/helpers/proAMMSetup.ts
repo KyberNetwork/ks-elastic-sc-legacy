@@ -1,39 +1,20 @@
 import {
-  ProAMMFactory,
   ProAMMFactory__factory,
-  ReinvestmentTokenMaster,
   ReinvestmentTokenMaster__factory,
-  ProAMMPool,
   ProAMMPool__factory,
+  ProAMMFactory,
 } from '../../typechain';
-import {ZERO_ADDRESS} from './helper';
+import {ethers} from 'hardhat';
 
-let Factory: ProAMMFactory__factory;
-let ReinvestmentMaster: ReinvestmentTokenMaster__factory;
-let PoolMaster: ProAMMPool__factory;
-let factory: ProAMMFactory;
-
-export async function deployFactory(ethers: any, admin: any, reinvestmentMasterAddress: any, poolMasterAddress: any) {
-  Factory = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-  if (reinvestmentMasterAddress == ZERO_ADDRESS) {
-    let reinvestmentMaster = await deployReinvestmentTokenMaster(ethers);
-    reinvestmentMasterAddress = reinvestmentMaster.address;
-  }
-  if (poolMasterAddress == ZERO_ADDRESS) {
-    let poolMaster = await deployProAMMPoolMaster(ethers);
-    poolMasterAddress = poolMaster.address;
-  }
-  return await Factory.connect(admin).deploy(reinvestmentMasterAddress, poolMasterAddress);
-}
-
-export async function deployReinvestmentTokenMaster(ethers: any) {
-  ReinvestmentMaster = (await ethers.getContractFactory(
+export async function deployFactory(admin: any): Promise<ProAMMFactory> {
+  const ReinvestmentMaster = (await ethers.getContractFactory(
     'ReinvestmentTokenMaster'
   )) as ReinvestmentTokenMaster__factory;
-  return await ReinvestmentMaster.deploy();
-}
+  const reinvestmentMaster = await ReinvestmentMaster.deploy();
 
-export async function deployProAMMPoolMaster(ethers: any) {
-  PoolMaster = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
-  return await PoolMaster.deploy();
+  const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+  const poolMaster = await ProAMMPoolContract.deploy();
+
+  const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
+  return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, poolMaster.address);
 }
