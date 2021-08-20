@@ -1,8 +1,10 @@
 import bn from 'bignumber.js';
 import {ethers} from 'hardhat';
+import {TransactionResponse} from '@ethersproject/abstract-provider';
 import {BigNumber, BigNumberish} from 'ethers';
 import {MockTickMath} from '../../typechain/MockTickMath';
 import {MIN_TICK, MAX_TICK} from './helper';
+import {expect} from 'chai';
 
 bn.config({EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40});
 
@@ -49,4 +51,14 @@ async function _getTickAtPrice(sqrtRatio: BigNumber): Promise<number> {
 
 async function deployTickMath() {
   return (await (await ethers.getContractFactory('MockTickMath')).deploy()) as MockTickMath;
+}
+
+import chai from 'chai';
+
+import {jestSnapshotPlugin} from 'mocha-chai-jest-snapshot';
+chai.use(jestSnapshotPlugin());
+
+export async function snapshotGasCost(response: TransactionResponse) {
+  const receipt = await response.wait();
+  expect(`${receipt.gasUsed.toString()}`).toMatchSnapshot();
 }

@@ -16,11 +16,19 @@ import {
   BPS,
   BN,
 } from './helpers/helper';
+import {snapshotGasCost} from './helpers/utils';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {ProAMMFactory, ProAMMPool, MockToken, MockToken__factory, MockProAMMCallbacks} from '../typechain';
+import {
+  ProAMMFactory,
+  ProAMMPool,
+  MockToken,
+  MockToken__factory,
+  MockProAMMCallbacks,
+  ProAMMPool__factory,
+} from '../typechain';
 import {deployFactory} from './helpers/proAMMSetup';
 import {
   BigNumber,
@@ -35,10 +43,7 @@ import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
 import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 
-let Token: MockToken__factory;
 let factory: ProAMMFactory;
-let tokenA: MockToken;
-let tokenB: MockToken;
 let token0: MockToken;
 let token1: MockToken;
 let reinvestmentToken: MockToken;
@@ -64,56 +69,62 @@ let positionKey: any;
 let positionData: any;
 let result: any;
 
+class Fixtures {
+  constructor(
+    public factory: ProAMMFactory,
+    public poolArray: ProAMMPool[],
+    public token0: MockToken,
+    public token1: MockToken,
+    public callback: MockProAMMCallbacks
+  ) {}
+}
+
 describe('ProAMMPool', () => {
   const [user, admin, feeToSetter] = waffle.provider.getWallets();
 
-  async function fixture() {
-    let factory = await deployFactory(ethers, admin, ZERO_ADDRESS, ZERO_ADDRESS);
+  async function fixture(): Promise<Fixtures> {
+    let factory = await deployFactory(admin);
+    const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
         await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
       }
     }
-    // create pools
-    let poolArray = [];
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      await factory.createPool(tokenA.address, tokenB.address, swapFeeBpsArray[i]);
-      pool = (await ethers.getContractAt(
-        'ProAMMPool',
-        await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[i])
-      )) as ProAMMPool;
-      poolArray.push(pool);
-    }
-    return {factory, poolArray};
-  }
 
-  before('token and callback setup', async () => {
-    Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
-    tokenA = await Token.deploy('USDC', 'USDC', PRECISION.mul(PRECISION));
-    tokenB = await Token.deploy('DAI', 'DAI', PRECISION.mul(PRECISION));
+    const MockTokenContract = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
+    const tokenA = await MockTokenContract.deploy('USDC', 'USDC', PRECISION.mul(PRECISION));
+    const tokenB = await MockTokenContract.deploy('DAI', 'DAI', PRECISION.mul(PRECISION));
     token0 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA : tokenB;
     token1 = token0.address == tokenA.address ? tokenB : tokenA;
 
-    let Callback = await ethers.getContractFactory('MockProAMMCallbacks');
-    callback = (await Callback.deploy(tokenA.address, tokenB.address)) as MockProAMMCallbacks;
+    // create pools
+    let poolArray = [];
+    for (let i = 0; i < swapFeeBpsArray.length; i++) {
+      await factory.createPool(token0.address, token1.address, swapFeeBpsArray[i]);
+      const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeBpsArray[i]);
+      poolArray.push(ProAMMPoolContract.attach(poolAddress));
+    }
+
+    const CallbackContract = await ethers.getContractFactory('MockProAMMCallbacks');
+    callback = (await CallbackContract.deploy(tokenA.address, tokenB.address)) as MockProAMMCallbacks;
     // user give token approval to callbacks
     await tokenA.connect(user).approve(callback.address, MAX_UINT);
     await tokenB.connect(user).approve(callback.address, MAX_UINT);
-  });
+
+    return new Fixtures(factory, poolArray, token0, token1, callback);
+  }
 
   beforeEach('load fixture', async () => {
-    ({factory, poolArray} = await loadFixture(fixture));
+    ({factory, poolArray, token0, token1, callback} = await loadFixture(fixture));
     pool = poolArray[0];
   });
 
   describe('#test pool deployment and initialization', async () => {
     it('should have initialized required settings', async () => {
       expect(await pool.factory()).to.be.eql(factory.address);
-      let token0Address = tokenA.address < tokenB.address ? tokenA.address : tokenB.address;
-      let token1Address = token0Address == tokenA.address ? tokenB.address : tokenA.address;
-      expect(await pool.token0()).to.be.eql(token0Address);
-      expect(await pool.token1()).to.be.eql(token1Address);
+      expect(await pool.token0()).to.be.eql(token0.address);
+      expect(await pool.token1()).to.be.eql(token1.address);
       expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
       expect(await pool.tickSpacing()).to.be.eql(tickSpacing);
       expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
@@ -121,26 +132,26 @@ describe('ProAMMPool', () => {
 
     it('should be unable to call initialize() on the pool again', async () => {
       await expect(
-        pool.initialize(factory.address, tokenA.address, tokenB.address, swapFeeBps, tickSpacing)
+        pool.initialize(factory.address, token0.address, token1.address, swapFeeBps, tickSpacing)
       ).to.be.revertedWith('already inited');
       await expect(
-        pool.initialize(ZERO_ADDRESS, tokenA.address, tokenB.address, swapFeeBps, tickSpacing)
+        pool.initialize(ZERO_ADDRESS, token1.address, token0.address, swapFeeBps, tickSpacing)
       ).to.be.revertedWith('already inited');
     });
 
     it('pool creation should be unaffected by poolMaster configuration', async () => {
       pool = (await ethers.getContractAt('ProAMMPool', await factory.poolMaster())) as ProAMMPool;
       // init poolMaster
-      await pool.initialize(factory.address, tokenA.address, tokenB.address, swapFeeBps, tickSpacing);
+      await pool.initialize(factory.address, token0.address, token1.address, swapFeeBps, tickSpacing);
       // init new tickSpacing that is not in array
       swapFeeBps = 101;
       tickSpacing = 10;
       await factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing);
 
       // should still be able to create pool even though poolMaster was inited
-      await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+      await factory.createPool(token0.address, token1.address, swapFeeBps);
       // verify address not null
-      expect(await factory.getPool(tokenA.address, tokenB.address, swapFeeBps)).to.not.eql(ZERO_ADDRESS);
+      expect(await factory.getPool(token0.address, token1.address, swapFeeBps)).to.not.eql(ZERO_ADDRESS);
       // reset swapFeeBps
       swapFeeBps = swapFeeBpsArray[0];
     });
@@ -173,7 +184,8 @@ describe('ProAMMPool', () => {
     });
 
     it('should have initialized the pool and created first position', async () => {
-      await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
+      const tx = await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
+      await snapshotGasCost(tx);
 
       result = await pool.getPoolState();
       expect(result._poolSqrtPrice).to.be.eql(initialPrice);
@@ -425,7 +437,8 @@ describe('ProAMMPool', () => {
               '0x'
             );
             // mint new position
-            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            let tx = await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            await snapshotGasCost(tx);
             positionData = await pool.positions(positionKey);
             expect(positionData.liquidity).to.be.eql(PRECISION);
             // no swap, no fees
@@ -433,7 +446,9 @@ describe('ProAMMPool', () => {
             // do swaps to cross into position
             await swapToUpTick(pool, user, tickUpper);
             // add on more liquidity
-            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            tx = await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            await snapshotGasCost(tx);
+
             positionData = await pool.positions(positionKey);
             expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
             // should have increased fees
@@ -569,7 +584,8 @@ describe('ProAMMPool', () => {
               '0x'
             );
             // mint new position
-            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            let tx = await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            await snapshotGasCost(tx);
             positionData = await pool.positions(positionKey);
             expect(positionData.liquidity).to.be.eql(PRECISION);
             // no swap, no fees
@@ -577,7 +593,9 @@ describe('ProAMMPool', () => {
             // do a few swaps, since price is in position, direction doesnt matter
             await doRandomSwaps(pool, user, 3);
             // add on more liquidity
-            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            tx = await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+            await snapshotGasCost(tx);
+
             positionData = await pool.positions(positionKey);
             expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
             // should have increased fees
@@ -947,7 +965,7 @@ describe('ProAMMPool', () => {
     });
   });
 
-  describe.skip('test swap', async () => {
+  describe('test swap', async () => {
     beforeEach('unlock pool with initial price of 2:1', async () => {
       initialPrice = encodePriceSqrt(TWO, ONE);
       await callback.unlockPool(pool.address, initialPrice, '0x');
@@ -961,7 +979,8 @@ describe('ProAMMPool', () => {
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
       await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
+      let tx = await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
+      await snapshotGasCost(tx);
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
       await logSwapState(SwapTitle.AFTER_SWAP, pool);
@@ -975,7 +994,7 @@ describe('ProAMMPool', () => {
       let token0BalanceBefore = await token0.balanceOf(user.address);
       let token1BalanceBefore = await token1.balanceOf(user.address);
       await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(
+      let tx = await callback.swap(
         pool.address,
         user.address,
         BN.from('-1751372543351715667'),
@@ -983,6 +1002,7 @@ describe('ProAMMPool', () => {
         MIN_SQRT_RATIO.add(ONE),
         '0x'
       );
+      await snapshotGasCost(tx);
       let token0BalanceAfter = await token0.balanceOf(user.address);
       let token1BalanceAfter = await token1.balanceOf(user.address);
       await logSwapState(SwapTitle.AFTER_SWAP, pool);
