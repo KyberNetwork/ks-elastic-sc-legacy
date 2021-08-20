@@ -22,6 +22,11 @@ export function encodePriceSqrt(reserve1: BigNumberish, reserve0: BigNumberish):
   );
 }
 
+export function sqrtPriceToString(a: BigNumber) {
+  let sqrtP = new bn(a.toString()).dividedBy(new bn(2).pow(96));
+  return sqrtP.toString();
+}
+
 export async function getNearestSpacedTickAtPrice(sqrtRatio: BigNumber, tickSpacing: number): Promise<BigNumber> {
   return BigNumber.from(Math.ceil((await _getTickAtPrice(sqrtRatio)) / tickSpacing) * tickSpacing);
 }

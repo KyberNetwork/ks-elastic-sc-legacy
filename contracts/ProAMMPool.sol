@@ -10,7 +10,8 @@ import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.s
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
-import {MathConstants, QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
+import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
+import {MathConstants} from './libraries/MathConstants.sol';
 import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
 import {SwapMath} from './libraries/SwapMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
@@ -32,6 +33,7 @@ contract ProAMMPool is IProAMMPool {
   using Position for Position.Data;
 
   address private constant LIQUIDITY_LOCKUP_ADDRESS = 0xD444422222222222222222222222222222222222;
+  uint128 private constant MIN_LIQUIDITY = 10;
 
   /// see IProAMMPool for explanations of the immutables below
   /// can't be set in constructor to be EIP-1167 compatible
@@ -147,18 +149,22 @@ contract ProAMMPool is IProAMMPool {
     locked = false; // unlock the pool
     // initial tick bound is checked in this function
     int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtPrice);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(
+      initialSqrtPrice,
+      MIN_LIQUIDITY
+    );
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
     if (qty0 > 0) require(qty0 <= poolBalToken0(), 'lacking qty0');
     if (qty1 > 0) require(qty1 <= poolBalToken1(), 'lacking qty1');
     poolTick = initialTick;
     poolSqrtPrice = initialSqrtPrice;
-    poolReinvestmentLiquidity = MathConstants.MIN_LIQUIDITY;
-    poolReinvestmentLiquidityLast = MathConstants.MIN_LIQUIDITY;
+    poolReinvestmentLiquidity = MIN_LIQUIDITY;
+    poolReinvestmentLiquidityLast = MIN_LIQUIDITY;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
     reinvestmentToken.initialize();
-    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MathConstants.MIN_LIQUIDITY * 100000);
+    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY * 100_000);
     poolFeeGrowthGlobal = MathConstants.TWO_POW_96;
+
     emit Initialize(initialSqrtPrice, poolTick);
   }
 
@@ -413,9 +419,7 @@ contract ProAMMPool is IProAMMPool {
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning
     uint256 lfDelta = ReinvestmentMath.calcLfDelta(_qty, lf, rTotalSupply);
-    poolFeeGrowthGlobal =
-      poolFeeGrowthGlobal +
-      ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, poolLiquidity);
+    poolFeeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, poolLiquidity);
     poolReinvestmentLiquidity = lf - lfDelta;
     poolReinvestmentLiquidityLast = poolReinvestmentLiquidity;
     // finally, calculate and send token quantities to user
@@ -482,7 +486,9 @@ contract ProAMMPool is IProAMMPool {
     SwapData memory swapData;
     swapData.isExactInput = swapQty > 0;
     // tick (token1Amt/token0Amt) will increase for token0Output or token1Input
-    swapData.willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
+    swapData.willUpTick =
+      (!swapData.isExactInput && isToken0) ||
+      (swapData.isExactInput && !isToken0);
     require(
       swapData.willUpTick
         ? (sqrtPriceLimit > poolSqrtPrice && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO)
@@ -517,7 +523,9 @@ contract ProAMMPool is IProAMMPool {
       step.nextSqrtP = TickMath.getSqrtRatioAtTick(step.nextTick);
       step.targetSqrtP = step.nextSqrtP;
       // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-      if (swapData.willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
+      if (
+        swapData.willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)
+      ) {
         step.targetSqrtP = sqrtPriceLimit;
       }
 
@@ -619,53 +627,7 @@ contract ProAMMPool is IProAMMPool {
     emit Swap(msg.sender, recipient, deltaQty0, deltaQty1, poolSqrtPrice, poolLiquidity, poolTick);
   }
 
-  /// see IProAMMPoolActions
-  // function flash(
-  //     address recipient,
-  //     uint256 qty0,
-  //     uint256 qty1,
-  //     bytes calldata data
-  // ) external override lock {
-  //     uint128 _liquidity = poolLiquidity;
-  //     require(_liquidity > 0, 'L');
-
-  //     uint256 flashFee0 = qty0 * swapFeeBps / MathConstants.BPS;
-  //     uint256 flashFee1 = qty1 * swapFeeBps / MathConstants.BPS;
-  //     uint256 balance0Before = poolBalToken0();
-  //     uint256 balance1Before = poolBalToken1();
-
-  //     if (qty0 > 0) token0.safeTransfer(recipient, qty0);
-  //     if (qty1 > 0) token1.safeTransfer(recipient, qty1);
-
-  //     IProAMMFlashCallback(msg.sender).proAMMFlashCallback(flashFee0, flashFee1, data);
-
-  //     uint256 balance0After = poolBalToken0();
-  //     uint256 balance1After = poolBalToken1();
-
-  //     require(balance0Before + flashFee0 <= balance0After, 'F0');
-  //     require(balance1Before + flashFee1 <= balance1After, 'F1');
-
-  //     uint256 paid0 = balance0After - balance0Before;
-  //     uint256 paid1 = balance1After - balance1Before;
-
-  //     // TODO: convert pool token fee to LP token fee (and account for govt fee)
-  //     if (paid0 > 0) {
-
-  //         uint8 feeProtocol0 = slot0.feeProtocol % 16;
-  //         uint256 fees0 = feeProtocol0 == 0 ? 0 : paid0 / feeProtocol0;
-  //         if (uint128(fees0) > 0) protocolFees.token0 += uint128(fees0);
-  //         feeGrowthGlobal0X128 += FullMath.mulDiv(paid0 - fees0, FixedPoint128.Q128, _liquidity);
-  //     }
-  //     if (paid1 > 0) {
-  //         uint8 feeProtocol1 = slot0.feeProtocol >> 4;
-  //         uint256 fees1 = feeProtocol1 == 0 ? 0 : paid1 / feeProtocol1;
-  //         if (uint128(fees1) > 0) protocolFees.token1 += uint128(fees1);
-  //         feeGrowthGlobal1X128 += FullMath.mulDiv(paid1 - fees1, FixedPoint128.Q128, _liquidity);
-  //     }
-
-  //     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
-  // }
-
+  // TODO flash
   // TODO add governance fee
   // see IProAMMPoolActions
   function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {}

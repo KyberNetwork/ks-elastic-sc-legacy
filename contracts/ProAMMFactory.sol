@@ -48,7 +48,13 @@ contract ProAMMFactory is IProAMMFactory {
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
     pool = poolMaster.cloneDeterministic(keccak256(abi.encode(token0, token1, swapFeeBps)));
-    IProAMMPoolActions(pool).initialize(address(this), IERC20(token0), IERC20(token1), swapFeeBps, tickSpacing);
+    IProAMMPoolActions(pool).initialize(
+      address(this),
+      IERC20(token0),
+      IERC20(token1),
+      swapFeeBps,
+      tickSpacing
+    );
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
     getPool[token1][token0][swapFeeBps] = pool;

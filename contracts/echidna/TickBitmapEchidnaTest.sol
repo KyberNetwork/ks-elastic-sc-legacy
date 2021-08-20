@@ -2,8 +2,9 @@
 pragma solidity >=0.8.0;
 
 import '../libraries/TickBitmap.sol';
+import './EchidnaAssert.sol';
 
-contract TickBitmapEchidnaTest {
+contract TickBitmapEchidnaTest is EchidnaAssert {
   using TickBitmap for mapping(int16 => uint256);
 
   mapping(int16 => uint256) private bitmap;
@@ -17,7 +18,7 @@ contract TickBitmapEchidnaTest {
   function flipTick(int24 tick) external {
     bool before = isInitialized(tick);
     bitmap.flipTick(tick, 1);
-    assert(isInitialized(tick) == !before);
+    isTrue(isInitialized(tick) == !before);
   }
 
   // TODO: check why this test failed

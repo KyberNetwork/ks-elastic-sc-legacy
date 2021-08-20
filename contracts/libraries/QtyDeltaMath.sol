@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {MathConstants} from './MathConstants.sol';
+import {MathConstants as C} from './MathConstants.sol';
 import {TickMath} from './TickMath.sol';
 import {FullMath} from './FullMath.sol';
 import {SafeCast} from './SafeCast.sol';
@@ -13,23 +13,13 @@ library QtyDeltaMath {
   using SafeCast for uint256;
   using SafeCast for int128;
 
-  function getQtysForInitialLockup(uint160 initialSqrtPrice)
+  function getQtysForInitialLockup(uint160 initialSqrtPrice, uint128 liquidity)
     internal
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = getQty0Delta(
-      TickMath.MIN_SQRT_RATIO,
-      initialSqrtPrice,
-      MathConstants.MIN_LIQUIDITY,
-      false
-    );
-    qty1 = getQty1Delta(
-      initialSqrtPrice,
-      TickMath.MAX_SQRT_RATIO,
-      MathConstants.MIN_LIQUIDITY,
-      false
-    );
+    qty0 = getQty0Delta(TickMath.MIN_SQRT_RATIO, initialSqrtPrice, liquidity, false);
+    qty1 = getQty1Delta(initialSqrtPrice, TickMath.MAX_SQRT_RATIO, liquidity, false);
   }
 
   /// @notice Gets the qty0 delta between two prices
@@ -48,7 +38,7 @@ library QtyDeltaMath {
   ) internal pure returns (uint256) {
     if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
 
-    uint256 numerator1 = uint256(liquidity) << MathConstants.RES_96;
+    uint256 numerator1 = uint256(liquidity) << C.RES_96;
     uint256 numerator2;
     unchecked {
       numerator2 = sqrtPriceB - sqrtPriceA;
@@ -77,8 +67,8 @@ library QtyDeltaMath {
     unchecked {
       return
         roundUp
-          ? FullMath.mulDivCeiling(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96)
-          : FullMath.mulDivFloor(liquidity, sqrtPriceB - sqrtPriceA, MathConstants.TWO_POW_96);
+          ? FullMath.mulDivCeiling(liquidity, sqrtPriceB - sqrtPriceA, C.TWO_POW_96)
+          : FullMath.mulDivFloor(liquidity, sqrtPriceB - sqrtPriceA, C.TWO_POW_96);
     }
   }
 
@@ -124,7 +114,7 @@ library QtyDeltaMath {
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(liquidity, MathConstants.TWO_POW_96, sqrtPrice);
+    return FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPrice);
   }
 
   /// @notice Calculates the token1 quantity proportion to be sent to the user
@@ -137,7 +127,7 @@ library QtyDeltaMath {
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(liquidity, sqrtPrice, MathConstants.TWO_POW_96);
+    return FullMath.mulDivFloor(liquidity, sqrtPrice, C.TWO_POW_96);
   }
 
   /// @notice Returns ceil(x / y)

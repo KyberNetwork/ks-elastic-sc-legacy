@@ -33,7 +33,7 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
-import { logBalanceChange, logSwapState, SwapTitle } from './helpers/logger';
+import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -324,7 +324,7 @@ describe('ProAMMPool', () => {
             let token0Taken = (await token0.balanceOf(pool.address)).sub(poolBalToken0);
             poolBalToken0 = await token0.balanceOf(pool.address);
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
-            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken);
           });
 
           it('should mint for extreme max position', async () => {
@@ -466,8 +466,8 @@ describe('ProAMMPool', () => {
             poolBalToken0 = await token0.balanceOf(pool.address);
             poolBalToken1 = await token1.balanceOf(pool.address);
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
-            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken); 
-            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
+            expect((await token0.balanceOf(pool.address)).sub(poolBalToken0)).to.be.gt(token0Taken);
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken);
           });
 
           it('should mint for extreme position', async () => {
@@ -608,7 +608,7 @@ describe('ProAMMPool', () => {
             let token1Taken = (await token1.balanceOf(pool.address)).sub(poolBalToken1);
             poolBalToken1 = await token1.balanceOf(pool.address);
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
-            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken); 
+            expect((await token1.balanceOf(pool.address)).sub(poolBalToken1)).to.be.gt(token1Taken);
           });
 
           it('should mint for extreme position', async () => {
@@ -1053,7 +1053,7 @@ async function doRandomSwaps(pool: ProAMMPool, user: Wallet, iterations: number,
       priceLimit = MIN_SQRT_RATIO.add(ONE);
     }
     // console.log(`swapping ${swapQty.toString()}`);
-    // console.log(`isToken0 ${isToken0}`);
+    // console.log(`isToken0=${isToken0} isExactInput=${isExactInput}`);
     await callback.connect(user).swap(pool.address, user.address, swapQty, isToken0, priceLimit, '0x');
   }
 }
