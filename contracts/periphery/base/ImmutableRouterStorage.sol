@@ -3,7 +3,7 @@ pragma solidity 0.8.4;
 
 /// @title Immutable state
 /// @notice Immutable state used by periphery contracts
-abstract contract ImmutableStorage {
+abstract contract ImmutableRouterStorage {
   address public immutable factory;
   address public immutable WETH;
 

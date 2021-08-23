@@ -58,7 +58,7 @@ describe('ProAMMRouter', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
-    factory = await deployFactory(ethers, admin, ZERO_ADDRESS, ZERO_ADDRESS);
+    factory = await deployFactory(admin);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();

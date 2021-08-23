@@ -5,10 +5,10 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IRouterTokenHelper} from '../../interfaces/periphery/IRouterTokenHelper.sol';
 import {IWETH} from '../../interfaces/IWETH.sol';
 import {TokenHelper} from '../../libraries/TokenHelper.sol';
-import {ImmutableStorage} from './ImmutableStorage.sol';
+import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
 
-abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableStorage {
+abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorage {
   receive() external payable {
     require(msg.sender == WETH, 'Not WETH');
   }

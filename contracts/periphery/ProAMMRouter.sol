@@ -12,14 +12,14 @@ import {SafeCast} from '../libraries/SafeCast.sol';
 import {PathHelper} from '../libraries/PathHelper.sol';
 
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
-import {ImmutableStorage} from './base/ImmutableStorage.sol';
+import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
 import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 
 /// @title KyberDMM V2 Swap Router
 contract ProAMMRouter is IProAMMRouter,
-  ImmutableStorage, RouterTokenHelperWithFee, Multicall, DeadlineValidation
+  ImmutableRouterStorage, RouterTokenHelperWithFee, Multicall, DeadlineValidation
 {
   using PathHelper for bytes;
   using SafeCast for uint256;
@@ -30,7 +30,7 @@ contract ProAMMRouter is IProAMMRouter,
   /// @dev Use to cache the computed amount in for an exact output swap.
   uint256 private amountInCached = DEFAULT_AMOUNT_IN_CACHED;
 
-  constructor(address _factory, address _WETH) ImmutableStorage(_factory, _WETH) {}
+  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
 
   struct SwapCallbackData {
     bytes path;

@@ -5,7 +5,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IRouterTokenHelperWithFee} from '../../interfaces/periphery/IRouterTokenHelperWithFee.sol';
 import {IWETH} from '../../interfaces/IWETH.sol';
 import {TokenHelper} from '../../libraries/TokenHelper.sol';
-import {ImmutableStorage} from './ImmutableStorage.sol';
+import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 import {RouterTokenHelper} from './RouterTokenHelper.sol';
 
 
