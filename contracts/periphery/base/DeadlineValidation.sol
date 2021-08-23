@@ -3,7 +3,7 @@ pragma solidity =0.8.4;
 
 abstract contract DeadlineValidation {
   modifier onlyNotExpired(uint256 deadline) {
-    require(_blockTimestamp() <= deadline, 'ProAMM: EXPIRED');
+    require(_blockTimestamp() <= deadline, 'ProAMM: Expired');
     _;
   }
 

@@ -506,7 +506,6 @@ describe('ProAMMRouter', () => {
     it('swap a loop with 3 pools', async () => {
       let fee = swapFeeBpsArray[0];
       let amount = BN.from(1000000);
-      let ticks = [-100 * tickSpacingArray[0], tickSpacingArray[0] * 200];
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
@@ -531,6 +530,47 @@ describe('ProAMMRouter', () => {
       await expect(
         router.connect(user).proAMMSwapCallback(0, -1, "0x")
       ).to.be.revertedWith('ProAMMRouter: invalid delta qties');
+    });
+
+    it('swap: expiry', async () => {
+      let fee = swapFeeBpsArray[0];
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      let amount = BN.from(100000);
+      let swapParams = {};
+      swapParams = {
+        tokenIn: tokenA.address, tokenOut: tokenB.address, fee: fee,
+        recipient: user.address, deadline: BN.from(0),
+        amountIn: amount, amountOutMinimum: BN.from(0),
+        sqrtPriceLimitX96: initialPrice
+      };
+      await expect(
+        router.connect(user).swapExactInputSingle(swapParams)
+      ).to.be.revertedWith('ProAMM: Expired');
+      swapParams = {
+        path: encodePath([tokenA.address, tokenB.address], [fee]),
+        recipient: user.address, deadline: BN.from(0),
+        amountIn: amount, amountOutMinimum: BN.from(0)
+      };
+      await expect(
+        router.connect(user).swapExactInput(swapParams)
+      ).to.be.revertedWith('ProAMM: Expired');
+      swapParams = {
+        tokenIn: tokenA.address, tokenOut: tokenB.address, fee: fee,
+        recipient: user.address, deadline: BN.from(0),
+        amountOut: amount, amountInMaximum: PRECISION,
+        sqrtPriceLimitX96: initialPrice
+      };
+      await expect(
+        router.connect(user).swapExactOutputSingle(swapParams)
+      ).to.be.revertedWith('ProAMM: Expired');
+      swapParams = {
+        path: encodePath([tokenA.address, tokenB.address], [fee]),
+        recipient: user.address, deadline: BN.from(0),
+        amountOut: amount, amountInMaximum: PRECISION,
+      };
+      await expect(
+        router.connect(user).swapExactOutput(swapParams)
+      ).to.be.revertedWith('ProAMM: Expired');
     });
   });
 });

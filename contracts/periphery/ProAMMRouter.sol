@@ -154,7 +154,7 @@ contract ProAMMRouter is IProAMMRouter,
     uint160 sqrtPriceLimitX96,
     SwapCallbackData memory data
   ) private returns (uint256 amountIn) {
-    // allow swapping to the router address with address 0
+    // consider address 0 as the router address
     if (recipient == address(0)) recipient = address(this);
 
     (address tokenOut, address tokenIn, uint16 fee) = data.path.decodeFirstPool();
@@ -192,7 +192,10 @@ contract ProAMMRouter is IProAMMRouter,
       params.amountOut,
       params.recipient,
       params.sqrtPriceLimitX96,
-      SwapCallbackData({path: abi.encodePacked(params.tokenOut, params.fee, params.tokenIn), source: msg.sender})
+      SwapCallbackData({
+        path: abi.encodePacked(params.tokenOut, params.fee, params.tokenIn),
+        source: msg.sender
+      })
     );
     require(amountIn <= params.amountInMaximum, 'ProAMMRouter: amountIn is too high');
     // has to be reset even though we don't use it in the single hop case
@@ -224,6 +227,5 @@ contract ProAMMRouter is IProAMMRouter,
    */
   function _getPool(address tokenA, address tokenB, uint16 fee) private view returns (IProAMMPool) {
     return IProAMMPool(IProAMMFactory(factory).getPool(tokenA, tokenB, fee));
-    // return IProAMMPool(PoolHelper.determineAddress(factory, tokenA, tokenB, fee));
   }
 }
