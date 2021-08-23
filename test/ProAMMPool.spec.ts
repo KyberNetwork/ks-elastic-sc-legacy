@@ -129,6 +129,9 @@ describe('ProAMMPool', () => {
       expect(await pool.tickSpacing()).to.be.eql(tickSpacing);
       expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
       expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
+      let result = await pool.getReinvestmentState();
+      expect(result._poolReinvestmentLiquidity).to.be.eql(ZERO);
+      expect(result._poolReinvestmentLiquidityLast).to.be.eql(ZERO);
     });
   });
 
