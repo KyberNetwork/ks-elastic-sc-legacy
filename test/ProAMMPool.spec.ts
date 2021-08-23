@@ -28,6 +28,7 @@ import {
   MockToken__factory,
   MockProAMMCallbacks,
   ProAMMPool__factory,
+  ReinvestmentTokenMaster,
 } from '../typechain';
 import {deployFactory} from './helpers/proAMMSetup';
 import {
@@ -46,7 +47,7 @@ import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 let factory: ProAMMFactory;
 let token0: MockToken;
 let token1: MockToken;
-let reinvestmentToken: MockToken;
+let reinvestmentToken: ReinvestmentTokenMaster;
 let poolBalToken0: BigNumber;
 let poolBalToken1: BigNumber;
 let poolArray: ProAMMPool[] = [];
@@ -814,9 +815,9 @@ describe('ProAMMPool', () => {
         await callback.unlockPool(pool.address, initialPrice, '0x');
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(BPS), '0x');
         reinvestmentToken = (await ethers.getContractAt(
-          'IReinvestmentToken',
+          'ReinvestmentTokenMaster',
           await pool.reinvestmentToken()
-        )) as MockToken;
+        )) as ReinvestmentTokenMaster;
       });
 
       it('should fail burning more than position liquidity', async () => {
@@ -995,6 +996,104 @@ describe('ProAMMPool', () => {
         await swapToDownTick(pool, user, tickLower);
         expect((await pool.getPoolState())._poolLiquidity).to.be.lt(poolLiquidityBefore);
       });
+    });
+  });
+
+  describe('limit orders', async () => {
+    beforeEach('unlock pool with initial price of 1:1 (tick 0)', async () => {
+      initialPrice = encodePriceSqrt(ONE, ONE);
+      await callback.unlockPool(pool.address, initialPrice, '0x');
+    });
+
+    it('should execute a position converting token0 to token1', async () => {
+      // mint position above current tick
+      await expect(callback.mint(pool.address, user.address, 0, 100, PRECISION, '0x'))
+        .to.emit(token0, 'Transfer')
+        .to.not.emit(token1, 'Transfer');
+
+      // take limit order
+      await swapToUpTick(pool, user, 101);
+
+      // burn position, should only get token1
+      await expect(pool.connect(user).burn(0, 100, PRECISION))
+        .to.emit(token1, 'Transfer')
+        .to.not.emit(token0, 'Transfer');
+      expect((await pool.getPoolState())._poolTick).to.be.gte(100);
+    });
+
+    it('should execute a position converting token1 to token0', async () => {
+      // mint position below current tick
+      await expect(callback.mint(pool.address, user.address, -100, 0, PRECISION, '0x'))
+        .to.emit(token1, 'Transfer')
+        .to.not.emit(token0, 'Transfer');
+
+      // take limit order
+      await swapToDownTick(pool, user, -101);
+
+      // burn position, should only get token0
+      await expect(pool.connect(user).burn(-100, 0, PRECISION))
+        .to.emit(token0, 'Transfer')
+        .to.not.emit(token1, 'Transfer');
+      expect((await pool.getPoolState())._poolTick).to.be.lte(-100);
+    });
+  });
+
+  describe('burnRTokens', async () => {
+    beforeEach('mint rTokens for user', async () => {
+      initialPrice = encodePriceSqrt(ONE, ONE);
+      await callback.unlockPool(pool.address, initialPrice, '0x');
+      await callback.mint(pool.address, user.address, -100, 100, PRECISION, '0x');
+      // do swaps to increment lf
+      await swapToUpTick(pool, user, 50);
+      await swapToDownTick(pool, user, 0);
+      // burn to mint rTokens
+      await pool.connect(user).burn(-100, 100, MIN_LIQUIDITY);
+      reinvestmentToken = (await ethers.getContractAt(
+        'ReinvestmentTokenMaster',
+        await pool.reinvestmentToken()
+      )) as ReinvestmentTokenMaster;
+      expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+    });
+
+    it('should fail if user tries to burn more rTokens than what he has', async () => {
+      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+      await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE))).to.be.revertedWith(
+        'ERC20: burn amount exceeds balance'
+      );
+    });
+
+    it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
+      let reinvestmentStateBefore = await pool.getReinvestmentState();
+      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+      let token0BalanceBefore = await token0.balanceOf(user.address);
+      let token1BalanceBefore = await token1.balanceOf(user.address);
+      await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(pool, 'BurnRTokens');
+      let reinvestmentStateAfter = await pool.getReinvestmentState();
+      expect(reinvestmentStateAfter._poolReinvestmentLiquidity).to.be.lt(
+        reinvestmentStateBefore._poolReinvestmentLiquidity
+      );
+      expect(reinvestmentStateAfter._poolReinvestmentLiquidityLast).to.be.lt(
+        reinvestmentStateBefore._poolReinvestmentLiquidityLast
+      );
+      expect(await token0.balanceOf(user.address)).gt(token0BalanceBefore);
+      expect(await token1.balanceOf(user.address)).gt(token1BalanceBefore);
+    });
+
+    it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
+      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+      // do a couple of small swaps so that lf is incremented but not lfLast
+      await doRandomSwaps(pool, user, 2, MIN_LIQUIDITY);
+      let reinvestmentState = await pool.getReinvestmentState();
+      expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(reinvestmentState._poolReinvestmentLiquidityLast);
+      await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');
+      expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
+        reinvestmentState._poolFeeGrowthGlobal
+      );
+    });
+
+    it('gas cost for burning rTokens', async () => {
+      let tx = await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
+      await snapshotGasCost(tx);
     });
   });
 

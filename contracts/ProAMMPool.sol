@@ -11,9 +11,10 @@ import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
-import {MathConstants} from './libraries/MathConstants.sol';
+import {MathConstants as C} from './libraries/MathConstants.sol';
 import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
 import {SwapMath} from './libraries/SwapMath.sol';
+import {FullMath} from './libraries/FullMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {Tick, TickMath} from './libraries/Tick.sol';
 import {TickBitmap} from './libraries/TickBitmap.sol';
@@ -278,9 +279,11 @@ contract ProAMMPool is IProAMMPool {
       if (rMintQty > 0) {
         // mint to pool
         reinvestmentToken.mint(address(this), rMintQty);
-        // update fee global
-        _feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, lp);
-        poolFeeGrowthGlobal = _feeGrowthGlobal;
+        // update fee global if lp != 0
+        if (lp != 0) {
+          _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+          poolFeeGrowthGlobal = _feeGrowthGlobal;
+        }
       }
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -406,18 +409,25 @@ contract ProAMMPool is IProAMMPool {
       lp,
       rTotalSupply
     );
-    // mint tokens to pool
-    reinvestmentToken.mint(address(this), rMintQty);
-    rTotalSupply += rMintQty;
+
+    // mint tokens to pool and increment fee growth if needed
+    if (rMintQty != 0) {
+      reinvestmentToken.mint(address(this), rMintQty);
+      rTotalSupply += rMintQty;
+      if (lp != 0) {
+        poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+      }
+    }
+
     // burn _qty of caller
     // router should transfer _qty from user to itself, but not send it to the pool
     // for direct calls, msg.sender should have sufficient balance
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning
-    uint256 lfDelta = ReinvestmentMath.calcLfDelta(_qty, lf, rTotalSupply);
-    poolFeeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(rMintQty, poolLiquidity);
-    poolReinvestmentLiquidity = lf - lfDelta;
-    poolReinvestmentLiquidityLast = poolReinvestmentLiquidity;
+    uint256 lfDelta = FullMath.mulDivFloor(_qty, lf, rTotalSupply);
+    uint256 lfNew = lf - lfDelta;
+    poolReinvestmentLiquidity = lfNew;
+    poolReinvestmentLiquidityLast = lfNew;
     // finally, calculate and send token quantities to user
     uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(pc, lfDelta);
     if (tokenQty > 0) token0.safeTransfer(msg.sender, tokenQty);
@@ -549,18 +559,15 @@ contract ProAMMPool is IProAMMPool {
           }
 
           // update rTotalSupply, feeGrowthGlobal and lf
-          uint256 rMint = ReinvestmentMath.calcrMintQty(
+          uint256 rMintQty = ReinvestmentMath.calcrMintQty(
             swapData.lf,
             swapData.lfLast,
             swapData.lp,
             swapData.rTotalSupply
           );
-          if (rMint != 0) {
-            swapData.rTotalSupply += rMint;
-            swapData.feeGrowthGlobal += ReinvestmentMath.calcFeeGrowthIncrement(
-              rMint,
-              swapData.lp
-            );
+          if (rMintQty != 0) {
+            swapData.rTotalSupply += rMintQty;
+            swapData.feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, swapData.lp);
           }
           swapData.lfLast = swapData.lf;
 
