@@ -81,10 +81,11 @@ library SwapMath {
   // from sqrtPc (price of current tick)
   // each of the 4 possible scenarios (isExactInput | isToken0)
   // have vastly different formulas which are elaborated in each branch
+  // we cast sqrtPc and sqrtPn to uint256 as they are multiplied by TWO_BPS or feeInBps,
   function calcDeltaNext(
     uint256 liquidity,
-    uint160 sqrtPc,
-    uint160 sqrtPn,
+    uint256 sqrtPc,
+    uint256 sqrtPn,
     uint256 feeInBps,
     bool isExactInput,
     bool isToken0
@@ -204,13 +205,21 @@ library SwapMath {
       // needs to be minimum
       lc = FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPc);
       lc = isExactInput ? lc + absDelta : lc - absDelta;
-      lc = FullMath.mulDivFloor(sqrtPn, lc, C.TWO_POW_96) - liquidity;
+      lc = FullMath.mulDivFloor(sqrtPn, lc, C.TWO_POW_96);
+      // in edge cases where liquidity or absDelta is small
+      // liquidity might be greater than sqrtPn * ((liquidity / sqrtPc) +/- absDelta))
+      // due to rounding
+      lc = (lc > liquidity) ? lc - liquidity : 0;
     } else {
       // lc = (liquidity * sqrtPc +/- absDelta) / sqrtPn - liquidity
       // needs to be minimum
       lc = FullMath.mulDivFloor(liquidity, sqrtPc, C.TWO_POW_96);
       lc = isExactInput ? lc + absDelta : lc - absDelta;
-      lc = FullMath.mulDivFloor(lc, C.TWO_POW_96, sqrtPn) - liquidity;
+      lc = FullMath.mulDivFloor(lc, C.TWO_POW_96, sqrtPn);
+      // in edge cases where liquidity or absDelta is small
+      // liquidity might be greater than sqrtPn * ((liquidity / sqrtPc) +/- absDelta))
+      // due to rounding
+      lc = (lc > liquidity) ? lc - liquidity : 0;
     }
   }
 

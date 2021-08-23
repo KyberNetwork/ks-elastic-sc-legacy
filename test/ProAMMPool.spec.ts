@@ -6,7 +6,6 @@ import {
   ZERO,
   ONE,
   MAX_UINT,
-  TWO_POW_96,
   MIN_LIQUIDITY,
   MIN_TICK,
   MAX_TICK,
@@ -15,6 +14,7 @@ import {
   TWO,
   BPS,
   BN,
+  MAX_TICK_DISTANCE,
 } from './helpers/helper';
 import {snapshotGasCost} from './helpers/utils';
 import chai from 'chai';
@@ -194,7 +194,7 @@ describe('ProAMMPool', () => {
       expect(result._poolLiquidity).to.be.eql(ZERO);
 
       result = await pool.getReinvestmentState();
-      expect(result._poolFeeGrowthGlobal).to.be.eql(TWO_POW_96);
+      expect(result._poolFeeGrowthGlobal).to.be.eql(ZERO);
       expect(result._poolReinvestmentLiquidity).to.be.eql(MIN_LIQUIDITY);
       expect(result._poolReinvestmentLiquidityLast).to.be.eql(MIN_LIQUIDITY);
 
@@ -540,6 +540,34 @@ describe('ProAMMPool', () => {
             expect(tickLowerData.initialized).to.be.true;
             expect(tickUpperData.initialized).to.be.true;
             // feeGrowthOutside
+            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+          });
+
+          it('should instantiate tick lower feeGrowthOutside for mint', async () => {
+            // feeGrowthOutside
+            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+
+            // provide enough liquidity so that lc collected > 0 when swapping
+            await callback.mint(
+              pool.address,
+              user.address,
+              nearestTickToPrice - 100 * tickSpacing,
+              nearestTickToPrice + 100 * tickSpacing,
+              PRECISION,
+              '0x'
+            );
+            await swapToUpTick(pool, user, nearestTickToPrice + MAX_TICK_DISTANCE + 1);
+            await swapToDownTick(pool, user, nearestTickToPrice);
+
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            tickLowerData = await pool.ticks(tickLower);
+            tickUpperData = await pool.ticks(tickUpper);
+
+            // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.gt(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
           });
@@ -548,7 +576,7 @@ describe('ProAMMPool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
             let feeGrowthOutsideTickLower = (await pool.ticks(tickLower)).feeGrowthOutside;
-            expect(feeGrowthOutsideTickLower).to.be.gt(ZERO);
+            expect(feeGrowthOutsideTickLower).to.be.eql(ZERO);
             // add liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
 
@@ -684,6 +712,34 @@ describe('ProAMMPool', () => {
             expect(tickLowerData.initialized).to.be.true;
             expect(tickUpperData.initialized).to.be.true;
             // feeGrowthOutside
+            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+          });
+
+          it('should instantiate both tick lower and tick upper feeGrowthOutside for mint', async () => {
+            // feeGrowthOutside
+            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+
+            // provide enough liquidity so that lc collected > 0 when swapping
+            await callback.mint(
+              pool.address,
+              user.address,
+              nearestTickToPrice - 100 * tickSpacing,
+              nearestTickToPrice + 100 * tickSpacing,
+              PRECISION,
+              '0x'
+            );
+            await swapToDownTick(pool, user, nearestTickToPrice - MAX_TICK_DISTANCE - 1);
+            await swapToUpTick(pool, user, nearestTickToPrice);
+
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            tickLowerData = await pool.ticks(tickLower);
+            tickUpperData = await pool.ticks(tickUpper);
+
+            // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.gt(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.gt(ZERO);
           });
@@ -692,7 +748,7 @@ describe('ProAMMPool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
             let feeGrowthOutside = (await pool.ticks(tickLower)).feeGrowthOutside;
-            expect(feeGrowthOutside).to.be.gt(ZERO);
+            expect(feeGrowthOutside).to.be.eql(ZERO);
             expect((await pool.ticks(tickUpper)).feeGrowthOutside).to.be.eql(feeGrowthOutside);
             // add liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
@@ -926,8 +982,7 @@ describe('ProAMMPool', () => {
         poolLiquidityBefore = poolLiquidityAfter;
 
         // enter position range
-        await swapToUpTick(pool, user, tickUpper + 1);
-        await swapToDownTick(pool, user, tickUpper);
+        await swapToDownTick(pool, user, tickUpper - 1);
         poolLiquidityAfter = (await pool.getPoolState())._poolLiquidity;
         expect(poolLiquidityAfter).to.be.gt(poolLiquidityBefore);
         poolLiquidityBefore = poolLiquidityAfter;
@@ -997,7 +1052,7 @@ describe('ProAMMPool', () => {
       let tx = await callback.swap(
         pool.address,
         user.address,
-        BN.from('-1751372543351715667'),
+        BN.from('-1751372543351715880'),
         false,
         MIN_SQRT_RATIO.add(ONE),
         '0x'
@@ -1033,7 +1088,7 @@ describe('ProAMMPool', () => {
       await callback.swap(
         pool.address,
         user.address,
-        BN.from('-466751634178795570'),
+        BN.from('-466751634178795601'),
         true,
         MAX_SQRT_RATIO.sub(ONE),
         '0x'
