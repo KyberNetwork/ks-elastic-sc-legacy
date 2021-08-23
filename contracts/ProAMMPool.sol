@@ -33,7 +33,7 @@ contract ProAMMPool is IProAMMPool {
   using Position for Position.Data;
 
   address private constant LIQUIDITY_LOCKUP_ADDRESS = 0xD444422222222222222222222222222222222222;
-  uint128 private constant MIN_LIQUIDITY = 10;
+  uint128 private constant MIN_LIQUIDITY = 100000;
 
   /// see IProAMMPool for explanations of the immutables below
   /// can't be set in constructor to be EIP-1167 compatible
@@ -162,8 +162,7 @@ contract ProAMMPool is IProAMMPool {
     poolReinvestmentLiquidityLast = MIN_LIQUIDITY;
     reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
     reinvestmentToken.initialize();
-    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY * 100_000);
-    poolFeeGrowthGlobal = MathConstants.TWO_POW_96;
+    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
 
     emit Initialize(initialSqrtPrice, poolTick);
   }

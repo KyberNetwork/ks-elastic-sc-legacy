@@ -2,14 +2,14 @@
 
 exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"224753"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"173976"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"173988"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"279237"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"259337"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"241575"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"258687"`;
 
-exports[`ProAMMPool #unlockPool should have initialized the pool and created first position 1`] = `"435296"`;
+exports[`ProAMMPool #unlockPool should have initialized the pool and created first position 1`] = `"412984"`;
 
-exports[`ProAMMPool test swap tests token0 exactInput (move down tick) 1`] = `"159870"`;
+exports[`ProAMMPool test swap tests token0 exactInput (move down tick) 1`] = `"159575"`;
 
-exports[`ProAMMPool test swap tests token1 exactOutput (move down tick) 1`] = `"170215"`;
+exports[`ProAMMPool test swap tests token1 exactOutput (move down tick) 1`] = `"169920"`;
