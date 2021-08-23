@@ -17,7 +17,6 @@ import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
 import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 
-
 /// @title KyberDMM V2 Swap Router
 contract ProAMMRouter is IProAMMRouter,
   ImmutableStorage, RouterTokenHelperWithFee, Multicall, DeadlineValidation
@@ -65,7 +64,7 @@ contract ProAMMRouter is IProAMMRouter,
       } else {
         amountInCached = amountToTransfer;
         // transfer tokenOut to the pool (it's the original tokenIn)
-        // wrap eth -> weth and transfer if needed
+        // wrap eth -> weth and transfer if user uses passes eth with the swap
         transferTokens(tokenOut, swapData.source, msg.sender, amountToTransfer);
       }
     }
@@ -160,7 +159,7 @@ contract ProAMMRouter is IProAMMRouter,
 
     (address tokenOut, address tokenIn, uint16 fee) = data.path.decodeFirstPool();
 
-    bool isFromToken0 = tokenIn < tokenOut;
+    bool isFromToken0 = tokenOut < tokenIn;
 
     (int256 amount0Delta, int256 amount1Delta) =
       _getPool(tokenIn, tokenOut, fee).swap(
@@ -168,15 +167,15 @@ contract ProAMMRouter is IProAMMRouter,
         -amountOut.toInt256(),
         isFromToken0,
         sqrtPriceLimitX96 == 0
-          ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+          ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
           : sqrtPriceLimitX96,
         abi.encode(data)
       );
 
     uint256 amountOutReceived;
     (amountIn, amountOutReceived) = isFromToken0
-      ? (uint256(amount0Delta), uint256(-amount1Delta))
-      : (uint256(amount1Delta), uint256(-amount0Delta));
+      ? (uint256(amount1Delta), uint256(-amount0Delta))
+      : (uint256(amount0Delta), uint256(-amount1Delta));
     // it's technically possible to not receive the full output amount,
     // so if no price limit has been specified, require this possibility away
     if (sqrtPriceLimitX96 == 0) require(amountOutReceived == amountOut);

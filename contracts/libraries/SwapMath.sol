@@ -6,8 +6,6 @@ import {FullMath} from './FullMath.sol';
 import {QuadMath} from './QuadMath.sol';
 import {SafeCast} from './SafeCast.sol';
 
-// import 'hardhat/console.sol';
-
 /// @title Contains helper functions for swaps
 library SwapMath {
   using SafeCast for uint256;
