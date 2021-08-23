@@ -58,7 +58,7 @@ contract ProAMMPool is IProAMMPool {
   uint256 internal poolReinvestmentLiquidity;
   uint256 internal poolReinvestmentLiquidityLast;
   // see IProAMMPool for explanations of the variables below
-  IReinvestmentToken public override reinvestmentToken;
+  IReinvestmentToken public override immutable reinvestmentToken;
   uint256 public override collectedGovernmentFee;
   mapping(int24 => Tick.Data) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
@@ -88,6 +88,10 @@ contract ProAMMPool is IProAMMPool {
       _tickSpacing
     );
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
+    IReinvestmentToken _reinvestmentToken = IReinvestmentToken(IProAMMFactory(_factory).reinvestmentTokenMaster().clone());
+    _reinvestmentToken.initialize();
+    _reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY * 100_000);
+    reinvestmentToken = _reinvestmentToken;
     locked = true;
   }
 
@@ -142,7 +146,7 @@ contract ProAMMPool is IProAMMPool {
 
   /// see IProAMMPoolActions
   function unlockPool(uint160 initialSqrtPrice, bytes calldata data) external override {
-    require(address(reinvestmentToken) == address(0), 'already inited');
+    require(poolSqrtPrice == 0, 'already inited');
     locked = false; // unlock the pool
     // initial tick bound is checked in this function
     int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
@@ -157,9 +161,7 @@ contract ProAMMPool is IProAMMPool {
     poolSqrtPrice = initialSqrtPrice;
     poolReinvestmentLiquidity = MIN_LIQUIDITY;
     poolReinvestmentLiquidityLast = MIN_LIQUIDITY;
-    reinvestmentToken = IReinvestmentToken(factory.reinvestmentTokenMaster().clone());
-    reinvestmentToken.initialize();
-    reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
+    poolFeeGrowthGlobal = MathConstants.TWO_POW_96;
 
     emit Initialize(initialSqrtPrice, poolTick);
   }

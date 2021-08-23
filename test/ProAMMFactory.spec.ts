@@ -35,7 +35,7 @@ describe('ProAMMFactory', () => {
       'ReinvestmentTokenMaster'
     )) as ReinvestmentTokenMaster__factory;
     reinvestmentMaster = await ReinvestmentMaster.deploy();
-  
+
     const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
     return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address);
   }
@@ -57,13 +57,11 @@ describe('ProAMMFactory', () => {
     });
 
     it('should be able to deploy a pool', async () => {
-      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
-        .to.emit(factory, 'PoolCreated');
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps)).to.emit(factory, 'PoolCreated');
 
       swapFeeBps = 30;
 
-      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
-        .to.emit(factory, 'PoolCreated');
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps)).to.emit(factory, 'PoolCreated');
     });
 
     describe('#createPool', async () => {
@@ -107,7 +105,7 @@ describe('ProAMMFactory', () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         expect(poolAddressOne).to.be.not.be.eql(poolAddressTwo);
-      })
+      });
     });
 
     describe('#updateFeeToSetter', async () => {

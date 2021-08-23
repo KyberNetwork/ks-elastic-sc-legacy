@@ -128,6 +128,7 @@ describe('ProAMMPool', () => {
       expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
       expect(await pool.tickSpacing()).to.be.eql(tickSpacing);
       expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
+      expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
     });
   });
 
