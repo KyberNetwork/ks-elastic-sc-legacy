@@ -7,7 +7,6 @@ import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
 import {TickMath} from '../libraries/TickMath.sol';
-import {PoolHelper} from '../libraries/PoolHelper.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 import {PathHelper} from '../libraries/PathHelper.sol';
 
