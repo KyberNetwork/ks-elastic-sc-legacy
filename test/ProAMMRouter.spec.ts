@@ -15,12 +15,13 @@ import {
   MockProAMMCallbacks,
   MockProAMMCallbacks__factory
 } from '../typechain';
+
 import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
 import {encodePath} from './helpers/swapPath.ts';
 
 const showGasUsed = false;
-const provider = ethers.provider;
+const txGasPrice = BN.from(10).pow(BN.from(9));
 
 let Token: MockToken__factory;
 let Callback: MockProAMMCallbacks__factory;
@@ -45,11 +46,13 @@ let firstSnapshot: any;
 let snapshotId: any;
 
 let getBalances: (
-  who: string
+  who: string,
+  tokens: string[]
 ) => Promise<{
-  ethBalance: BigNumber,
-  tokenBalances: BigNumber[] // weth, tokenA, tokenB
+  tokenBalances: BigNumber[]
 }>
+
+
 
 describe('ProAMMRouter', () => {
   const [user, admin] = waffle.provider.getWallets();
@@ -85,14 +88,16 @@ describe('ProAMMRouter', () => {
 
     snapshotId = await snapshot();
 
-    getBalances = async (account: string) => {
-      const balances = await Promise.all([
-        weth.balanceOf(account),
-        tokenA.balanceOf(account),
-        tokenB.balanceOf(account),
-      ]);
+    getBalances = async (account: string, tokens: string[]) => {
+      let balances = [];
+      for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i] == ZERO_ADDRESS) {
+          balances.push(await ethers.provider.getBalance(account))
+        } else {
+          balances.push(await (await Token.attach(tokens[i])).balanceOf(account));
+        }
+      }
       return {
-        ethBalance: await provider.getBalance(account),
         tokenBalances: balances
       }
     }
@@ -121,7 +126,7 @@ describe('ProAMMRouter', () => {
     return pool;
   }
 
-  const swapExactInputSingle = async function (
+  const swapExactInputSingleAndVerify = async function (
     tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
     let isSrcEth = tokenIn == weth.address && useEth;
@@ -139,14 +144,50 @@ describe('ProAMMRouter', () => {
     if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
+    let pool = await factory.getPool(tokenIn, tokenOut, fee);
+
+    let userBefore = await getBalances(user.address, [ZERO_ADDRESS, tokenIn, tokenOut]);
+    let poolBefore = await getBalances(pool, [ZERO_ADDRESS, tokenIn, tokenOut]);
+
     let tx = await router
       .connect(user)
-      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0) });
+      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0), gasPrice: txGasPrice });
+
+    let userAfter = await getBalances(user.address, [ZERO_ADDRESS, tokenIn, tokenOut]);
+    let poolAfter = await getBalances(pool, [ZERO_ADDRESS, tokenIn, tokenOut]);
+
+    let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+
+    // check source
+    if (isSrcEth) {
+      // user: -(tokenIn + txFee) in eth, pool: +tokenIn in weth
+      expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
+        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
+      );
+    } else {
+      // tokenIn: user -> pool
+      expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
+        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
+      );
+    }
+
+    // check dest
+    if (isDestEth) {
+      // user: +tokenIn - gasFee, pool: -tokenIn in weth
+      expect(userAfter.tokenBalances[0].sub(userBefore.tokenBalances[0]).add(txFee)).to.be.eq(
+        poolBefore.tokenBalances[1].sub(poolAfter.tokenBalances[1])
+      );
+    } else {
+      // tokenOut: pool -> user
+      expect(poolBefore.tokenBalances[2].sub(poolAfter.tokenBalances[2])).to.be.eq(
+        userAfter.tokenBalances[2].sub(userBefore.tokenBalances[2])
+      );
+    }
 
     return tx;
   }
 
-  const swapExactInput = async function (
+  const swapExactInputAndVerify = async function (
     tokens: string[], fee: number, amount: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
     let isSrcEth = tokens[0] == weth.address && useEth;
@@ -163,13 +204,69 @@ describe('ProAMMRouter', () => {
     if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
+    let tokenList = [ZERO_ADDRESS].concat(tokens);
+    let userBefore = await getBalances(user.address, tokenList);
+    let pools = [];
+    let poolsBefore = [];
+    for (let i = 0; i < tokens.length - 1; i++) {
+      let pool = await factory.getPool(tokens[i], tokens[i + 1], fee);
+      pools.push(pool);
+      poolsBefore.push(await getBalances(pool, tokenList));
+    }
+
     let tx = await router
       .connect(user)
-      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0) });
+      .multicall(multicallData, { value: isSrcEth ? amount : BN.from(0), gasPrice: txGasPrice });
+
+    let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+
+    let userAfter = await getBalances(user.address, tokenList);
+    let poolsAfter = [];
+    for (let i = 0; i < pools.length; i++) {
+      poolsAfter.push(await getBalances(pools[i], tokenList));
+    }
+
+    let poolLength = pools.length;
+
+    if (tokens[0] != tokens[tokens.length - 1]) {
+      // temp ignore case of loop swaps
+      if (isSrcEth) {
+        // user: - (amount + txFee) in eth, first pool: +amount in weth
+        expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
+          poolsAfter[0].tokenBalances[1].sub(poolsBefore[0].tokenBalances[1])
+        );
+      } else {
+        expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
+          poolsAfter[0].tokenBalances[1].sub(poolsBefore[0].tokenBalances[1])
+        );
+      }
+    }
+
+    for (let i = 0; i < poolLength - 1; i++) {
+      // transfer tokenList[i + 2] from pools[i] to pools[i + 1] // first pools[0] is ETH
+      expect(poolsBefore[i].tokenBalances[i + 2].sub(poolsAfter[i].tokenBalances[i + 2])).to.be.eq(
+        poolsAfter[i + 1].tokenBalances[i + 2].sub(poolsBefore[i + 1].tokenBalances[i + 2])
+      );
+    }
+
+    if (tokens[0] != tokens[tokens.length - 1]) {
+      // temp ignore case of loop swaps
+      let lastTokenId = tokenList.length - 1;
+      if (isDestEth) {
+        // user: +amountOut - txFee in eth, last pool: -amountOut
+        expect(userAfter.tokenBalances[0].sub(userBefore.tokenBalances[0]).add(txFee)).to.be.eq(
+          poolsBefore[poolLength - 1].tokenBalances[lastTokenId].sub(poolsAfter[poolLength - 1].tokenBalances[lastTokenId])
+        );
+      } else {
+        expect(userAfter.tokenBalances[tokenList.length - 1].sub(userBefore.tokenBalances[tokenList.length - 1])).to.be.eq(
+          poolsBefore[poolLength - 1].tokenBalances[lastTokenId].sub(poolsAfter[poolLength - 1].tokenBalances[lastTokenId])
+        );
+      }
+    }
     return tx;
   }
 
-  const swapExactOutputSingle = async function (
+  const swapExactOutputSingleAndVerify = async function (
     tokenIn: string, tokenOut: string, fee: number, amount: BigNumber, initialPrice: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
     let isSrcEth = tokenIn == weth.address && useEth;
@@ -187,13 +284,49 @@ describe('ProAMMRouter', () => {
     if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
+    let pool = await factory.getPool(tokenIn, tokenOut, fee);
+    let userBefore = await getBalances(user.address, [ZERO_ADDRESS, tokenIn, tokenOut]);
+    let poolBefore = await getBalances(pool, [ZERO_ADDRESS, tokenIn, tokenOut]);
+
     let tx = await router
       .connect(user)
-      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0) });
+      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0), gasPrice: txGasPrice });
+
+    let userAfter = await getBalances(user.address, [ZERO_ADDRESS, tokenIn, tokenOut]);
+    let poolAfter = await getBalances(pool, [ZERO_ADDRESS, tokenIn, tokenOut]);
+
+    let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+
+    // check source
+    if (isSrcEth) {
+      // user: -(tokenIn + txFee) in eth, pool: +tokenIn in weth
+      expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
+        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
+      );
+    } else {
+      // tokenIn: user -> pool
+      expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
+        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
+      );
+    }
+
+    // check dest
+    if (isDestEth) {
+      // user: +tokenIn - gasFee, pool: -tokenIn in weth
+      expect(userAfter.tokenBalances[0].sub(userBefore.tokenBalances[0]).add(txFee)).to.be.eq(
+        poolBefore.tokenBalances[1].sub(poolAfter.tokenBalances[1])
+      );
+    } else {
+      // tokenOut: pool -> user
+      expect(poolBefore.tokenBalances[2].sub(poolAfter.tokenBalances[2])).to.be.eq(
+        userAfter.tokenBalances[2].sub(userBefore.tokenBalances[2])
+      );
+    }
+
     return tx;
   }
 
-  const swapExactOutput = async function (
+  const swapExactOutputAndVerify = async function (
     tokens: string[], fee: number, amount: BigNumber, useEth: boolean
   ): Promise<ContractTransaction> {
     let isSrcEth = tokens[0] == weth.address && useEth;
@@ -210,9 +343,67 @@ describe('ProAMMRouter', () => {
     let multicallData = [router.interface.encodeFunctionData('swapExactOutput', [swapParams])];
     if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+
+    let tokenList = [ZERO_ADDRESS].concat(tokens);
+    let userBefore = await getBalances(user.address, tokenList);
+    let pools = [];
+    let poolsBefore = [];
+    for (let i = 0; i < tokens.length - 1; i++) {
+      let pool = await factory.getPool(tokens[i], tokens[i + 1], fee);
+      pools.push(pool);
+      poolsBefore.push(await getBalances(pool, tokenList));
+    }
+
     let tx = await router
       .connect(user)
-      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0) });
+      .multicall(multicallData, { value: isSrcEth ? PRECISION : BN.from(0), gasPrice: txGasPrice });
+
+    let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+
+    let userAfter = await getBalances(user.address, tokenList);
+    let poolsAfter = [];
+    for (let i = 0; i < pools.length; i++) {
+      poolsAfter.push(await getBalances(pools[i], tokenList));
+    }
+
+    let poolLength = pools.length;
+
+    if (tokens[0] != tokens[tokens.length - 1]) {
+      // temp ignore case of loop swaps
+      if (isSrcEth) {
+        // user: - (amount + txFee) in eth, first pool: +amount in weth
+        expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
+          poolsAfter[0].tokenBalances[1].sub(poolsBefore[0].tokenBalances[1])
+        );
+      } else {
+        expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
+          poolsAfter[0].tokenBalances[1].sub(poolsBefore[0].tokenBalances[1])
+        );
+      }
+    }
+
+    for (let i = 0; i < poolLength - 1; i++) {
+      // transfer tokenList[i + 2] from pools[i] to pools[i + 1] // first pools[0] is ETH
+      expect(poolsBefore[i].tokenBalances[i + 2].sub(poolsAfter[i].tokenBalances[i + 2])).to.be.eq(
+        poolsAfter[i + 1].tokenBalances[i + 2].sub(poolsBefore[i + 1].tokenBalances[i + 2])
+      );
+    }
+
+    if (tokens[0] != tokens[tokens.length - 1]) {
+      // temp ignore case of loop swaps
+      let lastTokenId = tokenList.length - 1;
+      if (isDestEth) {
+        // user: +amountOut - txFee in eth, last pool: -amountOut
+        expect(userAfter.tokenBalances[0].sub(userBefore.tokenBalances[0]).add(txFee)).to.be.eq(
+          poolsBefore[poolLength - 1].tokenBalances[lastTokenId].sub(poolsAfter[poolLength - 1].tokenBalances[lastTokenId])
+        );
+      } else {
+        expect(userAfter.tokenBalances[tokenList.length - 1].sub(userBefore.tokenBalances[tokenList.length - 1])).to.be.eq(
+          poolsBefore[poolLength - 1].tokenBalances[lastTokenId].sub(poolsAfter[poolLength - 1].tokenBalances[lastTokenId])
+        );
+      }
+    }
+
     return tx;
   }
 
@@ -234,27 +425,26 @@ describe('ProAMMRouter', () => {
         );
         let token0 = tokenA.address < tokenB.address ? tokenA : tokenB;
         let token1 = tokenA.address < tokenB.address ? tokenB : tokenA;
-        let tx;
         // token0 -> token1
-        tx = await swapExactInputSingle(
+        let tx = await swapExactInputSingleAndVerify(
           token0.address, token1.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickLower), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
         // token1 -> token0
-        tx = await swapExactInputSingle(
+        tx = await swapExactInputSingleAndVerify(
           token1.address, token0.address, swapFeeBpsArray[i], PRECISION, await getPriceFromTick(tickUpper), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
       if (showGasUsed) {
-        console.log(`Average gas used for ${numRuns * 2} swapExactInputSingle: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
+        console.log(`Average gas used for ${numRuns * 2} swapExactInputSingleAndVerify: ${gasUsed.div(BN.from(numRuns * 2)).toString()}`)
       }
     });
 
     it('eth -> token', async () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactInputSingle(
+      await swapExactInputSingleAndVerify(
         weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true
       );
     });
@@ -262,7 +452,7 @@ describe('ProAMMRouter', () => {
     it('token -> eth', async () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactInputSingle(
+      await swapExactInputSingleAndVerify(
         tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true
       );
     });
@@ -293,11 +483,11 @@ describe('ProAMMRouter', () => {
       let numRuns = swapFeeBpsArray.length;
       for (let i = 0; i < 1; i++) {
         await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, ticks);
-        let tx = await swapExactOutputSingle(
+        let tx = await swapExactOutputSingleAndVerify(
           tokenA.address, tokenB.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactOutputSingle(
+        tx = await swapExactOutputSingleAndVerify(
           tokenB.address, tokenA.address, swapFeeBpsArray[i], BN.from(1000000), BN.from(0), false
         );
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
@@ -311,7 +501,7 @@ describe('ProAMMRouter', () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB
-      await swapExactOutputSingle(
+      await swapExactOutputSingleAndVerify(
         weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true
       );
     });
@@ -319,7 +509,7 @@ describe('ProAMMRouter', () => {
     it('token -> eth', async () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactOutputSingle(
+      await swapExactOutputSingleAndVerify(
         tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true
       );
     });
@@ -353,9 +543,9 @@ describe('ProAMMRouter', () => {
       let numRuns = firstTokens.length;
       for(let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
-        let tx = await swapExactInput([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
+        let tx = await swapExactInputAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactInput([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
+        tx = await swapExactInputAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
       if (showGasUsed) {
@@ -370,12 +560,12 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // swap eth -> tokenA -> tokenB
-      let tx = await swapExactInput(
+      let tx = await swapExactInputAndVerify(
         [weth.address, tokenA.address, tokenB.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       // swap tokenB -> tokenA -> eth
-      tx = await swapExactInput(
+      tx = await swapExactInputAndVerify(
         [tokenB.address, tokenA.address, weth.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
@@ -389,7 +579,7 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB -> tokenA
-      await swapExactInput(
+      await swapExactInputAndVerify(
         [weth.address, tokenB.address, tokenA.address], fee, BN.from(1000000), true
       );
     });
@@ -398,7 +588,7 @@ describe('ProAMMRouter', () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactInput(
+      await swapExactInputAndVerify(
         [tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true
       );
     });
@@ -432,9 +622,9 @@ describe('ProAMMRouter', () => {
       let numRuns = firstTokens.length;
       for(let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
-        let tx = await swapExactOutput([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
+        let tx = await swapExactOutputAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
-        tx = await swapExactOutput([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
+        tx = await swapExactOutputAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       }
       if (showGasUsed) {
@@ -449,12 +639,12 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // swap eth -> tokenA -> tokenB
-      let tx = await swapExactOutput(
+      let tx = await swapExactOutputAndVerify(
         [weth.address, tokenA.address, tokenB.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
       // swap tokenB -> tokenA -> eth
-      tx = await swapExactOutput(
+      tx = await swapExactOutputAndVerify(
         [tokenB.address, tokenA.address, weth.address], fee, amount, false
       );
       gasUsed = gasUsed.add((await tx.wait()).gasUsed);
@@ -468,7 +658,7 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB -> tokenA
-      await swapExactOutput(
+      await swapExactOutputAndVerify(
         [weth.address, tokenB.address, tokenA.address], fee, BN.from(1000000), true
       );
     });
@@ -477,7 +667,7 @@ describe('ProAMMRouter', () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactOutput(
+      await swapExactOutputAndVerify(
         [tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true
       );
     });
@@ -509,13 +699,13 @@ describe('ProAMMRouter', () => {
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
-      await swapExactInput(
+      await swapExactInputAndVerify(
         [weth.address, tokenA.address, tokenB.address, weth.address], fee, amount, false
       );
-      await swapExactInput(
+      await swapExactInputAndVerify(
         [tokenA.address, weth.address, tokenB.address, tokenA.address], fee, amount, false
       );
-      await swapExactOutput(
+      await swapExactOutputAndVerify(
         [tokenB.address, tokenA.address, weth.address, tokenB.address], fee, amount, false
       );
     });
