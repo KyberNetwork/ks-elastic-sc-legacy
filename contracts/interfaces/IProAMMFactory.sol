@@ -48,9 +48,6 @@ interface IProAMMFactory {
   /// @notice Returns the contract address of the canonical implementation of the reinvestment token
   function reinvestmentTokenMaster() external view returns (address);
 
-  /// @notice Returns the contract address of the canonical implementation of ProAMMPool
-  function poolMaster() external view returns (address);
-
   /// @notice Fetches the recipient of government fees
   /// and current government fee charged in basis points
   function getFeeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);

@@ -11,16 +11,12 @@ import {
   ProAMMPool,
   MockToken,
   MockToken__factory,
-  PredictPoolAddress,
   ReinvestmentTokenMaster__factory,
-  ProAMMPool__factory,
   ProAMMFactory__factory,
 } from '../typechain';
-import {deployFactory} from './helpers/proAMMSetup';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
-let poolAddressPredictor: PredictPoolAddress;
 let reinvestmentMaster: ReinvestmentTokenMaster;
 let poolMaster: ProAMMPool;
 let tokenA: MockToken;
@@ -28,14 +24,10 @@ let tokenB: MockToken;
 let swapFeeBps: number;
 let tickSpacing: number;
 
-let snapshotId: any;
-
 describe('ProAMMFactory', () => {
   const [operator, admin, feeToSetter] = waffle.provider.getWallets();
 
   async function fixture() {
-    let poolAddressPredictorFactory = await ethers.getContractFactory('PredictPoolAddress');
-    poolAddressPredictor = (await poolAddressPredictorFactory.deploy()) as PredictPoolAddress;
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
@@ -43,12 +35,9 @@ describe('ProAMMFactory', () => {
       'ReinvestmentTokenMaster'
     )) as ReinvestmentTokenMaster__factory;
     reinvestmentMaster = await ReinvestmentMaster.deploy();
-  
-    const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
-    poolMaster = await ProAMMPoolContract.deploy();
-  
+
     const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, poolMaster.address);
+    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address);
   }
 
   describe('#factory deployment and pool creation', async () => {
@@ -68,32 +57,11 @@ describe('ProAMMFactory', () => {
     });
 
     it('should be able to deploy a pool', async () => {
-      let expectedPoolAddress = await poolAddressPredictor.predictPoolAddress(
-        factory.address,
-        poolMaster.address,
-        tokenA.address,
-        tokenB.address,
-        swapFeeBps
-      );
-      let token0Address =
-        tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA.address : tokenB.address;
-      let token1Address = token0Address == tokenA.address ? tokenB.address : tokenA.address;
-      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
-        .to.emit(factory, 'PoolCreated')
-        .withArgs(token0Address, token1Address, swapFeeBps, 10, expectedPoolAddress);
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps)).to.emit(factory, 'PoolCreated');
 
       swapFeeBps = 30;
-      expectedPoolAddress = await poolAddressPredictor.predictPoolAddress(
-        factory.address,
-        poolMaster.address,
-        tokenA.address,
-        tokenB.address,
-        swapFeeBps
-      );
 
-      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps))
-        .to.emit(factory, 'PoolCreated')
-        .withArgs(token0Address, token1Address, swapFeeBps, 60, expectedPoolAddress);
+      await expect(factory.createPool(tokenA.address, tokenB.address, swapFeeBps)).to.emit(factory, 'PoolCreated');
     });
 
     describe('#createPool', async () => {
@@ -128,6 +96,15 @@ describe('ProAMMFactory', () => {
         let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         expect(poolAddressOne).to.be.eql(poolAddressTwo);
         expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
+      });
+
+      it('should return different pool addresses for different swap fee bps', async () => {
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddressOne = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
+        swapFeeBps = 30;
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
+        expect(poolAddressOne).to.be.not.be.eql(poolAddressTwo);
       });
     });
 
