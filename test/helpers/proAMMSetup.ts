@@ -1,8 +1,4 @@
-import {
-  ProAMMFactory__factory,
-  ReinvestmentTokenMaster__factory,
-  ProAMMFactory,
-} from '../../typechain';
+import {ProAMMFactory__factory, ReinvestmentTokenMaster__factory, ProAMMFactory} from '../../typechain';
 import {ethers} from 'hardhat';
 
 export async function deployFactory(admin: any): Promise<ProAMMFactory> {

@@ -107,16 +107,8 @@ describe('ProAMMFactory', () => {
         bytecode: string
       ): string {
         const [token0, token1] = tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA];
-        const params = utils.defaultAbiCoder.encode(
-          ['address', 'address', 'uint16'],
-          [token0, token1, swapFeeBps]
-        );
-        const create2Inputs = [
-          '0xff',
-          factoryAddress,
-          utils.keccak256(params),
-          utils.keccak256(bytecode)
-        ];
+        const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint16'], [token0, token1, swapFeeBps]);
+        const create2Inputs = ['0xff', factoryAddress, utils.keccak256(params), utils.keccak256(bytecode)];
         const sanitizedInputs = `0x${create2Inputs.map(i => i.slice(2)).join('')}`;
         return utils.getAddress(`0x${utils.keccak256(sanitizedInputs).slice(-40)}`);
       }
@@ -133,15 +125,11 @@ describe('ProAMMFactory', () => {
       it('creates the predictable address', async () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
-        console.log(poolAddress);
         const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
-        console.log(
-          getCreate2Address(
-            factory.address,
-            [tokenA.address, tokenB.address, swapFeeBps],
-            ProAMMPoolContract.bytecode
-          )
+        expect(poolAddress).to.eql(
+          getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], ProAMMPoolContract.bytecode)
         );
+        expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
       });
     });
 

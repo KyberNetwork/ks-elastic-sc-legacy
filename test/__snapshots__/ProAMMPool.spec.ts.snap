@@ -1,17 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"215103"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"213431"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"164467"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"162795"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 1`] = `"247481"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"246169"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick should correctly update position state if adding liquidity after swap cross into position 2`] = `"246774"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"245506"`;
 
-exports[`ProAMMPool #unlockPool should have initialized the pool and created first position 1`] = `"228856"`;
+exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"227655"`;
 
-exports[`ProAMMPool burnRTokens gas cost for burning rTokens 1`] = `"91254"`;
+exports[`ProAMMPool burnRTokens gas cost for burning rTokens 1`] = `"101086"`;
 
-exports[`ProAMMPool test swap tests token0 exactInput (move down tick) 1`] = `"147726"`;
+exports[`ProAMMPool test swap #gas token0 exactInput [ @skip-on-coverage ] 1`] = `"142271"`;
 
-exports[`ProAMMPool test swap tests token1 exactOutput (move down tick) 1`] = `"158143"`;
+exports[`ProAMMPool test swap #gas token1 exactOutput [ @skip-on-coverage ] 1`] = `"152688"`;

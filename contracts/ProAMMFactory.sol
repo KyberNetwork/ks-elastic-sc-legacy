@@ -13,7 +13,6 @@ import {ProAMMPool} from './ProAMMPool.sol';
 contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   using Clones for address;
 
-
   struct Parameters {
     address factory;
     address token0;
@@ -62,12 +61,12 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
-    
+
     parameters.factory = address(this);
     parameters.token0 = token0;
     parameters.token1 = token1;
     parameters.swapFeeBps = swapFeeBps;
-    parameters.tickSpacing = tickSpacing;  
+    parameters.tickSpacing = tickSpacing;
 
     pool = _create(bytes(''), keccak256(abi.encode(token0, token1, swapFeeBps)));
     getPool[token0][token1][swapFeeBps] = pool;
