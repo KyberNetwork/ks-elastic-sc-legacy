@@ -22,7 +22,8 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       accounts: accounts,
-      allowUnlimitedContractSize: true
+      allowUnlimitedContractSize: true,
+      initialBaseFeePerGas: 0
     },
   },
 

@@ -37,13 +37,13 @@ contract ProAMMPool is IProAMMPool {
   uint128 private constant MIN_LIQUIDITY = 100000;
 
   /// see IProAMMPool for explanations of the immutables below
-  IProAMMFactory public override immutable factory;
-  IERC20 public override immutable token0;
-  IERC20 public override immutable token1;
-  IReinvestmentToken public override immutable reinvestmentToken;
-  uint128 public override immutable maxLiquidityPerTick;
-  uint16 public override immutable swapFeeBps;
-  int24 public override immutable tickSpacing;
+  IProAMMFactory public immutable override factory;
+  IERC20 public immutable override token0;
+  IERC20 public immutable override token1;
+  IReinvestmentToken public immutable override reinvestmentToken;
+  uint128 public immutable override maxLiquidityPerTick;
+  uint16 public immutable override swapFeeBps;
+  int24 public immutable override tickSpacing;
 
   // the current government fee as a percentage of the swap fee taken on withdrawal
   // value is fetched from factory and updated whenever a position is modified
@@ -74,22 +74,25 @@ contract ProAMMPool is IProAMMPool {
     locked = false;
   }
 
-  constructor(
-    address _factory,
-    IERC20 _token0,
-    IERC20 _token1,
-    uint16 _swapFeeBps,
-    int24 _tickSpacing
-  ) {
-    (factory, token0, token1, swapFeeBps, tickSpacing) = (
-      IProAMMFactory(_factory),
-      _token0,
-      _token1,
-      _swapFeeBps,
-      _tickSpacing
-    );
+  constructor() {
+    // fetch data from factory constructor
+    (
+      address _factory,
+      address _token0,
+      address _token1,
+      uint16 _swapFeeBps,
+      int24 _tickSpacing
+    ) = IProAMMFactory(msg.sender).parameters();
+    factory = IProAMMFactory(_factory);
+    token0 = IERC20(_token0);
+    token1 = IERC20(_token1);
+    swapFeeBps = _swapFeeBps;
+    tickSpacing = _tickSpacing;
+
     maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
-    IReinvestmentToken _reinvestmentToken = IReinvestmentToken(IProAMMFactory(_factory).reinvestmentTokenMaster().clone());
+    IReinvestmentToken _reinvestmentToken = IReinvestmentToken(
+      IProAMMFactory(_factory).reinvestmentTokenMaster().clone()
+    );
     _reinvestmentToken.initialize();
     reinvestmentToken = _reinvestmentToken;
     locked = true;

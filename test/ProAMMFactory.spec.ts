@@ -5,6 +5,8 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
+import {utils} from 'ethers';
+
 import {
   ProAMMFactory,
   ReinvestmentTokenMaster,
@@ -13,6 +15,7 @@ import {
   MockToken__factory,
   ReinvestmentTokenMaster__factory,
   ProAMMFactory__factory,
+  ProAMMPool__factory
 } from '../typechain';
 
 let Token: MockToken__factory;
@@ -27,7 +30,7 @@ let tickSpacing: number;
 describe('ProAMMFactory', () => {
   const [operator, admin, feeToSetter] = waffle.provider.getWallets();
 
-  async function fixture() {
+  async function fixture () {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
@@ -98,6 +101,26 @@ describe('ProAMMFactory', () => {
         expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
       });
 
+      function getCreate2Address (
+        factoryAddress: string,
+        [tokenA, tokenB, swapFeeBps]: [string, string, number],
+        bytecode: string
+      ): string {
+        const [token0, token1] = tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA];
+        const params = utils.defaultAbiCoder.encode(
+          ['address', 'address', 'uint16'],
+          [token0, token1, swapFeeBps]
+        );
+        const create2Inputs = [
+          '0xff',
+          factoryAddress,
+          utils.keccak256(params),
+          utils.keccak256(bytecode)
+        ];
+        const sanitizedInputs = `0x${create2Inputs.map(i => i.slice(2)).join('')}`;
+        return utils.getAddress(`0x${utils.keccak256(sanitizedInputs).slice(-40)}`);
+      }
+
       it('should return different pool addresses for different swap fee bps', async () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddressOne = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
@@ -105,6 +128,20 @@ describe('ProAMMFactory', () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         expect(poolAddressOne).to.be.not.be.eql(poolAddressTwo);
+      });
+
+      it('creates the predictable address', async () => {
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
+        console.log(poolAddress);
+        const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+        console.log(
+          getCreate2Address(
+            factory.address,
+            [tokenA.address, tokenB.address, swapFeeBps],
+            ProAMMPoolContract.bytecode
+          )
+        );
       });
     });
 

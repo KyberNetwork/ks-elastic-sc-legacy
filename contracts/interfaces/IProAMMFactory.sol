@@ -96,4 +96,15 @@ interface IProAMMFactory {
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
   function setFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
+
+  function parameters()
+    external
+    view
+    returns (
+      address factory,
+      address token0,
+      address token1,
+      uint16 swapFeeBps,
+      int24 tickSpacing
+    );
 }
