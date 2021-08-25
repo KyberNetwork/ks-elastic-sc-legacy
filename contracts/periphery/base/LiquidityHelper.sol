@@ -57,7 +57,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
     address token1,
     uint16 fee,
     uint160 initialSqrtPrice
-  ) external returns (IProAMMPool pool) {
+  ) internal returns (IProAMMPool pool) {
     pool = IProAMMPool(IProAMMFactory(factory).getPool(token0, token1, fee));
     if (token0 < token1) {
       pool.unlockPool(initialSqrtPrice, _callbackData(token0, token1, fee));
