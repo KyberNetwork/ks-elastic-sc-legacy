@@ -13,7 +13,9 @@ import {
   MockToken__factory,
   ReinvestmentTokenMaster__factory,
   ProAMMFactory__factory,
+  ProAMMPool__factory
 } from '../typechain';
+import { getCreate2Address } from './helpers/utils';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -27,7 +29,7 @@ let tickSpacing: number;
 describe('ProAMMFactory', () => {
   const [operator, admin, feeToSetter] = waffle.provider.getWallets();
 
-  async function fixture() {
+  async function fixture () {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
@@ -105,6 +107,16 @@ describe('ProAMMFactory', () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         expect(poolAddressOne).to.be.not.be.eql(poolAddressTwo);
+      });
+
+      it('creates the predictable address', async () => {
+        await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
+        let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
+        const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+        expect(poolAddress).to.eql(
+          getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], ProAMMPoolContract.bytecode)
+        );
+        expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
       });
     });
 

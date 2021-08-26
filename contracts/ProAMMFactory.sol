@@ -12,6 +12,18 @@ import {ProAMMPool} from './ProAMMPool.sol';
 /// @notice Deploys ProAMM pools and manages control over government fees
 contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   using Clones for address;
+
+  struct Parameters {
+    address factory;
+    address token0;
+    address token1;
+    uint16 swapFeeBps;
+    int24 tickSpacing;
+  }
+
+  /// @inheritdoc IProAMMFactory
+  Parameters public override parameters;
+
   /// @inheritdoc IProAMMFactory
   address public immutable override reinvestmentTokenMaster;
   address public override feeToSetter;
@@ -24,7 +36,9 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
-  constructor(address _reinvestmentTokenMaster) BaseSplitCodeFactory(type(ProAMMPool).creationCode) {
+  constructor(address _reinvestmentTokenMaster)
+    BaseSplitCodeFactory(type(ProAMMPool).creationCode)
+  {
     feeToSetter = msg.sender;
     reinvestmentTokenMaster = _reinvestmentTokenMaster;
     emit FeeToSetterUpdated(address(0), feeToSetter);
@@ -47,15 +61,14 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
     require(tickSpacing != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
-    pool = _create(
-      abi.encode(
-        address(this),
-        IERC20(token0),
-        IERC20(token1),
-        swapFeeBps,
-        tickSpacing
-      )
-    );
+
+    parameters.factory = address(this);
+    parameters.token0 = token0;
+    parameters.token1 = token1;
+    parameters.swapFeeBps = swapFeeBps;
+    parameters.tickSpacing = tickSpacing;
+
+    pool = _create(bytes(''), keccak256(abi.encode(token0, token1, swapFeeBps)));
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
     getPool[token1][token0][swapFeeBps] = pool;

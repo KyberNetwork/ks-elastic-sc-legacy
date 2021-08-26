@@ -172,12 +172,12 @@ abstract contract BaseSplitCodeFactory {
    * @dev Deploys a contract with constructor arguments. To create `constructorArgs`, call `abi.encode()` with the
    * contract's constructor arguments, in order.
    */
-  function _create(bytes memory constructorArgs) internal virtual returns (address) {
+  function _create(bytes memory constructorArgs, bytes32 salt) internal virtual returns (address) {
     bytes memory creationCode = _getCreationCodeWithArgs(constructorArgs);
 
     address destination;
     assembly {
-      destination := create(0, add(creationCode, 32), mload(creationCode))
+      destination := create2(0, add(creationCode, 32), mload(creationCode), salt)
     }
 
     if (destination == address(0)) {
