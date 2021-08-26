@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.0;
 
 /// @title Callback for IProAMMPool#mint
 /// @notice Any contract that calls IProAMMPool#mint must implement this interface

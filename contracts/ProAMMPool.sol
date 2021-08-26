@@ -150,15 +150,16 @@ contract ProAMMPool is IProAMMPool {
   function unlockPool(uint160 initialSqrtPrice, bytes calldata data) external override {
     require(poolSqrtPrice == 0, 'already inited');
     locked = false; // unlock the pool
-    // initial tick bound is checked in this function
+    // initial tick bounds (min & max price limits) are checked in this function
     int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
     (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(
       initialSqrtPrice,
       MIN_LIQUIDITY
     );
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
-    if (qty0 > 0) require(qty0 <= poolBalToken0(), 'lacking qty0');
-    if (qty1 > 0) require(qty1 <= poolBalToken1(), 'lacking qty1');
+    // because of price bounds, qty0 and qty1 >= 1
+    require(qty0 <= poolBalToken0(), 'lacking qty0');
+    require(qty1 <= poolBalToken1(), 'lacking qty1');
     poolTick = initialTick;
     poolSqrtPrice = initialSqrtPrice;
     poolReinvestmentLiquidity = MIN_LIQUIDITY;
@@ -278,14 +279,12 @@ contract ProAMMPool is IProAMMPool {
         lp,
         reinvestmentToken.totalSupply()
       );
-      if (rMintQty > 0) {
+      if (rMintQty != 0) {
         // mint to pool
         reinvestmentToken.mint(address(this), rMintQty);
-        // update fee global if lp != 0
-        if (lp != 0) {
-          _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-          poolFeeGrowthGlobal = _feeGrowthGlobal;
-        }
+        // lp != 0 because lp = 0 => rMintQty = 0
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+        poolFeeGrowthGlobal = _feeGrowthGlobal;
       }
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -315,18 +314,18 @@ contract ProAMMPool is IProAMMPool {
       tickBitmap.flipTick(tickUpper, tickSpacing);
     }
 
-    // fees = feeGrowthInside
     uint256 feeGrowthInside = ticks.getFeeGrowthInside(
       tickLower,
       tickUpper,
       currentTick,
       _feeGrowthGlobal
     );
-    // fees variable = rTokens to be minted for the position's accumulated fees
-    uint256 fees = position.update(liquidityDelta, feeGrowthInside);
-    if (fees > 0) {
+
+    // calc rTokens to be minted for the position's accumulated fees
+    uint256 feesClaimable = position.update(liquidityDelta, feeGrowthInside);
+    if (feesClaimable > 0) {
       // transfer rTokens from pool to owner
-      reinvestmentToken.safeTransfer(owner, fees);
+      reinvestmentToken.safeTransfer(owner, feesClaimable);
     }
     // clear any tick data that is no longer needed
     if (liquidityDelta < 0) {
@@ -416,9 +415,8 @@ contract ProAMMPool is IProAMMPool {
     if (rMintQty != 0) {
       reinvestmentToken.mint(address(this), rMintQty);
       rTotalSupply += rMintQty;
-      if (lp != 0) {
-        poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-      }
+      // lp != 0 because lp = 0 => rMintQty = 0
+      poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
     }
 
     // burn _qty of caller

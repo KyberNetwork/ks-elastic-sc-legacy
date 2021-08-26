@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
@@ -25,16 +25,16 @@ interface IProAMMFactory {
   /// @param tickSpacing Minimum number of ticks between initialized ticks for pools created with the given fee
   event SwapFeeEnabled(uint16 indexed swapFeeBps, int24 indexed tickSpacing);
 
-  /// @notice Emitted when feeToSetter changes
-  /// @param oldFeeToSetter feeToSetter before the update
-  /// @param newFeeToSetter feeToSetter after the update
-  event FeeToSetterUpdated(address oldFeeToSetter, address newFeeToSetter);
+  /// @notice Emitted when configMaster changes
+  /// @param oldConfigMaster configMaster before the update
+  /// @param newConfigMaster configMaster after the update
+  event ConfigMasterUpdated(address oldConfigMaster, address newConfigMaster);
 
   /// @notice Emitted when fee configuration changes
   /// @param feeTo Recipient of government fees
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
-  event SetFeeConfiguration(address feeTo, uint16 governmentFeeBps);
+  event FeeConfigurationUpdated(address feeTo, uint16 governmentFeeBps);
 
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
@@ -43,14 +43,14 @@ interface IProAMMFactory {
   function feeAmountTickSpacing(uint16 swapFeeBps) external view returns (int24);
 
   /// @notice Returns the address which can update the fee configuration
-  function feeToSetter() external view returns (address);
+  function configMaster() external view returns (address);
 
   /// @notice Returns the contract address of the canonical implementation of the reinvestment token
   function reinvestmentTokenMaster() external view returns (address);
 
   /// @notice Fetches the recipient of government fees
   /// and current government fee charged in basis points
-  function getFeeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);
+  function feeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);
 
   /// @notice Returns the pool address for a given pair of tokens and a swap fee
   /// @dev Token order does not matter
@@ -87,16 +87,23 @@ interface IProAMMFactory {
   function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) external;
 
   /// @notice Updates the address which can update the fee configuration
-  /// @dev Must be called by the current feeToSetter
-  function updateFeeToSetter(address) external;
+  /// @dev Must be called by the current configMaster
+  function updateConfigMaster(address) external;
 
   /// @notice Updates the address receiving government fees and fee quantity
-  /// @dev Only feeToSetter is able to perform the update
+  /// @dev Only configMaster is able to perform the update
   /// @param feeTo Address to receive government fees collected from pools
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
-  function setFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
+  function updateFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
 
+  /// @notice Fetch parameters to be used for pool creation
+  /// @dev Called by the pool constructor to fetch the parameters of the pool
+  /// @return factory The factory address
+  /// @return token0 First pool token by address sort order
+  /// @return token1 Second pool token by address sort order
+  /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
+  /// @return tickSpacing Minimum number of ticks between initialized ticks
   function parameters()
     external
     view
