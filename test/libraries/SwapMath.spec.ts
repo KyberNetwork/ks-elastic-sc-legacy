@@ -180,4 +180,18 @@ describe('SwapMath', () => {
     console.log(`finalPrice=${finalPrice.toString()} : ${sqrtPriceToString(finalPrice)}`);
     expect(finalPrice).to.lte(priceEnd); // 79623317895830914417022576523 >= 79623317895830914510639640423
   });
+
+  describe('#gas', async () => {
+    it('from token0 -> token1 exact input', async () => {
+      const liquidity = PRECISION.mul(ONE);
+      const priceStart = encodePriceSqrt(1, 1);
+      const priceEnd = encodePriceSqrt(100, 101);
+      // calculate the amount of token0 to swap from 1 -> 1 / 1.01
+      const delta = await swapMath.calcDeltaNext(liquidity, priceStart, priceEnd, fee, true, true);
+      console.log(`delta: ${delta.toString()}`); // 0.004995092120267736
+
+      const output = await swapMath.computeSwapStep(liquidity, priceStart, priceEnd, fee, delta.sub(ONE), true, true);
+      expect(output.gasCost.toString()).toMatchSnapshot();
+    });
+  });
 });
