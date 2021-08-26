@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {MathConstants} from './MathConstants.sol';
+import {MathConstants as C} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
 
 /// @title Contains helper functions for calculating
@@ -26,30 +26,22 @@ library ReinvestmentMath {
     uint256 rMintQty = FullMath.mulDivFloor(lp, lc, lf);
     rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lc + lf);
     newTokenSupply = tokenSupply + rMintQty;
-    newFeeGrowthGlobal = feeGrowthGlobal + calcFeeGrowthIncrement(rMintQty, lp);
+    newFeeGrowthGlobal = feeGrowthGlobal;
+    if (lp != 0) newFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
     newLf = lf + lc;
   }
 
-  function calcFeeGrowthIncrement(uint256 rMintQty, uint128 lp) internal pure returns (uint256) {
-    if (lp == 0) return 0;
-    return FullMath.mulDivFloor(rMintQty, MathConstants.TWO_POW_96, lp);
-  }
-
+  /// @dev calculate the mint amount with given lf, lfLast, lp and rTotalSupply
+  /// contribution of lp to the increment is calculated by the proportion of lp with lf + lp
+  /// then rMintQty is calculated by mutiplying this with the liquidity per reinvestment token
+  /// rMintQty = rTotalSupply * (lf - lfLast) / lfLast * lp / (lp + lf)
   function calcrMintQty(
     uint256 lf,
     uint256 lfLast,
     uint128 lp,
-    uint256 tokenSupply
+    uint256 rTotalSupply
   ) internal pure returns (uint256 rMintQty) {
-    rMintQty = FullMath.mulDivFloor(lp, lf - lfLast, lfLast);
-    rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lf);
-  }
-
-  function calcLfDelta(
-    uint256 burnAmount,
-    uint256 lf,
-    uint256 tokenSupply
-  ) internal pure returns (uint256 lfDelta) {
-    lfDelta = FullMath.mulDivFloor(burnAmount, lf, tokenSupply);
+    uint256 lpContribution = FullMath.mulDivFloor(lp, lf - lfLast, lp + lf);
+    rMintQty = FullMath.mulDivFloor(rTotalSupply, lpContribution, lfLast);
   }
 }
