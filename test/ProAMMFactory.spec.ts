@@ -5,8 +5,6 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {utils} from 'ethers';
-
 import {
   ProAMMFactory,
   ReinvestmentTokenMaster,
@@ -17,6 +15,7 @@ import {
   ProAMMFactory__factory,
   ProAMMPool__factory
 } from '../typechain';
+import { getCreate2Address } from './helpers/utils';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -100,18 +99,6 @@ describe('ProAMMFactory', () => {
         expect(poolAddressOne).to.be.eql(poolAddressTwo);
         expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
       });
-
-      function getCreate2Address (
-        factoryAddress: string,
-        [tokenA, tokenB, swapFeeBps]: [string, string, number],
-        bytecode: string
-      ): string {
-        const [token0, token1] = tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA];
-        const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint16'], [token0, token1, swapFeeBps]);
-        const create2Inputs = ['0xff', factoryAddress, utils.keccak256(params), utils.keccak256(bytecode)];
-        const sanitizedInputs = `0x${create2Inputs.map(i => i.slice(2)).join('')}`;
-        return utils.getAddress(`0x${utils.keccak256(sanitizedInputs).slice(-40)}`);
-      }
 
       it('should return different pool addresses for different swap fee bps', async () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
