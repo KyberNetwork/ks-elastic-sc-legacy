@@ -8,29 +8,6 @@ import {FullMath} from './FullMath.sol';
 /// reinvestment variables, like token amount to be minted (rMintQty),
 /// new reinvestment token supply and fee growth
 library ReinvestmentMath {
-  function updateReinvestments(
-    uint128 lp,
-    uint256 lf,
-    uint256 lc,
-    uint256 tokenSupply,
-    uint256 feeGrowthGlobal
-  )
-    internal
-    pure
-    returns (
-      uint256 newTokenSupply,
-      uint256 newFeeGrowthGlobal,
-      uint256 newLf
-    )
-  {
-    uint256 rMintQty = FullMath.mulDivFloor(lp, lc, lf);
-    rMintQty = FullMath.mulDivFloor(rMintQty, tokenSupply, lp + lc + lf);
-    newTokenSupply = tokenSupply + rMintQty;
-    newFeeGrowthGlobal = feeGrowthGlobal;
-    if (lp != 0) newFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-    newLf = lf + lc;
-  }
-
   /// @dev calculate the mint amount with given lf, lfLast, lp and rTotalSupply
   /// contribution of lp to the increment is calculated by the proportion of lp with lf + lp
   /// then rMintQty is calculated by mutiplying this with the liquidity per reinvestment token
