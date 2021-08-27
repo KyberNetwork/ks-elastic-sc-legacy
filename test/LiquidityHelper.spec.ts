@@ -1,8 +1,8 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, MIN_SQRT_RATIO, ONE, TWO, MIN_LIQUIDITY, MAX_SQRT_RATIO, TWO_POW_96} from './helpers/helper';
-import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice} from './helpers/utils';
+import {BigNumber} from 'ethers';
+import {BN, PRECISION, ZERO_ADDRESS, ONE, TWO} from './helpers/helper';
+import {encodePriceSqrt} from './helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -10,7 +10,8 @@ chai.use(solidity);
 import {
   MockToken, MockToken__factory,
   MockWeth, MockWeth__factory,
-  MockLiquidityHelper, MockLiquidityHelper__factory
+  MockLiquidityHelper, MockLiquidityHelper__factory,
+  ProAMMFactory
 } from '../typechain';
 
 import {deployFactory} from './helpers/proAMMSetup';
@@ -30,6 +31,7 @@ let tokenB: MockToken;
 let weth: MockWeth;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
+let vestingPeriod = 100;
 let initialPrice: BigNumber;
 let snapshotId: any;
 
@@ -48,7 +50,7 @@ describe('LiquidityHelper', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
-    factory = await deployFactory(admin);
+    factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();
@@ -56,6 +58,9 @@ describe('LiquidityHelper', () => {
     // use liquidity helper
     LiquidityHelper = await ethers.getContractFactory('MockLiquidityHelper') as MockLiquidityHelper__factory;
     liquidityHelper = await LiquidityHelper.deploy(factory.address, weth.address);
+
+    // whitelist liquidity helper
+    await factory.connect(admin).addNFTManager(liquidityHelper.address);
 
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -134,7 +139,7 @@ describe('LiquidityHelper', () => {
       let poolBefore = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
       let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION, gasPrice: txGasPrice });
       let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
@@ -259,7 +264,7 @@ describe('LiquidityHelper', () => {
       }
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testAddLiquidity', [params])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
       let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION.mul(TWO), gasPrice: txGasPrice });
       let txFee = txGasPrice.mul((await tx.wait()).gasUsed);

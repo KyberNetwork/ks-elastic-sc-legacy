@@ -318,12 +318,16 @@ contract ProAMMPool is IProAMMPool {
       _feeGrowthGlobal
     );
 
-    // calc rTokens to be minted for the position's accumulated fees
-    feesClaimable = position.update(liquidityDelta, feeGrowthInside);
+    feesClaimable = position.update(
+        liquidityDelta,
+        feeGrowthInside
+      );
+
     if (feesClaimable > 0) {
       // transfer rTokens from pool to owner
       reinvestmentToken.safeTransfer(owner, feesClaimable);
     }
+
     // clear any tick data that is no longer needed
     if (liquidityDelta < 0) {
       if (flippedLower) {
@@ -344,6 +348,7 @@ contract ProAMMPool is IProAMMPool {
     bytes calldata data
   ) external override lock returns (uint256 qty0, uint256 qty1, uint256 feesClaimable) {
     require(qty > 0, '0 qty');
+    require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
@@ -421,7 +426,7 @@ contract ProAMMPool is IProAMMPool {
     }
 
     // burn _qty of caller
-    // router should transfer _qty from user to itself, but not send it to the pool
+    // position manager should transfer _qty from user to itself, but not send it to the pool
     // for direct calls, msg.sender should have sufficient balance
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning

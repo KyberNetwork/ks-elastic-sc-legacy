@@ -45,7 +45,6 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
-import {encodePath} from './helpers/swapPath';
 
 let factory: ProAMMFactory;
 let token0: MockToken;
@@ -61,6 +60,7 @@ let swapFeeBpsArray = [5, 30];
 let swapFeeBps = swapFeeBpsArray[0];
 let tickSpacingArray = [10, 60];
 let tickSpacing = tickSpacingArray[0];
+let vestingPeriod = 100;
 
 let minTick = getMinTick(tickSpacing);
 let maxTick = getMaxTick(tickSpacing);
@@ -89,7 +89,7 @@ describe('ProAMMPool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture (): Promise<Fixtures> {
-    let factory = await deployFactory(admin);
+    let factory = await deployFactory(admin, vestingPeriod);
     const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -231,7 +231,16 @@ describe('ProAMMPool', () => {
 
     describe('after unlockPool', async () => {
       beforeEach('unlock pool with initial price of 2:1', async () => {
+        // whitelist callback as NFT manager
+        await factory.connect(admin).addNFTManager(callback.address);
         await callback.unlockPool(pool.address, encodePriceSqrt(TWO, ONE), '0x');
+      });
+
+      it('should fail if called from non-whitelist address', async () => {
+        await factory.connect(admin).removeNFTManager(callback.address);
+        await expect(callback.mint(pool.address, user.address, 0, 100, PRECISION, '0x')).to.be.revertedWith(
+          'forbidden'
+        );
       });
 
       it('should fail if ticks are not in tick spacing', async () => {
@@ -865,21 +874,29 @@ describe('ProAMMPool', () => {
 
   describe('#burn', async () => {
     it('should fail if pool is not unlocked', async () => {
-      await expect(pool.burn(0, 100, PRECISION)).to.be.revertedWith('locked');
+      await expect(pool.connect(user).burn(0, 100, PRECISION)).to.be.revertedWith('locked');
     });
 
     describe('after unlockPool', async () => {
-      beforeEach('unlock pool with initial price of 2:1, mint 1 position, init reinvestment token', async () => {
+      beforeEach('unlock pool with initial price of 2:1, and perform necessary setup', async () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        // mint 1 position
         tickLower = nearestTickToPrice - 100 * tickSpacing;
         tickUpper = nearestTickToPrice + 100 * tickSpacing;
         await callback.unlockPool(pool.address, initialPrice, '0x');
+        // whitelist callback for minting position
+        await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(BPS), '0x');
+        // init reinvestment token
         reinvestmentToken = (await ethers.getContractAt(
           'ReinvestmentTokenMaster',
           await pool.reinvestmentToken()
         )) as ReinvestmentTokenMaster;
+      });
+
+      it('should fail burning liquidity if user has no position', async () => {
+        await expect(pool.connect(configMaster).burn(tickLower, tickUpper, ONE)).to.be.reverted;
       });
 
       it('should fail burning more than position liquidity', async () => {
@@ -888,6 +905,12 @@ describe('ProAMMPool', () => {
 
       it('should fail with zero qty', async () => {
         await expect(pool.connect(user).burn(tickLower, tickUpper, ZERO)).to.be.revertedWith('0 qty');
+      });
+
+      it('should burn liquidity with event emission', async () => {
+        // note that user need not be whitelisted as burn() is not restricted
+        await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'BurnLP');
+        expect((await pool.positions(getPositionKey(user.address, tickLower, tickUpper))).liquidity).to.be.eql(ZERO);
       });
 
       it('should retain fee growth position snapshot after all user liquidity is removed', async () => {
@@ -977,7 +1000,6 @@ describe('ProAMMPool', () => {
       it('should only transfer token1 if position burnt is below current tick', async () => {
         // push current tick to above tickUpper
         await swapToUpTick(pool, user, tickUpper);
-        // await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION))
           .to.emit(token1, 'Transfer')
           .to.not.emit(token0, 'Transfer');
@@ -988,6 +1010,8 @@ describe('ProAMMPool', () => {
   describe('pool liquidity updates', async () => {
     beforeEach('unlock pool at 0 tick', async () => {
       initialPrice = encodePriceSqrt(ONE, ONE);
+      // whitelist callback for minting position
+      await factory.connect(admin).addNFTManager(callback.address);
       await callback.unlockPool(pool.address, initialPrice, '0x');
       await callback.mint(pool.address, user.address, -100 * tickSpacing, 100 * tickSpacing, PRECISION, '0x');
     });
@@ -1069,6 +1093,8 @@ describe('ProAMMPool', () => {
     beforeEach('unlock pool with initial price of 1:1 (tick 0)', async () => {
       initialPrice = encodePriceSqrt(ONE, ONE);
       await callback.unlockPool(pool.address, initialPrice, '0x');
+      // whitelist callback for minting position
+      await factory.connect(admin).addNFTManager(callback.address);
     });
 
     it('should execute a position converting token0 to token1', async () => {
@@ -1109,6 +1135,8 @@ describe('ProAMMPool', () => {
       beforeEach('mint rTokens for user', async () => {
         initialPrice = encodePriceSqrt(ONE, ONE);
         await callback.unlockPool(pool.address, initialPrice, '0x');
+        // whitelist callback for minting position
+        await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, -100, 100, PRECISION, '0x');
         // do swaps to increment lf
         await swapToUpTick(pool, user, 50);
@@ -1171,6 +1199,8 @@ describe('ProAMMPool', () => {
         // init price at 1e18 : 1
         initialPrice = encodePriceSqrt(PRECISION, ONE);
         await callback.unlockPool(pool.address, initialPrice, '0x');
+        // whitelist callback for minting position
+        await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
         tickLower = nearestTickToPrice - 1000;
         tickUpper = nearestTickToPrice + 1000;
@@ -1201,6 +1231,8 @@ describe('ProAMMPool', () => {
         // init price at 1 : 1e18
         initialPrice = encodePriceSqrt(ONE, PRECISION);
         await callback.unlockPool(pool.address, initialPrice, '0x');
+        // whitelist callback for minting position
+        await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
         tickLower = nearestTickToPrice - 1000;
         tickUpper = nearestTickToPrice + 1000;
@@ -1234,6 +1266,8 @@ describe('ProAMMPool', () => {
       beforeEach('unlock pool with initial price of 2:1', async () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
         await callback.unlockPool(pool.address, initialPrice, '0x');
+        // whitelist callback for minting position
+        await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
 
         // mint 3 position to test
@@ -1311,7 +1345,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
         await snapshotGasCost(
           await callback.swap(pool.address, user.address, quoteResult.amountIn, true, MIN_SQRT_RATIO.add(ONE), '0x')
@@ -1327,7 +1361,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1344,7 +1378,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1382,7 +1416,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1406,7 +1440,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1430,7 +1464,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(1000),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1509,32 +1543,18 @@ describe('ProAMMPool', () => {
 
         it('will not mint any rTokens if swaps fail to cross tick', async () => {
           await expect(
-            callback.swap(
-              pool.address,
-              user.address,
-              MIN_LIQUIDITY,
-              false,
-              MAX_SQRT_RATIO.sub(ONE),
-              '0x'
-            )
+            callback.swap(pool.address, user.address, MIN_LIQUIDITY, false, MAX_SQRT_RATIO.sub(ONE), '0x')
           ).to.not.emit(reinvestmentToken, 'Mint');
         });
 
         it('will mint rTokens but not transfer any for 0 governmentFeeBps', async () => {
           // cross initialized tick to mint rTokens
           await expect(
-            callback.swap(
-              pool.address,
-              user.address,
-              PRECISION,
-              false,
-              await getPriceFromTick(tickUpper + 1),
-              '0x'
-            )
+            callback.swap(pool.address, user.address, PRECISION, false, await getPriceFromTick(tickUpper + 1), '0x')
           ).to.emit(reinvestmentToken, 'Mint');
           expect(await reinvestmentToken.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
         });
-  
+
         it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
@@ -1543,7 +1563,7 @@ describe('ProAMMPool', () => {
           await swapToUpTick(pool, user, tickUpper + 1);
           expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
         });
-  
+
         it('should only send to updated feeTo address', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(admin.address, 5);
@@ -1551,12 +1571,12 @@ describe('ProAMMPool', () => {
           await swapToUpTick(pool, user, tickUpper + 1);
           let oldFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(admin.address);
           let newFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
-  
+
           // now update to another feeTo
           await factory.updateFeeConfiguration(configMaster.address, 5);
           // swap downTick to generate fees and mint rTokens
           await swapToDownTick(pool, user, tickLower);
-  
+
           // old feeTo should have same amount of rTokens
           expect(await reinvestmentToken.balanceOf(admin.address)).to.be.eq(oldFeeToRTokenBalanceBefore);
           // new feeTo should have received rTokens
@@ -1589,7 +1609,7 @@ describe('ProAMMPool', () => {
   });
 });
 
-async function isTickCleared (tick: number): Promise<boolean> {
+async function isTickCleared(tick: number): Promise<boolean> {
   const {liquidityGross, feeGrowthOutside, liquidityNet} = await pool.ticks(tick);
   if (!feeGrowthOutside.eq(ZERO)) return false;
   if (!liquidityNet.eq(ZERO)) return false;
@@ -1597,7 +1617,7 @@ async function isTickCleared (tick: number): Promise<boolean> {
   return true;
 }
 
-async function doRandomSwaps (pool: ProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
+async function doRandomSwaps(pool: ProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
   for (let i = 0; i < iterations; i++) {
     let isToken0 = Math.random() < 0.5;
     let isExactInput = Math.random() < 0.5;
@@ -1621,7 +1641,7 @@ async function doRandomSwaps (pool: ProAMMPool, user: Wallet, iterations: number
   }
 }
 
-async function swapToUpTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToUpTick(pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick < targetTick) {
     // either specify exactInputToken1 or exactOutputToken0
     let isToken0 = Math.random() < 0.5;
@@ -1639,7 +1659,7 @@ async function swapToUpTick (pool: ProAMMPool, user: Wallet, targetTick: number,
   }
 }
 
-async function swapToDownTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToDownTick(pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick > targetTick) {
     // either specify exactInputToken0 or exactOutputToken1
     let isToken0 = Math.random() < 0.5;

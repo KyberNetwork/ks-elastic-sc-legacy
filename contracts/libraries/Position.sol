@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0;
 
 import {FullMath} from './FullMath.sol';
-import {MathConstants} from './MathConstants.sol';
 import {LiqDeltaMath} from './LiqDeltaMath.sol';
+import {MathConstants as C} from './MathConstants.sol';
 
 /// @title Position
 /// @notice Positions represent an owner's liquidity within specified tick boundaries
@@ -31,24 +31,23 @@ library Position {
     position = self[keccak256(abi.encodePacked(owner, tickLower, tickUpper))];
   }
 
-  /// @notice Credits accumulated fees to a user's position
-  /// @param self The individual position to update
+  /// @notice Credits accumulated fees to position manager's position
   /// @param liquidityDelta The change in pool liquidity as a result of the position update
   /// this value should not be zero when called
   /// @param feeGrowthInside The all-time fee growth in LP tokens, per unit of liquidity, inside the position's tick boundaries
+  /// @return feesClaimable The claimable rToken amount to be sent to the user
   function update(
     Data storage self,
     int128 liquidityDelta,
     uint256 feeGrowthInside
   ) internal returns (uint256 feesClaimable) {
     Data memory _self = self;
-
     // calculate accumulated fees for current liquidity
     // (ie. does not include liquidityDelta)
     feesClaimable = FullMath.mulDivFloor(
       feeGrowthInside - _self.feeGrowthInsideLast,
       _self.liquidity,
-      MathConstants.TWO_POW_96
+      C.TWO_POW_96
     );
     // update the position
     self.liquidity = LiqDeltaMath.addLiquidityDelta(_self.liquidity, liquidityDelta);

@@ -94,8 +94,12 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
   /// @param key keccak256(abi.encodePacked(owner, tickLower, tickUpper))
   /// @return liquidity liquidity quantity of the position
   /// @return feeGrowthInsideLast fee growth inside the tick range as of the last mint / burn action performed
+  /// see ISnipAttack.sol for more information
   function positions(bytes32 key)
     external
     view
-    returns (uint128 liquidity, uint256 feeGrowthInsideLast);
+    returns (
+      uint128 liquidity,
+      uint256 feeGrowthInsideLast
+    );
 }
