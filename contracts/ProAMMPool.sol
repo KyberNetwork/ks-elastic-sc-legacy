@@ -20,7 +20,6 @@ import {Tick, TickMath} from './libraries/Tick.sol';
 import {TickBitmap} from './libraries/TickBitmap.sol';
 import {Position} from './libraries/Position.sol';
 
-// import 'hardhat/console.sol';
 
 contract ProAMMPool is IProAMMPool {
   using Clones for address;
