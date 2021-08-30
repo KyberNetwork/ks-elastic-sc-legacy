@@ -465,8 +465,8 @@ describe('ProAMMRouter', () => {
 
     it('token - token', async () => {
       let gasUsed = BN.from(0);
-      let numRuns = swapFeeBpsArray.length;
-      for (let i = 0; i < 1; i++) {
+      let numRuns = 1;
+      for (let i = 0; i < numRuns; i++) {
         await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, ticks);
         let tx = await swapExactOutputSingleAndVerify(
           tokenA.address,
