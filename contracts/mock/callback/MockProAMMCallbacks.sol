@@ -7,17 +7,13 @@ import {IProAMMSwapCallback} from '../../interfaces/callback/IProAMMSwapCallback
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback {
-  IERC20 public token0;
-  IERC20 public token1;
-  address public user;
+  IERC20 public immutable token0;
+  IERC20 public immutable token1;
+  address public immutable user;
 
   constructor(IERC20 tokenA, IERC20 tokenB) {
     (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     user = msg.sender;
-  }
-
-  function changeUser(address _user) external {
-    user = _user;
   }
 
   function unlockPool(

@@ -4,9 +4,7 @@ pragma solidity 0.8.4;
 import {ERC20, ERC20Burnable} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 
 contract MockWeth is ERC20Burnable {
-
-  constructor(
-  ) ERC20("Weth token", "WETH") {}
+  constructor() ERC20('Weth token', 'WETH') {}
 
   function deposit() external payable {
     _mint(msg.sender, msg.value);
@@ -14,7 +12,7 @@ contract MockWeth is ERC20Burnable {
 
   function withdraw(uint256 amount) external {
     _burn(msg.sender, amount);
-    (bool success, ) = msg.sender.call{ value: amount }('');
+    (bool success, ) = msg.sender.call{value: amount}('');
     require(success);
   }
 }
