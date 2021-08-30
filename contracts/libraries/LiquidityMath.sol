@@ -49,14 +49,14 @@ library LiquidityMath {
   }
 
   /// @notice Gets liquidity given price range and 2 qties of token0 and token1
-  /// @param sqrtRatioX current price
+  /// @param sqrtPriceCurrent current price
   /// @param sqrtPriceA A sqrt price
   /// @param sqrtPriceB Another sqrt price
   /// @param qty0 amount of token0 - at most
   /// @param qty1 amount of token1 - at most
   /// @return liquidity amount of returned liquidity to not exceed the given qties
   function getLiquidityFromQties(
-    uint160 sqrtRatioX,
+    uint160 sqrtPriceCurrent,
     uint160 sqrtPriceA,
     uint160 sqrtPriceB,
     uint256 qty0,
@@ -64,10 +64,10 @@ library LiquidityMath {
   ) internal pure returns (uint128) {
     if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
 
-    if (sqrtRatioX <= sqrtPriceA) {
+    if (sqrtPriceCurrent <= sqrtPriceA) {
       return getLiquidityFromQty0(sqrtPriceA, sqrtPriceB, qty0);
     }
-    if (sqrtRatioX >= sqrtPriceB) {
+    if (sqrtPriceCurrent >= sqrtPriceB) {
       return getLiquidityFromQty1(sqrtPriceA, sqrtPriceB, qty1);
     }
     uint128 liq0 = getLiquidityFromQty0(sqrtPriceA, sqrtPriceB, qty0);
