@@ -1141,7 +1141,7 @@ describe('ProAMMPool', () => {
       it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
         // do a couple of small swaps so that lf is incremented but not lfLast
-        await doRandomSwaps(pool, user, 2, MIN_LIQUIDITY);
+        await doRandomSwaps(pool, user, 3, MIN_LIQUIDITY);
         let reinvestmentState = await pool.getReinvestmentState();
         expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(reinvestmentState._poolReinvestmentLiquidityLast);
         await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');

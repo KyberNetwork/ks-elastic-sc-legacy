@@ -1,23 +1,23 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"215103"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"215181"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"164467"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"164545"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"247481"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"247559"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"246746"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"246824"`;
 
-exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"228812"`;
+exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"229043"`;
 
 exports[`ProAMMPool burnRTokens gas cost for burning rTokens 1`] = `"91254"`;
 
 exports[`ProAMMPool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"91254"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput [ @skip-on-coverage ] 1`] = `"147726"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput [ @skip-on-coverage ] 1`] = `"147714"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput [ @skip-on-coverage ] 1`] = `"158143"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput [ @skip-on-coverage ] 1`] = `"158131"`;
 
-exports[`ProAMMPool test swap #gas token0 exactInput [ @skip-on-coverage ] 1`] = `"147726"`;
+exports[`ProAMMPool test swap #gas token0 exactInput [ @skip-on-coverage ] 1`] = `"147714"`;
 
-exports[`ProAMMPool test swap #gas token1 exactOutput [ @skip-on-coverage ] 1`] = `"158143"`;
+exports[`ProAMMPool test swap #gas token1 exactOutput [ @skip-on-coverage ] 1`] = `"158131"`;
