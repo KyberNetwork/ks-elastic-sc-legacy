@@ -222,16 +222,25 @@ describe('ProAMMFactory', () => {
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
       });
 
-      it('should be able to update governmentFeeBps to min (0) and max (2000) values', async () => {
-        let governmentFeeBps = 0;
-        await factory.connect(admin).updateFeeConfiguration(admin.address, governmentFeeBps);
-        let result = await factory.feeConfiguration();
-        expect(result._feeTo).to.be.eql(admin.address);
-        expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
+      it('should be unable to update governmentFeeBps to 0 if feeTo is not null', async () => {
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, ZERO)).to.be.revertedWith('bad config');
+      });
 
-        governmentFeeBps = 2000;
+      it('should be unable to update to null feeTo if governmentFeeBps is not 0', async () => {
+        await expect(factory.connect(admin).updateFeeConfiguration(ZERO_ADDRESS, 5)).to.be.revertedWith('bad config');
+      });
+
+      it('should be able to update governmentFeeBps to 0 with null address', async () => {
+        await factory.connect(admin).updateFeeConfiguration(ZERO_ADDRESS, ZERO);
+        let result = await factory.feeConfiguration();
+        expect(result._feeTo).to.be.eql(ZERO_ADDRESS);
+        expect(result._governmentFeeBps).to.be.eql(0);
+      });
+
+      it('should be able to update governmentFeeBps to the max value (2000)', async () => {
+        let governmentFeeBps = 2000;
         await factory.connect(admin).updateFeeConfiguration(operator.address, governmentFeeBps);
-        result = await factory.feeConfiguration();
+        let result = await factory.feeConfiguration();
         expect(result._feeTo).to.be.eql(operator.address);
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
       });

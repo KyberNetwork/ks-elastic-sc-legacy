@@ -944,6 +944,45 @@ describe('ProAMMPool', () => {
         expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(userRTokenBalanceBefore);
       });
 
+      it('should not transfer any rTokens for 0 governmentFeeBps', async () => {
+        // swap to outside user position to update feeGrowthGlobal
+        await swapToUpTick(pool, user, tickUpper + 1);
+        await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
+        expect(await reinvestmentToken.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
+      });
+
+      it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
+        // swap to outside user position to update feeGrowthGlobal
+        await swapToUpTick(pool, user, tickUpper + 1);
+        // set feeTo in factory
+        await factory.updateFeeConfiguration(configMaster.address, 5);
+        let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+        await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
+        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+      });
+
+      it('should only send to updated feeTo address', async () => {
+        // swap to outside user position to update feeGrowthGlobal
+        await swapToUpTick(pool, user, tickUpper + 1);
+        // set feeTo in factory
+        await factory.updateFeeConfiguration(admin.address, 5);
+        await pool.connect(user).burn(tickLower, tickUpper, PRECISION.div(2));
+        let oldFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(admin.address);
+
+        // now update to another feeTo
+        await factory.updateFeeConfiguration(configMaster.address, 5);
+        // swap down then back up
+        await swapToDownTick(pool, user, tickLower + 1);
+        await swapToUpTick(pool, user, tickUpper + 1);
+        let newFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+        await pool.connect(user).burn(tickLower, tickUpper, PRECISION.div(2));
+
+        // old feeTo should have same amount of rTokens
+        expect(await reinvestmentToken.balanceOf(admin.address)).to.be.eq(oldFeeToRTokenBalanceBefore);
+        // new feeTo should have received rTokens
+        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(newFeeToRTokenBalanceBefore);
+      });
+
       it('should not transfer any rTokens if fees collected are outside position', async () => {
         tickLower = nearestTickToPrice + 10 * tickSpacing;
         tickUpper = nearestTickToPrice + 20 * tickSpacing;

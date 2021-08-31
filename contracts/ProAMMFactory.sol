@@ -105,6 +105,11 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     onlyConfigMaster
   {
     require(_governmentFeeBps <= 2000, 'invalid fee');
+    require(
+      (_feeTo == address(0) && _governmentFeeBps == 0) ||
+        (_feeTo != address(0) && _governmentFeeBps != 0),
+      'bad config'
+    );
     feeTo = _feeTo;
     governmentFeeBps = _governmentFeeBps;
     emit FeeConfigurationUpdated(_feeTo, _governmentFeeBps);

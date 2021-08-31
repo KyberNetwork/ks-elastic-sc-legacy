@@ -44,11 +44,6 @@ contract ProAMMPool is IProAMMPool {
   uint16 public immutable override swapFeeBps;
   int24 public immutable override tickSpacing;
 
-  // the current government fee as a percentage of the swap fee taken on withdrawal
-  // value is fetched from factory and updated whenever a position is modified
-  // or when government fee is collected
-  uint16 private governmentFeeBps;
-
   // see IProAMMPool#getPoolState for explanations of the variables below
   uint160 internal poolSqrtPrice;
   int24 internal poolTick;
@@ -59,7 +54,6 @@ contract ProAMMPool is IProAMMPool {
   uint256 internal poolReinvestmentLiquidity;
   uint256 internal poolReinvestmentLiquidityLast;
   // see IProAMMPool for explanations of the variables below
-  uint256 public override collectedGovernmentFee;
   mapping(int24 => Tick.Data) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
   mapping(bytes32 => Position.Data) public override positions;
@@ -328,6 +322,18 @@ contract ProAMMPool is IProAMMPool {
     // calc rTokens to be minted for the position's accumulated fees
     feesClaimable = position.update(liquidityDelta, feeGrowthInside);
     if (feesClaimable > 0) {
+      // local scoping to avoid stack too deep
+      {
+        // fetch governmentFeeBps
+        (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
+        if (governmentFeeBps > 0) {
+          // take a cut of fees for government
+          uint256 governmentFeeQty = (feesClaimable * governmentFeeBps) / C.BPS;
+          feesClaimable -= governmentFeeQty;
+          // transfer rTokens from pool to government
+          reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
+        }
+      }
       // transfer rTokens from pool to owner
       reinvestmentToken.safeTransfer(owner, feesClaimable);
     }
@@ -639,7 +645,4 @@ contract ProAMMPool is IProAMMPool {
   }
 
   // TODO flash
-  // TODO add governance fee
-  // see IProAMMPoolActions
-  function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {}
 }

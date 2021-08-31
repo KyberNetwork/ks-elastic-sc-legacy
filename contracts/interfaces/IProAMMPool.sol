@@ -70,9 +70,6 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
       uint256 poolReinvestmentLiquidityLast
     );
 
-  /// @return the total amount of LP fees collected for governance (Eg. KyberDAO)
-  function collectedGovernmentFee() external view returns (uint256);
-
   /// @notice Look up information about a specific tick in the pool
   /// @param tick The tick to look up
   /// @return liquidityGross the total amount of position liquidity
