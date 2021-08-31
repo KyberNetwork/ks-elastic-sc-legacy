@@ -1,8 +1,8 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, MIN_SQRT_RATIO, ONE, TWO, MIN_LIQUIDITY, MAX_SQRT_RATIO, TWO_POW_96} from './helpers/helper';
-import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice} from './helpers/utils';
+import {BigNumber, ContractTransaction} from 'ethers';
+import {BN, PRECISION, ZERO_ADDRESS} from './helpers/helper';
+import {encodePriceSqrt, getPriceFromTick} from './helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -18,7 +18,7 @@ import {
 
 import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
-import {encodePath} from './helpers/swapPath.ts';
+import {encodePath} from './helpers/swapPath';
 
 const showGasUsed = false;
 const txGasPrice = BN.from(10).pow(BN.from(9));
@@ -114,7 +114,7 @@ describe('ProAMMRouter', () => {
     token0: string, token1: string, fee: number,
     poolSqrtPrice: BigNumber, ticks: number[]
   ): Promise<ProAMMPool> {
-    await setupCallback(await Token.attach(token0), await Token.attach(token1));
+    await setupCallback(Token.attach(token0), Token.attach(token1));
     await factory.createPool(token0, token1, fee);
     let pool = (await ethers.getContractAt('ProAMMPool', await factory.getPool(token0, token1, fee))) as ProAMMPool;
     await callback.connect(user).unlockPool(pool.address, poolSqrtPrice, '0x');
@@ -141,7 +141,7 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactInputSingle', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
     let pool = await factory.getPool(tokenIn, tokenOut, fee);
@@ -201,7 +201,7 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactInput', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
     let tokenList = [ZERO_ADDRESS].concat(tokens);
@@ -281,7 +281,7 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactOutputSingle', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
     let pool = await factory.getPool(tokenIn, tokenOut, fee);
@@ -341,7 +341,7 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactOutput', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH', []));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
     if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
 
     let tokenList = [ZERO_ADDRESS].concat(tokens);
@@ -726,7 +726,7 @@ describe('ProAMMRouter', () => {
       let fee = swapFeeBpsArray[0];
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       let amount = BN.from(100000);
-      let swapParams = {};
+      let swapParams;
       swapParams = {
         tokenIn: tokenA.address, tokenOut: tokenB.address, fee: fee,
         recipient: user.address, deadline: BN.from(0),

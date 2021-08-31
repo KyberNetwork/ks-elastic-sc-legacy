@@ -16,7 +16,6 @@ import {
   BN,
   MAX_TICK_DISTANCE
 } from './helpers/helper';
-import {snapshotGasCost} from './helpers/utils';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
@@ -38,7 +37,8 @@ import {
   getMinTick,
   getNearestSpacedTickAtPrice,
   getPositionKey,
-  getPriceFromTick
+  getPriceFromTick,
+  snapshotGasCost
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
@@ -71,7 +71,7 @@ let positionData: any;
 let result: any;
 
 class Fixtures {
-  constructor (
+  constructor(
     public factory: ProAMMFactory,
     public poolArray: ProAMMPool[],
     public token0: MockToken,
@@ -81,7 +81,7 @@ class Fixtures {
 }
 
 describe('ProAMMPool', () => {
-  const [user, admin, feeToSetter] = waffle.provider.getWallets();
+  const [user, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture (): Promise<Fixtures> {
     let factory = await deployFactory(admin);
@@ -147,8 +147,22 @@ describe('ProAMMPool', () => {
       await expect(callback.unlockPool(pool.address, initialPrice, '0x')).to.be.revertedWith('already inited');
     });
 
+    it('should fail to unlockPool for non-compliant ERC20 tokens', async () => {
+      const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+      await factory.createPool(user.address, admin.address, swapFeeBps);
+      let badPool = ProAMMPoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
+      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
+
+      // use valid token0 so that poolBalToken1() will revert
+      // token0.address.toLowerCase() < user.address.toLowerCase() with default test-wallets.js
+      await factory.createPool(token0.address, user.address, swapFeeBps);
+      badPool = ProAMMPoolContract.attach(await factory.getPool(token0.address, user.address, swapFeeBps));
+      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
+    });
+
     it('should fail if initial tick is outside of min and max ticks', async () => {
       // initial tick < lower tick
+      await expect(callback.unlockPool(pool.address, ZERO, '0x')).to.be.revertedWith('R');
       await expect(callback.unlockPool(pool.address, MIN_SQRT_RATIO.sub(ONE), '0x')).to.be.revertedWith('R');
       // initial tick > upper tick
       await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK), '0x')).to.be.revertedWith('R');
@@ -864,6 +878,10 @@ describe('ProAMMPool', () => {
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS).add(ONE))).to.be.reverted;
       });
 
+      it('should fail with zero qty', async () => {
+        await expect(pool.connect(user).burn(tickLower, tickUpper, ZERO)).to.be.revertedWith('0 qty');
+      });
+
       it('should retain fee growth position snapshot after all user liquidity is removed', async () => {
         // swap to outside user position to update feeGrowthGlobal
         await swapToUpTick(pool, user, tickUpper + 1);
@@ -1079,162 +1097,291 @@ describe('ProAMMPool', () => {
   });
 
   describe('burnRTokens', async () => {
-    beforeEach('mint rTokens for user', async () => {
-      initialPrice = encodePriceSqrt(ONE, ONE);
-      await callback.unlockPool(pool.address, initialPrice, '0x');
-      await callback.mint(pool.address, user.address, -100, 100, PRECISION, '0x');
-      // do swaps to increment lf
-      await swapToUpTick(pool, user, 50);
-      await swapToDownTick(pool, user, 0);
-      // burn to mint rTokens
-      await pool.connect(user).burn(-100, 100, MIN_LIQUIDITY);
-      reinvestmentToken = (await ethers.getContractAt(
-        'ReinvestmentTokenMaster',
-        await pool.reinvestmentToken()
-      )) as ReinvestmentTokenMaster;
-      expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+    describe('init at 0 tick', async () => {
+      beforeEach('mint rTokens for user', async () => {
+        initialPrice = encodePriceSqrt(ONE, ONE);
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.mint(pool.address, user.address, -100, 100, PRECISION, '0x');
+        // do swaps to increment lf
+        await swapToUpTick(pool, user, 50);
+        await swapToDownTick(pool, user, 0);
+        // burn to mint rTokens
+        await pool.connect(user).burn(-100, 100, MIN_LIQUIDITY);
+        reinvestmentToken = (await ethers.getContractAt(
+          'ReinvestmentTokenMaster',
+          await pool.reinvestmentToken()
+        )) as ReinvestmentTokenMaster;
+        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+      });
+  
+      it('should fail if user tries to burn more rTokens than what he has', async () => {
+        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE))).to.be.revertedWith(
+          'ERC20: burn amount exceeds balance'
+        );
+      });
+  
+      it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
+        let reinvestmentStateBefore = await pool.getReinvestmentState();
+        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        let token0BalanceBefore = await token0.balanceOf(user.address);
+        let token1BalanceBefore = await token1.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(pool, 'BurnRTokens');
+        let reinvestmentStateAfter = await pool.getReinvestmentState();
+        expect(reinvestmentStateAfter._poolReinvestmentLiquidity).to.be.lt(
+          reinvestmentStateBefore._poolReinvestmentLiquidity
+        );
+        expect(reinvestmentStateAfter._poolReinvestmentLiquidityLast).to.be.lt(
+          reinvestmentStateBefore._poolReinvestmentLiquidityLast
+        );
+        expect(await token0.balanceOf(user.address)).gt(token0BalanceBefore);
+        expect(await token1.balanceOf(user.address)).gt(token1BalanceBefore);
+      });
+  
+      it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
+        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        // do a couple of small swaps so that lf is incremented but not lfLast
+        await doRandomSwaps(pool, user, 3, MIN_LIQUIDITY);
+        let reinvestmentState = await pool.getReinvestmentState();
+        expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(reinvestmentState._poolReinvestmentLiquidityLast);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');
+        expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
+          reinvestmentState._poolFeeGrowthGlobal
+        );
+      });
+
+      it('#gas [ @skip-on-coverage ]', async () => {
+        let tx = await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
+        await snapshotGasCost(tx);
+      });
     });
 
-    it('should fail if user tries to burn more rTokens than what he has', async () => {
-      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-      await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE))).to.be.revertedWith(
-        'ERC20: burn amount exceeds balance'
-      );
-    });
+    describe('init near price boundaries', async () => {
+      it('should only send token1 to user when he burns rTokens when price is at MAX_SQRT_RATIO', async () => {
+        // init price at 1e18 : 1
+        initialPrice = encodePriceSqrt(PRECISION, ONE);
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        tickLower = nearestTickToPrice - 1000;
+        tickUpper = nearestTickToPrice + 1000;
 
-    it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
-      let reinvestmentStateBefore = await pool.getReinvestmentState();
-      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-      let token0BalanceBefore = await token0.balanceOf(user.address);
-      let token1BalanceBefore = await token1.balanceOf(user.address);
-      await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(pool, 'BurnRTokens');
-      let reinvestmentStateAfter = await pool.getReinvestmentState();
-      expect(reinvestmentStateAfter._poolReinvestmentLiquidity).to.be.lt(
-        reinvestmentStateBefore._poolReinvestmentLiquidity
-      );
-      expect(reinvestmentStateAfter._poolReinvestmentLiquidityLast).to.be.lt(
-        reinvestmentStateBefore._poolReinvestmentLiquidityLast
-      );
-      expect(await token0.balanceOf(user.address)).gt(token0BalanceBefore);
-      expect(await token1.balanceOf(user.address)).gt(token1BalanceBefore);
-    });
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+        // do swaps to increment lf
+        await swapToUpTick(pool, user, tickUpper);
+        await swapToDownTick(pool, user, tickLower);
+        // burn to mint rTokens
+        await pool.connect(user).burn(tickLower, tickUpper, MIN_LIQUIDITY);
+        reinvestmentToken = (await ethers.getContractAt(
+          'ReinvestmentTokenMaster',
+          await pool.reinvestmentToken()
+        )) as ReinvestmentTokenMaster;
+        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
 
-    it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
-      let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-      // do a couple of small swaps so that lf is incremented but not lfLast
-      await doRandomSwaps(pool, user, 2, MIN_LIQUIDITY);
-      let reinvestmentState = await pool.getReinvestmentState();
-      expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(reinvestmentState._poolReinvestmentLiquidityLast);
-      await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');
-      expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
-        reinvestmentState._poolFeeGrowthGlobal
-      );
-    });
+        // swap to max allowable tick
+        await swapToUpTick(pool, user, MAX_TICK.toNumber() - 1);
+  
+        // burnRTokens
+        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance))
+        .to.emit(token1, 'Transfer')
+        .to.not.emit(token0, 'Transfer');;
+      });
+  
+      it('should only send token0 to user when he burns rTokens when price is at MIN_SQRT_RATIO', async () => {
+        // init price at 1 : 1e18
+        initialPrice = encodePriceSqrt(ONE, PRECISION);
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        tickLower = nearestTickToPrice - 1000;
+        tickUpper = nearestTickToPrice + 1000;
 
-    it('gas cost for burning rTokens', async () => {
-      let tx = await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
-      await snapshotGasCost(tx);
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+        // do swaps to increment lf
+        await swapToUpTick(pool, user, tickUpper);
+        await swapToDownTick(pool, user, tickLower);
+        // burn to mint rTokens
+        await pool.connect(user).burn(tickLower, tickUpper, MIN_LIQUIDITY);
+        reinvestmentToken = (await ethers.getContractAt(
+          'ReinvestmentTokenMaster',
+          await pool.reinvestmentToken()
+        )) as ReinvestmentTokenMaster;
+        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+
+        // swap to min allowable tick
+        await swapToDownTick(pool, user, MIN_TICK.toNumber() + 1);
+  
+        // burnRTokens
+        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance))
+        .to.emit(token0, 'Transfer')
+        .to.not.emit(token1, 'Transfer');;
+      });
     });
   });
 
-  describe('test swap', async () => {
-    beforeEach('unlock pool with initial price of 2:1', async () => {
-      initialPrice = encodePriceSqrt(TWO, ONE);
-      await callback.unlockPool(pool.address, initialPrice, '0x');
-      nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+  describe('swap', async () => {
+    describe('init at reasonable tick', async () => {
+      beforeEach('unlock pool with initial price of 2:1', async () => {
+        initialPrice = encodePriceSqrt(TWO, ONE);
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+      });
+  
+      it('should fail for 0 swap qty', async () => {
+        await expect(
+          callback.swap(pool.address, user.address, ZERO, true, MIN_SQRT_RATIO.add(ONE), '0x')
+        ).to.be.revertedWith('0 swapQty');
+      });
+  
+      it('should fail for bad sqrt limits', async () => {
+        // upTick: sqrtLimit < poolSqrtPrice
+        await expect(
+          callback.swap(pool.address, user.address, PRECISION, false, initialPrice.sub(ONE), '0x')
+        ).to.be.revertedWith('bad sqrtPriceLimit');
+        // upTick: sqrtLimit = MAX_SQRT_RATIO
+        await expect(
+          callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO, '0x')
+        ).to.be.revertedWith('bad sqrtPriceLimit');
+        // downTick: sqrtLimit > poolSqrtPrice
+        await expect(
+          callback.swap(pool.address, user.address, PRECISION, true, initialPrice.add(ONE), '0x')
+        ).to.be.revertedWith('bad sqrtPriceLimit');
+        // downTick: sqrtLimit = MIN_SQRT_RATIO
+        await expect(
+          callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO, '0x')
+        ).to.be.revertedWith('bad sqrtPriceLimit');
+      });
+  
+      it('tests token0 exactInput (move down tick)', async () => {
+        tickLower = nearestTickToPrice - 500 * tickSpacing;
+        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let token0BalanceBefore = await token0.balanceOf(user.address);
+        let token1BalanceBefore = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+        await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
+        let token0BalanceAfter = await token0.balanceOf(user.address);
+        let token1BalanceAfter = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.AFTER_SWAP, pool);
+        logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+      });
+  
+      it('#gas token0 exactInput [ @skip-on-coverage ]', async () => {
+        tickLower = nearestTickToPrice - 500 * tickSpacing;
+        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let tx = await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
+        await snapshotGasCost(tx);
+      });
+  
+      it('tests token1 exactOutput (move down tick)', async () => {
+        tickLower = nearestTickToPrice - 500 * tickSpacing;
+        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let token0BalanceBefore = await token0.balanceOf(user.address);
+        let token1BalanceBefore = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+        await callback.swap(
+          pool.address,
+          user.address,
+          BN.from('-1751372543351715880'),
+          false,
+          MIN_SQRT_RATIO.add(ONE),
+          '0x'
+        );
+        let token0BalanceAfter = await token0.balanceOf(user.address);
+        let token1BalanceAfter = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.AFTER_SWAP, pool);
+        logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+      });
+  
+      it('#gas token1 exactOutput [ @skip-on-coverage ]', async () => {
+        tickLower = nearestTickToPrice - 500 * tickSpacing;
+        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let tx = await callback.swap(
+          pool.address,
+          user.address,
+          BN.from('-1751372543351715880'),
+          false,
+          MIN_SQRT_RATIO.add(ONE),
+          '0x'
+        );
+        await snapshotGasCost(tx);
+      });
+  
+      it('tests token1 exactInput (move up tick)', async () => {
+        tickLower = nearestTickToPrice - 2 * tickSpacing;
+        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let token0BalanceBefore = await token0.balanceOf(user.address);
+        let token1BalanceBefore = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+        await callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO.sub(ONE), '0x');
+        let token0BalanceAfter = await token0.balanceOf(user.address);
+        let token1BalanceAfter = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.AFTER_SWAP, pool);
+        logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+      });
+  
+      it('tests token0 exactOutput (move up tick)', async () => {
+        tickLower = nearestTickToPrice - 2 * tickSpacing;
+        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+        let token0BalanceBefore = await token0.balanceOf(user.address);
+        let token1BalanceBefore = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.BEFORE_SWAP, pool);
+        await callback.swap(
+          pool.address,
+          user.address,
+          BN.from('-466751634178795601'),
+          true,
+          MAX_SQRT_RATIO.sub(ONE),
+          '0x'
+        );
+        let token0BalanceAfter = await token0.balanceOf(user.address);
+        let token1BalanceAfter = await token1.balanceOf(user.address);
+        await logSwapState(SwapTitle.AFTER_SWAP, pool);
+        logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+      });
+  
+      it('should fail if callback fails to send sufficient qty back to the pool', async () => {
+        tickLower = nearestTickToPrice - 500 * tickSpacing;
+        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+  
+        // downTick: send insufficient qty0
+        await expect(
+          callback.badSwap(pool.address, user.address, PRECISION.mul(-1), false, MIN_SQRT_RATIO.add(ONE), true, false)
+        ).to.be.revertedWith('lacking deltaQty0');
+  
+        // upTick: send insufficient qty1
+        await expect(
+          callback.badSwap(pool.address, user.address, PRECISION.mul(-1), true, MAX_SQRT_RATIO.sub(ONE), false, true)
+        ).to.be.revertedWith('lacking deltaQty1');
+      });
     });
 
-    it('tests token0 exactInput (move down tick)', async () => {
-      tickLower = nearestTickToPrice - 500 * tickSpacing;
-      tickUpper = nearestTickToPrice + 2 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let token0BalanceBefore = await token0.balanceOf(user.address);
-      let token1BalanceBefore = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
-      let token0BalanceAfter = await token0.balanceOf(user.address);
-      let token1BalanceAfter = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.AFTER_SWAP, pool);
-      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
-    });
+    describe('init and test swaps near price boundaries', async () => {
+      it('pool will not send any token0 at / near MAX_TICK', async () => {
+        initialPrice = await getPriceFromTick(MAX_TICK.sub(2));
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        let token0BalanceBefore = await token0.balanceOf(pool.address);
+        // swap uptick to MAX_TICK - 1
+        await swapToUpTick(pool, user, MAX_TICK.toNumber() - 1);
+        // await callback.connect(user).swap(pool.address, user.address, PRECISION, false, MAX_TICK.sub(1), '0x');
+        // token0 balance should remain the same, but deltaQty0 can be 1 wei because of rounding
+        expect(await token0.balanceOf(pool.address)).to.be.gte(token0BalanceBefore);
+      });
 
-    it('#gas token0 exactInput [ @skip-on-coverage ]', async () => {
-      tickLower = nearestTickToPrice - 500 * tickSpacing;
-      tickUpper = nearestTickToPrice + 2 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let tx = await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
-      await snapshotGasCost(tx);
-    });
-
-    it('tests token1 exactOutput (move down tick)', async () => {
-      tickLower = nearestTickToPrice - 500 * tickSpacing;
-      tickUpper = nearestTickToPrice + 2 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let token0BalanceBefore = await token0.balanceOf(user.address);
-      let token1BalanceBefore = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(
-        pool.address,
-        user.address,
-        BN.from('-1751372543351715880'),
-        false,
-        MIN_SQRT_RATIO.add(ONE),
-        '0x'
-      );
-      let token0BalanceAfter = await token0.balanceOf(user.address);
-      let token1BalanceAfter = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.AFTER_SWAP, pool);
-      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
-    });
-
-    it('#gas token1 exactOutput [ @skip-on-coverage ]', async () => {
-      tickLower = nearestTickToPrice - 500 * tickSpacing;
-      tickUpper = nearestTickToPrice + 2 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let tx = await callback.swap(
-        pool.address,
-        user.address,
-        BN.from('-1751372543351715880'),
-        false,
-        MIN_SQRT_RATIO.add(ONE),
-        '0x'
-      );
-      await snapshotGasCost(tx);
-    });
-
-    it('tests token1 exactInput (move up tick)', async () => {
-      tickLower = nearestTickToPrice - 2 * tickSpacing;
-      tickUpper = nearestTickToPrice + 500 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let token0BalanceBefore = await token0.balanceOf(user.address);
-      let token1BalanceBefore = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO.sub(ONE), '0x');
-      let token0BalanceAfter = await token0.balanceOf(user.address);
-      let token1BalanceAfter = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.AFTER_SWAP, pool);
-      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
-    });
-
-    it('tests token0 exactOutput (move up tick)', async () => {
-      tickLower = nearestTickToPrice - 2 * tickSpacing;
-      tickUpper = nearestTickToPrice + 500 * tickSpacing;
-      await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-      let token0BalanceBefore = await token0.balanceOf(user.address);
-      let token1BalanceBefore = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.BEFORE_SWAP, pool);
-      await callback.swap(
-        pool.address,
-        user.address,
-        BN.from('-466751634178795601'),
-        true,
-        MAX_SQRT_RATIO.sub(ONE),
-        '0x'
-      );
-      let token0BalanceAfter = await token0.balanceOf(user.address);
-      let token1BalanceAfter = await token1.balanceOf(user.address);
-      await logSwapState(SwapTitle.AFTER_SWAP, pool);
-      logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
+      it('pool will not send any token1 at / near MIN_TICK', async () => {
+        await callback.unlockPool(pool.address, await getPriceFromTick(MIN_TICK.add(2)), '0x');
+        let token1BalanceBefore = await token1.balanceOf(pool.address);
+        // swap downtick to MIN_TICK + 1
+        await swapToDownTick(pool, user, MIN_TICK.toNumber() + 1);
+        // check that token1 remains the same
+        expect(await token1.balanceOf(pool.address)).to.be.eq(token1BalanceBefore);
+      });
     });
   });
 });

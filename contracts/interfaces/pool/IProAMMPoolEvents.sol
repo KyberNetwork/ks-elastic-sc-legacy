@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.0;
 
 interface IProAMMPoolEvents {
   /// @notice Emitted only once per pool when #initialize is first called

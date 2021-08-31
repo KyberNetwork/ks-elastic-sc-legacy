@@ -26,7 +26,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
 
   /// @inheritdoc IProAMMFactory
   address public immutable override reinvestmentTokenMaster;
-  address public override feeToSetter;
+  address public override configMaster;
 
   address private feeTo;
   uint16 private governmentFeeBps;
@@ -36,12 +36,17 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
+  modifier onlyConfigMaster() {
+    require(msg.sender == configMaster, 'forbidden');
+    _;
+  }
+
   constructor(address _reinvestmentTokenMaster)
     BaseSplitCodeFactory(type(ProAMMPool).creationCode)
   {
-    feeToSetter = msg.sender;
     reinvestmentTokenMaster = _reinvestmentTokenMaster;
-    emit FeeToSetterUpdated(address(0), feeToSetter);
+    configMaster = msg.sender;
+    emit ConfigMasterUpdated(address(0), configMaster);
 
     feeAmountTickSpacing[5] = 10;
     emit SwapFeeEnabled(5, 10);
@@ -76,15 +81,13 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
-  function updateFeeToSetter(address _feeToSetter) external override {
-    require(msg.sender == feeToSetter, 'forbidden');
-    emit FeeToSetterUpdated(feeToSetter, _feeToSetter);
-    feeToSetter = _feeToSetter;
+  function updateConfigMaster(address _configMaster) external override onlyConfigMaster {
+    emit ConfigMasterUpdated(configMaster, _configMaster);
+    configMaster = _configMaster;
   }
 
   /// @inheritdoc IProAMMFactory
-  function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) public override {
-    require(msg.sender == feeToSetter, 'forbidden');
+  function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
     // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
     // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
@@ -96,16 +99,19 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
-  function setFeeConfiguration(address _feeTo, uint16 _governmentFeeBps) external override {
-    require(msg.sender == feeToSetter, 'forbidden');
+  function updateFeeConfiguration(address _feeTo, uint16 _governmentFeeBps)
+    external
+    override
+    onlyConfigMaster
+  {
     require(_governmentFeeBps <= 2000, 'invalid fee');
     feeTo = _feeTo;
     governmentFeeBps = _governmentFeeBps;
-    emit SetFeeConfiguration(_feeTo, _governmentFeeBps);
+    emit FeeConfigurationUpdated(_feeTo, _governmentFeeBps);
   }
 
   /// @inheritdoc IProAMMFactory
-  function getFeeConfiguration()
+  function feeConfiguration()
     external
     view
     override

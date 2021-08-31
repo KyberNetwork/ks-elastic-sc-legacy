@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity >=0.5.0;
+pragma solidity >=0.8.0;
 
 import {IERC20, IProAMMFactory} from '../IProAMMFactory.sol';
 
@@ -10,7 +10,11 @@ interface IProAMMPoolActions {
   /// implement the mint callback as well
   /// @param poolSqrtPrice the initial sqrt price of the pool
   /// @param data Data (if any) to be passed through to the callback
-  function unlockPool(uint160 poolSqrtPrice, bytes calldata data) external;
+  /// @param qty0 token0 quantity sent to the pool in exchange for the minted liquidity.
+  /// @param qty1 token1 quantity sent to the pool in exchange for the minted liquidity.
+  function unlockPool(uint160 poolSqrtPrice, bytes calldata data)
+    external
+    returns (uint256 qty0, uint256 qty1);
 
   /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when
@@ -25,15 +29,22 @@ interface IProAMMPoolActions {
   /// @param tickUpper Recipient position's upper tick
   /// @param qty Liquidity quantity to mint
   /// @param data Data (if any) to be passed through to the callback
-  /// @param qty0 The token0 quantity sent to the pool in exchange for the minted liquidity.
-  /// @param qty1 The token1 quantity sent to the pool in exchange for the minted liquidity.
+  /// @return qty0 token0 quantity sent to the pool in exchange for the minted liquidity.
+  /// @return qty1 token1 quantity sent to the pool in exchange for the minted liquidity.
+  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
   function mint(
     address recipient,
     int24 tickLower,
     int24 tickUpper,
     uint128 qty,
     bytes calldata data
-  ) external returns (uint256 qty0, uint256 qty1);
+  )
+    external
+    returns (
+      uint256 qty0,
+      uint256 qty1,
+      uint256 feesClaimable
+    );
 
   /// @notice Remove liquidity from the sender
   /// Also sends reinvestment tokens (fees) to the recipient for any fees collected
@@ -44,11 +55,18 @@ interface IProAMMPoolActions {
   /// @param qty Liquidity quantity to burn
   /// @return qty0 token0 quantity sent to the recipient
   /// @return qty1 token1 quantity sent to the recipient
+  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
   function burn(
     int24 tickLower,
     int24 tickUpper,
     uint128 qty
-  ) external returns (uint256 qty0, uint256 qty1);
+  )
+    external
+    returns (
+      uint256 qty0,
+      uint256 qty1,
+      uint256 feesClaimable
+    );
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1
   /// @param qty Reinvestment token quantity to burn

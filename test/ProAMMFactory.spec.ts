@@ -27,7 +27,7 @@ let swapFeeBps: number;
 let tickSpacing: number;
 
 describe('ProAMMFactory', () => {
-  const [operator, admin, feeToSetter] = waffle.provider.getWallets();
+  const [operator, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture () {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
@@ -50,10 +50,10 @@ describe('ProAMMFactory', () => {
     });
 
     it('should have initialized with the expected settings', async () => {
-      expect(await factory.feeToSetter()).to.eql(admin.address);
+      expect(await factory.configMaster()).to.eql(admin.address);
       expect(await factory.feeAmountTickSpacing(5)).to.eql(10);
       expect(await factory.feeAmountTickSpacing(30)).to.eql(60);
-      let result = await factory.getFeeConfiguration();
+      let result = await factory.feeConfiguration();
       expect(result._feeTo).to.eql(ZERO_ADDRESS);
       expect(result._governmentFeeBps).to.eql(0);
     });
@@ -120,33 +120,33 @@ describe('ProAMMFactory', () => {
       });
     });
 
-    describe('#updateFeeToSetter', async () => {
-      it('should revert if msg.sender != feeToSetter', async () => {
-        await expect(factory.connect(operator).updateFeeToSetter(feeToSetter.address)).to.be.revertedWith('forbidden');
+    describe('#updateConfigMaster', async () => {
+      it('should revert if msg.sender != configMaster', async () => {
+        await expect(factory.connect(operator).updateConfigMaster(configMaster.address)).to.be.revertedWith('forbidden');
       });
 
-      it('should correctly update feeToSetter and emit event', async () => {
-        await expect(factory.connect(admin).updateFeeToSetter(feeToSetter.address))
-          .to.emit(factory, 'FeeToSetterUpdated')
-          .withArgs(admin.address, feeToSetter.address);
+      it('should correctly update configMaster and emit event', async () => {
+        await expect(factory.connect(admin).updateConfigMaster(configMaster.address))
+          .to.emit(factory, 'ConfigMasterUpdated')
+          .withArgs(admin.address, configMaster.address);
 
-        expect(await factory.feeToSetter()).to.eql(feeToSetter.address);
+        expect(await factory.configMaster()).to.eql(configMaster.address);
         // admin should not be able to update configurations
-        await expect(factory.connect(admin).updateFeeToSetter(feeToSetter.address)).to.be.revertedWith('forbidden');
+        await expect(factory.connect(admin).updateConfigMaster(configMaster.address)).to.be.revertedWith('forbidden');
         await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing)).to.be.revertedWith('forbidden');
-        await expect(factory.connect(admin).setFeeConfiguration(admin.address, swapFeeBps)).to.be.revertedWith(
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, swapFeeBps)).to.be.revertedWith(
           'forbidden'
         );
-        // feeToSetter should be able to update
+        // configMaster should be able to update
         swapFeeBps = 20;
         tickSpacing = 100;
-        await factory.connect(feeToSetter).enableSwapFee(swapFeeBps, tickSpacing);
-        await factory.connect(feeToSetter).setFeeConfiguration(admin.address, swapFeeBps);
+        await factory.connect(configMaster).enableSwapFee(swapFeeBps, tickSpacing);
+        await factory.connect(configMaster).updateFeeConfiguration(admin.address, swapFeeBps);
       });
     });
 
     describe('#enableSwapFee', async () => {
-      it('should revert enableSwapFee if msg.sender != feeToSetter', async () => {
+      it('should revert enableSwapFee if msg.sender != configMaster', async () => {
         await expect(factory.connect(operator).enableSwapFee(2, 20)).to.be.revertedWith('forbidden');
       });
 
@@ -189,49 +189,49 @@ describe('ProAMMFactory', () => {
       });
     });
 
-    describe('#setFeeConfiguration', async () => {
-      it('should revert if msg.sender != feeToSetter', async () => {
-        await expect(factory.connect(operator).setFeeConfiguration(admin.address, ONE)).to.be.revertedWith(
+    describe('#updateFeeConfiguration', async () => {
+      it('should revert if msg.sender != configMaster', async () => {
+        await expect(factory.connect(operator).updateFeeConfiguration(admin.address, ONE)).to.be.revertedWith(
           'forbidden'
         );
       });
 
       it('should revert for invalid governmentFeeBps', async () => {
-        await expect(factory.connect(admin).setFeeConfiguration(admin.address, 2001)).to.be.revertedWith(
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, 2001)).to.be.revertedWith(
           'invalid fee'
         );
-        await expect(factory.connect(admin).setFeeConfiguration(admin.address, BPS)).to.be.revertedWith('invalid fee');
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, BPS)).to.be.revertedWith('invalid fee');
       });
 
       it('should set new feeTo and governmentFeeBps, and emit event', async () => {
         let governmentFeeBps = 50;
-        await expect(factory.connect(admin).setFeeConfiguration(admin.address, governmentFeeBps))
-          .to.emit(factory, 'SetFeeConfiguration')
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, governmentFeeBps))
+          .to.emit(factory, 'FeeConfigurationUpdated')
           .withArgs(admin.address, governmentFeeBps);
-        let result = await factory.getFeeConfiguration();
+        let result = await factory.feeConfiguration();
         expect(result._feeTo).to.be.eql(admin.address);
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
 
-        // change feeToSetter
-        await factory.connect(admin).updateFeeToSetter(operator.address);
+        // change configMaster
+        await factory.connect(admin).updateConfigMaster(operator.address);
         governmentFeeBps = 20;
         // operator updates fee config
-        await factory.connect(operator).setFeeConfiguration(operator.address, governmentFeeBps);
-        result = await factory.getFeeConfiguration();
+        await factory.connect(operator).updateFeeConfiguration(operator.address, governmentFeeBps);
+        result = await factory.feeConfiguration();
         expect(result._feeTo).to.be.eql(operator.address);
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
       });
 
       it('should be able to update governmentFeeBps to min (0) and max (2000) values', async () => {
         let governmentFeeBps = 0;
-        await factory.connect(admin).setFeeConfiguration(admin.address, governmentFeeBps);
-        let result = await factory.getFeeConfiguration();
+        await factory.connect(admin).updateFeeConfiguration(admin.address, governmentFeeBps);
+        let result = await factory.feeConfiguration();
         expect(result._feeTo).to.be.eql(admin.address);
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
 
         governmentFeeBps = 2000;
-        await factory.connect(admin).setFeeConfiguration(operator.address, governmentFeeBps);
-        result = await factory.getFeeConfiguration();
+        await factory.connect(admin).updateFeeConfiguration(operator.address, governmentFeeBps);
+        result = await factory.feeConfiguration();
         expect(result._feeTo).to.be.eql(operator.address);
         expect(result._governmentFeeBps).to.be.eql(governmentFeeBps);
       });

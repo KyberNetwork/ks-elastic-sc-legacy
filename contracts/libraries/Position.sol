@@ -40,12 +40,12 @@ library Position {
     Data storage self,
     int128 liquidityDelta,
     uint256 feeGrowthInside
-  ) internal returns (uint256 rTokensOwed) {
+  ) internal returns (uint256 feesClaimable) {
     Data memory _self = self;
 
     // calculate accumulated fees for current liquidity
     // (ie. does not include liquidityDelta)
-    rTokensOwed = FullMath.mulDivFloor(
+    feesClaimable = FullMath.mulDivFloor(
       feeGrowthInside - _self.feeGrowthInsideLast,
       _self.liquidity,
       MathConstants.TWO_POW_96

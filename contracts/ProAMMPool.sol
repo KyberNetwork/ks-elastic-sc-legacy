@@ -147,18 +147,23 @@ contract ProAMMPool is IProAMMPool {
   }
 
   /// see IProAMMPoolActions
-  function unlockPool(uint160 initialSqrtPrice, bytes calldata data) external override {
+  function unlockPool(uint160 initialSqrtPrice, bytes calldata data)
+    external
+    override
+    returns (uint256 qty0, uint256 qty1)
+  {
     require(poolSqrtPrice == 0, 'already inited');
     locked = false; // unlock the pool
-    // initial tick bound is checked in this function
+    // initial tick bounds (min & max price limits) are checked in this function
     int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(
+    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(
       initialSqrtPrice,
       MIN_LIQUIDITY
     );
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
-    if (qty0 > 0) require(qty0 <= poolBalToken0(), 'lacking qty0');
-    if (qty1 > 0) require(qty1 <= poolBalToken1(), 'lacking qty1');
+    // because of price bounds, qty0 and qty1 >= 1
+    require(qty0 <= poolBalToken0(), 'lacking qty0');
+    require(qty1 <= poolBalToken1(), 'lacking qty1');
     poolTick = initialTick;
     poolSqrtPrice = initialSqrtPrice;
     poolReinvestmentLiquidity = MIN_LIQUIDITY;
@@ -183,7 +188,7 @@ contract ProAMMPool is IProAMMPool {
   /// @return qty1 token1 qty owed to the pool, negative if the pool should pay the recipient
   function _tweakPosition(TweakPositionData memory posData)
     private
-    returns (int256 qty0, int256 qty1)
+    returns (int256 qty0, int256 qty1, uint256 feesClaimable)
   {
     require(posData.tickLower < posData.tickUpper, 'invalid ticks');
     require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
@@ -194,7 +199,7 @@ contract ProAMMPool is IProAMMPool {
     uint128 lp = poolLiquidity;
     uint256 lf = poolReinvestmentLiquidity;
 
-    _updatePosition(
+    feesClaimable = _updatePosition(
       posData.owner,
       posData.tickLower,
       posData.tickUpper,
@@ -263,7 +268,7 @@ contract ProAMMPool is IProAMMPool {
     int24 currentTick,
     uint128 lp,
     uint256 lf
-  ) private {
+  ) private returns (uint256 feesClaimable) {
     Position.Data storage position = positions.get(owner, tickLower, tickUpper);
 
     // SLOADs for gas optimization
@@ -278,14 +283,12 @@ contract ProAMMPool is IProAMMPool {
         lp,
         reinvestmentToken.totalSupply()
       );
-      if (rMintQty > 0) {
+      if (rMintQty != 0) {
         // mint to pool
         reinvestmentToken.mint(address(this), rMintQty);
-        // update fee global if lp != 0
-        if (lp != 0) {
-          _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-          poolFeeGrowthGlobal = _feeGrowthGlobal;
-        }
+        // lp != 0 because lp = 0 => rMintQty = 0
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+        poolFeeGrowthGlobal = _feeGrowthGlobal;
       }
       // update poolReinvestmentLiquidityLast
       poolReinvestmentLiquidityLast = lf;
@@ -315,18 +318,18 @@ contract ProAMMPool is IProAMMPool {
       tickBitmap.flipTick(tickUpper, tickSpacing);
     }
 
-    // fees = feeGrowthInside
     uint256 feeGrowthInside = ticks.getFeeGrowthInside(
       tickLower,
       tickUpper,
       currentTick,
       _feeGrowthGlobal
     );
-    // fees variable = rTokens to be minted for the position's accumulated fees
-    uint256 fees = position.update(liquidityDelta, feeGrowthInside);
-    if (fees > 0) {
+
+    // calc rTokens to be minted for the position's accumulated fees
+    feesClaimable = position.update(liquidityDelta, feeGrowthInside);
+    if (feesClaimable > 0) {
       // transfer rTokens from pool to owner
-      reinvestmentToken.safeTransfer(owner, fees);
+      reinvestmentToken.safeTransfer(owner, feesClaimable);
     }
     // clear any tick data that is no longer needed
     if (liquidityDelta < 0) {
@@ -346,9 +349,11 @@ contract ProAMMPool is IProAMMPool {
     int24 tickUpper,
     uint128 qty,
     bytes calldata data
-  ) external override lock returns (uint256 qty0, uint256 qty1) {
+  ) external override lock returns (uint256 qty0, uint256 qty1, uint256 feesClaimable) {
     require(qty > 0, '0 qty');
-    (int256 qty0Int, int256 qty1Int) = _tweakPosition(
+    int256 qty0Int;
+    int256 qty1Int;
+    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
       TweakPositionData({
         owner: recipient,
         tickLower: tickLower,
@@ -375,9 +380,11 @@ contract ProAMMPool is IProAMMPool {
     int24 tickLower,
     int24 tickUpper,
     uint128 qty
-  ) external override lock returns (uint256 qty0, uint256 qty1) {
+  ) external override lock returns (uint256 qty0, uint256 qty1, uint256 feesClaimable) {
     require(qty > 0, '0 qty');
-    (int256 qty0Int, int256 qty1Int) = _tweakPosition(
+    int256 qty0Int;
+    int256 qty1Int;
+    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
       TweakPositionData({
         owner: msg.sender,
         tickLower: tickLower,
@@ -416,9 +423,8 @@ contract ProAMMPool is IProAMMPool {
     if (rMintQty != 0) {
       reinvestmentToken.mint(address(this), rMintQty);
       rTotalSupply += rMintQty;
-      if (lp != 0) {
-        poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-      }
+      // lp != 0 because lp = 0 => rMintQty = 0
+      poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
     }
 
     // burn _qty of caller
