@@ -158,7 +158,9 @@ library SwapMath {
         lc = FullMath.mulDivFloor(sqrtPc, absDelta * feeInBps, C.TWO_BPS << C.RES_96);
       } else {
         // lc = fee * absDelta * / (sqrtPc * 2)
-        lc = FullMath.mulDivFloor(C.TWO_POW_96, absDelta * feeInBps, C.TWO_BPS * sqrtPc);
+        // Because sqrtPn = (liquidity + absDelta / sqrtPc) * sqrtPc / (liquidity + lc)
+        // so we round up lc, to round down sqrtPn
+        lc = FullMath.mulDivCeiling(C.TWO_POW_96, absDelta * feeInBps, C.TWO_BPS * sqrtPc);
       }
     } else {
       // obtain the smaller root of the quadratic equation
@@ -230,21 +232,24 @@ library SwapMath {
     bool isToken0
   ) internal pure returns (uint160 sqrtPn) {
     if (isToken0) {
-      // round Up
-      uint256 denominator = FullMath.mulDivFloor(absDelta, sqrtPc, C.TWO_POW_96);
-      sqrtPn = (
-        FullMath.mulDivCeiling(
-          liquidity + lc,
-          sqrtPc,
-          isExactInput ? liquidity + denominator : liquidity - denominator
-        )
-      )
-      .toUint160();
+      // if isExactInput: swap 0 -> 1, sqrtPrice decreases, we round up
+      // else swap: 1 -> 0, sqrtPrice increases, we round down
+      uint256 tmp = FullMath.mulDivFloor(absDelta, sqrtPc, C.TWO_POW_96);
+      if (isExactInput) {
+        sqrtPn = (FullMath.mulDivCeiling(liquidity + lc, sqrtPc, liquidity + tmp)).toUint160();
+      } else {
+        sqrtPn = (FullMath.mulDivFloor(liquidity + lc, sqrtPc, liquidity - tmp)).toUint160();
+      }
     } else {
-      // round down
-      uint256 tmp1 = FullMath.mulDivFloor(liquidity, sqrtPc, liquidity + lc);
-      uint256 tmp2 = FullMath.mulDivFloor(absDelta, C.TWO_POW_96, liquidity + lc);
-      sqrtPn = (isExactInput ? (tmp1 + tmp2) : (tmp1 - tmp2)).toUint160();
+      // if isExactInput: swap 1 -> 0, sqrtPrice increases, we round down
+      // else swap: 0 -> 1, sqrtPrice decreases, we round up
+      if (isExactInput) {
+        uint256 tmp = FullMath.mulDivCeiling(absDelta, C.TWO_POW_96, sqrtPc);
+        sqrtPn = FullMath.mulDivFloor(liquidity + tmp, sqrtPc, liquidity + lc).toUint160();
+      } else {
+        uint256 tmp = FullMath.mulDivFloor(absDelta, C.TWO_POW_96, sqrtPc);
+        sqrtPn = FullMath.mulDivCeiling(liquidity - tmp, sqrtPc, liquidity + lc).toUint160();
+      }
     }
   }
 
@@ -287,6 +292,10 @@ library SwapMath {
       actualDelta =
         FullMath.mulDivCeiling(liquidity + lc, C.TWO_POW_96, sqrtPn).toInt256() +
         FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPc).revToInt256();
+    }
+
+    if (isExactInput && actualDelta == 1) { // rounding make actualDelta == 1
+      actualDelta = 0;
     }
   }
 }
