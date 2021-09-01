@@ -1,5 +1,6 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
+import {BigNumber as BN, Wallet} from 'ethers';
 import {
   PRECISION,
   ZERO_ADDRESS,
@@ -13,8 +14,8 @@ import {
   MAX_SQRT_RATIO,
   TWO,
   BPS,
-  BN,
-  MAX_TICK_DISTANCE
+  MAX_TICK_DISTANCE,
+  NEGATIVE_ONE
 } from './helpers/helper';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
@@ -27,11 +28,13 @@ import {
   MockToken__factory,
   MockProAMMCallbacks,
   ProAMMPool__factory,
-  ReinvestmentTokenMaster
+  ReinvestmentTokenMaster,
+  QuoterV2,
+  QuoterV2__factory,
+  MockProAMMCallbacks__factory
 } from '../typechain';
 import {deployFactory} from './helpers/proAMMSetup';
 import {
-  BigNumber,
   encodePriceSqrt,
   getMaxTick,
   getMinTick,
@@ -41,15 +44,16 @@ import {
   snapshotGasCost
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
-import {Wallet} from '@ethereum-waffle/provider/node_modules/ethers';
 import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
+import {encodePath} from './helpers/swapPath';
 
 let factory: ProAMMFactory;
 let token0: MockToken;
 let token1: MockToken;
 let reinvestmentToken: ReinvestmentTokenMaster;
-let poolBalToken0: BigNumber;
-let poolBalToken1: BigNumber;
+let quoter: QuoterV2;
+let poolBalToken0: BN;
+let poolBalToken1: BN;
 let poolArray: ProAMMPool[] = [];
 let pool: ProAMMPool;
 let callback: MockProAMMCallbacks;
@@ -60,8 +64,8 @@ let tickSpacing = tickSpacingArray[0];
 
 let minTick = getMinTick(tickSpacing);
 let maxTick = getMaxTick(tickSpacing);
-let initialPrice: BigNumber;
-let nearestTickToPrice: number;
+let initialPrice: BN;
+let nearestTickToPrice: number; // the floor of tick that mod tickSpacing = 0
 let tickLower: number;
 let tickUpper: number;
 let tickLowerData: any;
@@ -71,12 +75,13 @@ let positionData: any;
 let result: any;
 
 class Fixtures {
-  constructor(
+  constructor (
     public factory: ProAMMFactory,
     public poolArray: ProAMMPool[],
     public token0: MockToken,
     public token1: MockToken,
-    public callback: MockProAMMCallbacks
+    public callback: MockProAMMCallbacks,
+    public quoter: QuoterV2
   ) {}
 }
 
@@ -107,17 +112,20 @@ describe('ProAMMPool', () => {
       poolArray.push(ProAMMPoolContract.attach(poolAddress));
     }
 
-    const CallbackContract = await ethers.getContractFactory('MockProAMMCallbacks');
-    callback = (await CallbackContract.deploy(tokenA.address, tokenB.address)) as MockProAMMCallbacks;
+    const CallbackContract = (await ethers.getContractFactory('MockProAMMCallbacks')) as MockProAMMCallbacks__factory;
+    let callback = await CallbackContract.deploy(tokenA.address, tokenB.address);
     // user give token approval to callbacks
     await tokenA.connect(user).approve(callback.address, MAX_UINT);
     await tokenB.connect(user).approve(callback.address, MAX_UINT);
 
-    return new Fixtures(factory, poolArray, token0, token1, callback);
+    const QuoterV2Contract = (await ethers.getContractFactory('QuoterV2')) as QuoterV2__factory;
+    let quoter = await QuoterV2Contract.deploy(factory.address);
+
+    return new Fixtures(factory, poolArray, token0, token1, callback, quoter);
   }
 
   beforeEach('load fixture', async () => {
-    ({factory, poolArray, token0, token1, callback} = await loadFixture(fixture));
+    ({factory, poolArray, token0, token1, callback, quoter} = await loadFixture(fixture));
     pool = poolArray[0];
   });
 
@@ -1113,14 +1121,14 @@ describe('ProAMMPool', () => {
         )) as ReinvestmentTokenMaster;
         expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
       });
-  
+
       it('should fail if user tries to burn more rTokens than what he has', async () => {
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
         await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE))).to.be.revertedWith(
           'ERC20: burn amount exceeds balance'
         );
       });
-  
+
       it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
         let reinvestmentStateBefore = await pool.getReinvestmentState();
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
@@ -1137,13 +1145,15 @@ describe('ProAMMPool', () => {
         expect(await token0.balanceOf(user.address)).gt(token0BalanceBefore);
         expect(await token1.balanceOf(user.address)).gt(token1BalanceBefore);
       });
-  
+
       it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
         // do a couple of small swaps so that lf is incremented but not lfLast
         await doRandomSwaps(pool, user, 3, MIN_LIQUIDITY);
         let reinvestmentState = await pool.getReinvestmentState();
-        expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(reinvestmentState._poolReinvestmentLiquidityLast);
+        expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(
+          reinvestmentState._poolReinvestmentLiquidityLast
+        );
         await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');
         expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
           reinvestmentState._poolFeeGrowthGlobal
@@ -1179,14 +1189,14 @@ describe('ProAMMPool', () => {
 
         // swap to max allowable tick
         await swapToUpTick(pool, user, MAX_TICK.toNumber() - 1);
-  
+
         // burnRTokens
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
         await expect(pool.connect(user).burnRTokens(userRTokenBalance))
-        .to.emit(token1, 'Transfer')
-        .to.not.emit(token0, 'Transfer');;
+          .to.emit(token1, 'Transfer')
+          .to.not.emit(token0, 'Transfer');
       });
-  
+
       it('should only send token0 to user when he burns rTokens when price is at MIN_SQRT_RATIO', async () => {
         // init price at 1 : 1e18
         initialPrice = encodePriceSqrt(ONE, PRECISION);
@@ -1209,12 +1219,12 @@ describe('ProAMMPool', () => {
 
         // swap to min allowable tick
         await swapToDownTick(pool, user, MIN_TICK.toNumber() + 1);
-  
+
         // burnRTokens
         let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
         await expect(pool.connect(user).burnRTokens(userRTokenBalance))
-        .to.emit(token0, 'Transfer')
-        .to.not.emit(token1, 'Transfer');;
+          .to.emit(token0, 'Transfer')
+          .to.not.emit(token1, 'Transfer');
       });
     });
   });
@@ -1225,14 +1235,40 @@ describe('ProAMMPool', () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
         await callback.unlockPool(pool.address, initialPrice, '0x');
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+
+        // mint 3 position to test
+        await callback.mint(
+          pool.address,
+          user.address,
+          nearestTickToPrice - 500 * tickSpacing,
+          nearestTickToPrice + 500 * tickSpacing,
+          PRECISION.mul(10),
+          '0x'
+        );
+        await callback.mint(
+          pool.address,
+          user.address,
+          nearestTickToPrice - 2 * tickSpacing,
+          nearestTickToPrice + 2 * tickSpacing,
+          PRECISION.mul(100),
+          '0x'
+        );
+        await callback.mint(
+          pool.address,
+          user.address,
+          nearestTickToPrice - 4 * tickSpacing,
+          nearestTickToPrice + 4 * tickSpacing,
+          PRECISION.mul(100),
+          '0x'
+        );
       });
-  
+
       it('should fail for 0 swap qty', async () => {
         await expect(
           callback.swap(pool.address, user.address, ZERO, true, MIN_SQRT_RATIO.add(ONE), '0x')
         ).to.be.revertedWith('0 swapQty');
       });
-  
+
       it('should fail for bad sqrt limits', async () => {
         // upTick: sqrtLimit < poolSqrtPrice
         await expect(
@@ -1251,7 +1287,7 @@ describe('ProAMMPool', () => {
           callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO, '0x')
         ).to.be.revertedWith('bad sqrtPriceLimit');
       });
-  
+
       it('tests token0 exactInput (move down tick)', async () => {
         tickLower = nearestTickToPrice - 500 * tickSpacing;
         tickUpper = nearestTickToPrice + 2 * tickSpacing;
@@ -1265,15 +1301,57 @@ describe('ProAMMPool', () => {
         await logSwapState(SwapTitle.AFTER_SWAP, pool);
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
-  
-      it('#gas token0 exactInput [ @skip-on-coverage ]', async () => {
-        tickLower = nearestTickToPrice - 500 * tickSpacing;
-        tickUpper = nearestTickToPrice + 2 * tickSpacing;
-        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-        let tx = await callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO.add(ONE), '0x');
-        await snapshotGasCost(tx);
+
+      it('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amount: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+        await snapshotGasCost(
+          await callback.swap(pool.address, user.address, quoteResult.amountIn, true, MIN_SQRT_RATIO.add(ONE), '0x')
+        );
       });
-  
+
+      it('#gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amount: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+
+        await snapshotGasCost(
+          await callback.swap(pool.address, user.address, quoteResult.amountIn, true, MIN_SQRT_RATIO.add(ONE), '0x')
+        );
+      });
+
+      it('#gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amount: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+
+        await snapshotGasCost(
+          await callback.swap(pool.address, user.address, quoteResult.amountIn, true, MIN_SQRT_RATIO.add(ONE), '0x')
+        );
+      });
+
       it('tests token1 exactOutput (move down tick)', async () => {
         tickLower = nearestTickToPrice - 500 * tickSpacing;
         tickUpper = nearestTickToPrice + 2 * tickSpacing;
@@ -1294,22 +1372,79 @@ describe('ProAMMPool', () => {
         await logSwapState(SwapTitle.AFTER_SWAP, pool);
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
-  
-      it('#gas token1 exactOutput [ @skip-on-coverage ]', async () => {
-        tickLower = nearestTickToPrice - 500 * tickSpacing;
-        tickUpper = nearestTickToPrice + 2 * tickSpacing;
-        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-        let tx = await callback.swap(
-          pool.address,
-          user.address,
-          BN.from('-1751372543351715880'),
-          false,
-          MIN_SQRT_RATIO.add(ONE),
-          '0x'
+
+      it('#gas token1 exactOutput - within a tick [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amountIn: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+
+        await snapshotGasCost(
+          await callback.swap(
+            pool.address,
+            user.address,
+            quoteResult.amountOut.mul(NEGATIVE_ONE),
+            false,
+            MIN_SQRT_RATIO.add(ONE),
+            '0x'
+          )
         );
-        await snapshotGasCost(tx);
       });
-  
+
+      it('#gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amountIn: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+
+        await snapshotGasCost(
+          await callback.swap(
+            pool.address,
+            user.address,
+            quoteResult.amountOut.mul(NEGATIVE_ONE),
+            false,
+            MIN_SQRT_RATIO.add(ONE),
+            '0x'
+          )
+        );
+      });
+
+      it('#gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ]', async () => {
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickSpacing);
+        priceLimit = priceLimit.add(1);
+
+        let quoteResult = await quoter.callStatic.quoteExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amountIn: PRECISION.mul(1000),
+          feeBps: swapFeeBps,
+          sqrtPriceLimitX96: priceLimit
+        });
+
+        await snapshotGasCost(
+          await callback.swap(
+            pool.address,
+            user.address,
+            quoteResult.amountOut.mul(NEGATIVE_ONE),
+            false,
+            MIN_SQRT_RATIO.add(ONE),
+            '0x'
+          )
+        );
+      });
+
       it('tests token1 exactInput (move up tick)', async () => {
         tickLower = nearestTickToPrice - 2 * tickSpacing;
         tickUpper = nearestTickToPrice + 500 * tickSpacing;
@@ -1323,7 +1458,7 @@ describe('ProAMMPool', () => {
         await logSwapState(SwapTitle.AFTER_SWAP, pool);
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
-  
+
       it('tests token0 exactOutput (move up tick)', async () => {
         tickLower = nearestTickToPrice - 2 * tickSpacing;
         tickUpper = nearestTickToPrice + 500 * tickSpacing;
@@ -1344,17 +1479,17 @@ describe('ProAMMPool', () => {
         await logSwapState(SwapTitle.AFTER_SWAP, pool);
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
-  
+
       it('should fail if callback fails to send sufficient qty back to the pool', async () => {
         tickLower = nearestTickToPrice - 500 * tickSpacing;
         tickUpper = nearestTickToPrice + 500 * tickSpacing;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-  
+
         // downTick: send insufficient qty0
         await expect(
           callback.badSwap(pool.address, user.address, PRECISION.mul(-1), false, MIN_SQRT_RATIO.add(ONE), true, false)
         ).to.be.revertedWith('lacking deltaQty0');
-  
+
         // upTick: send insufficient qty1
         await expect(
           callback.badSwap(pool.address, user.address, PRECISION.mul(-1), true, MAX_SQRT_RATIO.sub(ONE), false, true)
@@ -1394,7 +1529,7 @@ async function isTickCleared (tick: number): Promise<boolean> {
   return true;
 }
 
-async function doRandomSwaps (pool: ProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BigNumber) {
+async function doRandomSwaps (pool: ProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
   for (let i = 0; i < iterations; i++) {
     let isToken0 = Math.random() < 0.5;
     let isExactInput = Math.random() < 0.5;
@@ -1418,7 +1553,7 @@ async function doRandomSwaps (pool: ProAMMPool, user: Wallet, iterations: number
   }
 }
 
-async function swapToUpTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BigNumber) {
+async function swapToUpTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick < targetTick) {
     // either specify exactInputToken1 or exactOutputToken0
     let isToken0 = Math.random() < 0.5;
@@ -1436,7 +1571,7 @@ async function swapToUpTick (pool: ProAMMPool, user: Wallet, targetTick: number,
   }
 }
 
-async function swapToDownTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BigNumber) {
+async function swapToDownTick (pool: ProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick > targetTick) {
     // either specify exactInputToken0 or exactOutputToken1
     let isToken0 = Math.random() < 0.5;

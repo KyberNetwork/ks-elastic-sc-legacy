@@ -8,7 +8,7 @@ import {IWETH} from '../interfaces/IWETH.sol';
 
 import {TickMath} from '../libraries/TickMath.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
-import {PathHelper} from '../libraries/PathHelper.sol';
+import {PathHelper} from './libraries/PathHelper.sol';
 
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
@@ -17,8 +17,12 @@ import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
 import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 
 /// @title KyberDMM V2 Swap Router
-contract ProAMMRouter is IProAMMRouter,
-  ImmutableRouterStorage, RouterTokenHelperWithFee, Multicall, DeadlineValidation
+contract ProAMMRouter is
+  IProAMMRouter,
+  ImmutableRouterStorage,
+  RouterTokenHelperWithFee,
+  Multicall,
+  DeadlineValidation
 {
   using PathHelper for bytes;
   using SafeCast for uint256;
@@ -83,16 +87,15 @@ contract ProAMMRouter is IProAMMRouter,
 
     bool isFromToken0 = tokenIn < tokenOut;
 
-    (int256 amount0, int256 amount1) =
-      _getPool(tokenIn, tokenOut, fee).swap(
-        recipient,
-        amountIn.toInt256(),
-        isFromToken0,
-        sqrtPriceLimitX96 == 0
-          ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-          : sqrtPriceLimitX96,
-        abi.encode(data)
-      );
+    (int256 amount0, int256 amount1) = _getPool(tokenIn, tokenOut, fee).swap(
+      recipient,
+      amountIn.toInt256(),
+      isFromToken0,
+      sqrtPriceLimitX96 == 0
+        ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+        : sqrtPriceLimitX96,
+      abi.encode(data)
+    );
     return uint256(-(isFromToken0 ? amount1 : amount0));
   }
 
@@ -107,7 +110,10 @@ contract ProAMMRouter is IProAMMRouter,
       params.amountIn,
       params.recipient,
       params.sqrtPriceLimitX96,
-      SwapCallbackData({path: abi.encodePacked(params.tokenIn, params.fee, params.tokenOut), source: msg.sender})
+      SwapCallbackData({
+        path: abi.encodePacked(params.tokenIn, params.fee, params.tokenOut),
+        source: msg.sender
+      })
     );
     require(amountOut >= params.amountOutMinimum, 'ProAMMRouter: insufficient amount out');
   }
@@ -128,10 +134,7 @@ contract ProAMMRouter is IProAMMRouter,
         params.amountIn,
         hasMultiplePools ? address(this) : params.recipient, // for intermediate swaps, this contract custodies
         0,
-        SwapCallbackData({
-          path: params.path.getFirstPool(),
-          source: source
-        })
+        SwapCallbackData({path: params.path.getFirstPool(), source: source})
       );
 
       if (hasMultiplePools) {
@@ -160,16 +163,15 @@ contract ProAMMRouter is IProAMMRouter,
 
     bool isFromToken0 = tokenOut < tokenIn;
 
-    (int256 amount0Delta, int256 amount1Delta) =
-      _getPool(tokenIn, tokenOut, fee).swap(
-        recipient,
-        -amountOut.toInt256(),
-        isFromToken0,
-        sqrtPriceLimitX96 == 0
-          ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
-          : sqrtPriceLimitX96,
-        abi.encode(data)
-      );
+    (int256 amount0Delta, int256 amount1Delta) = _getPool(tokenIn, tokenOut, fee).swap(
+      recipient,
+      -amountOut.toInt256(),
+      isFromToken0,
+      sqrtPriceLimitX96 == 0
+        ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
+        : sqrtPriceLimitX96,
+      abi.encode(data)
+    );
 
     uint256 amountOutReceived;
     (amountIn, amountOutReceived) = isFromToken0
@@ -224,7 +226,11 @@ contract ProAMMRouter is IProAMMRouter,
    * @dev Return the pool for the given token pair and fee. The pool contract may or may not exist.
    *  Use determine function to save gas, instead of reading from factory
    */
-  function _getPool(address tokenA, address tokenB, uint16 fee) private view returns (IProAMMPool) {
+  function _getPool(
+    address tokenA,
+    address tokenB,
+    uint16 fee
+  ) private view returns (IProAMMPool) {
     return IProAMMPool(IProAMMFactory(factory).getPool(tokenA, tokenB, fee));
   }
 }
