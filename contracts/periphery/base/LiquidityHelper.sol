@@ -71,6 +71,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
   /// @return liquidity amount of liquidity has been minted
   /// @return amount0 amount of token0 that is needed
   /// @return amount1 amount of token1 that is needed
+  /// @return feesClaimable amount of fee claimable
   /// @return pool address of the pool
   function addLiquidity(AddLiquidityParams memory params)
     internal
@@ -78,6 +79,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
       uint128 liquidity,
       uint256 amount0,
       uint256 amount1,
+      uint256 feesClaimable,
       IProAMMPool pool
     ) {
     require(params.token0 < params.token1, 'LiquidityHelper: invalid token order');
@@ -98,7 +100,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
       );
     }
 
-    (amount0, amount1) = pool.mint(
+    (amount0, amount1, feesClaimable) = pool.mint(
       params.recipient,
       params.tickLower,
       params.tickUpper,
