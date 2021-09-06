@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.4;
 
-// import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
-// import {IERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol';
+import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
+import {IERC721Permit} from './IERC721Permit.sol';
 
 
-interface INonfungiblePositionManager is IRouterTokenHelper { //IERC721Enumerable, IERC721Metadata {
+interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IERC721Permit {
 
   /// @notice Params for the first time adding liquidity, mint new nft to sender
   struct MintParams {
@@ -54,4 +54,39 @@ interface INonfungiblePositionManager is IRouterTokenHelper { //IERC721Enumerabl
     uint16 fee,
     uint160 sqrtPriceX96
   ) external payable returns (address pool);
+
+  function mint(MintParams calldata params)
+    external
+    payable
+    returns (
+      uint256 tokenId,
+      uint128 liquidity,
+      uint256 amount0,
+      uint256 amount1,
+      uint256 feesClaimable
+    );
+
+  function addLiquidity(IncreaseLiquidityParams calldata params)
+    external
+    payable
+    returns (
+      uint128 liquidity,
+      uint256 amount0,
+      uint256 amount1,
+      uint256 feesClaimable
+    );
+
+  function removeLiquidity(RemoveLiquidityParams calldata params)
+    external
+    returns (
+      uint256 amount0,
+      uint256 amount1,
+      uint256 feesClaimable
+    );
+
+  /**
+   * @dev Burn the token by its owner
+   * @notice All liquidity should be removed before burning
+   */
+  function burn(uint256 tokenId) external payable;
 }
