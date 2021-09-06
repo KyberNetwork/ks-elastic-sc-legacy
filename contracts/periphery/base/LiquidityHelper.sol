@@ -71,7 +71,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
   /// @return liquidity amount of liquidity has been minted
   /// @return amount0 amount of token0 that is needed
   /// @return amount1 amount of token1 that is needed
-  /// @return feesClaimable amount of fee claimable
+  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
   /// @return pool address of the pool
   function addLiquidity(AddLiquidityParams memory params)
     internal
