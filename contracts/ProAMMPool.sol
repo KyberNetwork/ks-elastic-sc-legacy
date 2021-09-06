@@ -278,8 +278,7 @@ contract ProAMMPool is IProAMMPool {
         reinvestmentToken.totalSupply()
       );
       if (rMintQty != 0) {
-        // mint to pool
-        reinvestmentToken.mint(address(this), rMintQty);
+        mintRTokens(rMintQty);
         // lp != 0 because lp = 0 => rMintQty = 0
         _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
         poolFeeGrowthGlobal = _feeGrowthGlobal;
@@ -415,7 +414,7 @@ contract ProAMMPool is IProAMMPool {
 
     // mint tokens to pool and increment fee growth if needed
     if (rMintQty != 0) {
-      reinvestmentToken.mint(address(this), rMintQty);
+      mintRTokens(rMintQty);
       rTotalSupply += rMintQty;
       // lp != 0 because lp = 0 => rMintQty = 0
       poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
@@ -586,22 +585,7 @@ contract ProAMMPool is IProAMMPool {
     // also calculate government fee and transfer to feeTo
     if (swapData.rTotalSupplyInitial != 0) {
       if (swapData.rTotalSupply > swapData.rTotalSupplyInitial) {
-        uint256 rMintQty;
-        unchecked {
-          rMintQty = swapData.rTotalSupply - swapData.rTotalSupplyInitial;
-          reinvestmentToken.mint(
-            address(this),
-            rMintQty
-          );
-        }
-        // fetch governmentFeeBps
-        (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
-        if (governmentFeeBps > 0) {
-          // take a cut of fees for government
-          uint256 governmentFeeQty = (rMintQty * governmentFeeBps) / C.BPS;
-          // transfer rTokens to feeTo
-          reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
-        }
+        mintRTokens(swapData.rTotalSupply - swapData.rTotalSupplyInitial);
       }
       poolReinvestmentLiquidityLast = swapData.lfLast;
       poolFeeGrowthGlobal = swapData.feeGrowthGlobal;
@@ -639,6 +623,18 @@ contract ProAMMPool is IProAMMPool {
     }
 
     emit Swap(msg.sender, recipient, deltaQty0, deltaQty1, poolSqrtPrice, poolLiquidity, poolTick);
+  }
+
+  function mintRTokens(uint256 rMintQty) internal {
+    reinvestmentToken.mint(address(this), rMintQty);
+    // fetch governmentFeeBps
+    (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
+    if (governmentFeeBps > 0) {
+      // take a cut of fees for government
+      uint256 governmentFeeQty = (rMintQty * governmentFeeBps) / C.BPS;
+      // transfer rTokens to feeTo
+      reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
+    }
   }
 
   // TODO flash
