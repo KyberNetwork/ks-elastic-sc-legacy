@@ -1495,6 +1495,74 @@ describe('ProAMMPool', () => {
           callback.badSwap(pool.address, user.address, PRECISION.mul(-1), true, MAX_SQRT_RATIO.sub(ONE), false, true)
         ).to.be.revertedWith('lacking deltaQty1');
       });
+
+      describe('fees', async () => {
+        beforeEach('mint position and init rToken', async () => {
+          tickLower = nearestTickToPrice - 100 * tickSpacing;
+          tickUpper = nearestTickToPrice + 100 * tickSpacing;
+          await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
+          reinvestmentToken = (await ethers.getContractAt(
+            'ReinvestmentTokenMaster',
+            await pool.reinvestmentToken()
+          )) as ReinvestmentTokenMaster;
+        });
+
+        it('will not mint any rTokens if swaps fail to cross tick', async () => {
+          await expect(
+            callback.swap(
+              pool.address,
+              user.address,
+              MIN_LIQUIDITY,
+              false,
+              MAX_SQRT_RATIO.sub(ONE),
+              '0x'
+            )
+          ).to.not.emit(reinvestmentToken, 'Mint');
+        });
+
+        it('will mint rTokens but not transfer any for 0 governmentFeeBps', async () => {
+          // cross initialized tick to mint rTokens
+          await expect(
+            callback.swap(
+              pool.address,
+              user.address,
+              PRECISION,
+              false,
+              await getPriceFromTick(tickUpper + 1),
+              '0x'
+            )
+          ).to.emit(reinvestmentToken, 'Mint');
+          expect(await reinvestmentToken.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
+        });
+  
+        it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
+          // set feeTo in factory
+          await factory.updateFeeConfiguration(configMaster.address, 5);
+          let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+          // cross initialized tick to mint rTokens
+          await swapToUpTick(pool, user, tickUpper + 1);
+          expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+        });
+  
+        it('should only send to updated feeTo address', async () => {
+          // set feeTo in factory
+          await factory.updateFeeConfiguration(admin.address, 5);
+          // cross initialized tick to mint rTokens
+          await swapToUpTick(pool, user, tickUpper + 1);
+          let oldFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(admin.address);
+          let newFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+  
+          // now update to another feeTo
+          await factory.updateFeeConfiguration(configMaster.address, 5);
+          // swap downTick to generate fees and mint rTokens
+          await swapToDownTick(pool, user, tickLower);
+  
+          // old feeTo should have same amount of rTokens
+          expect(await reinvestmentToken.balanceOf(admin.address)).to.be.eq(oldFeeToRTokenBalanceBefore);
+          // new feeTo should have received rTokens
+          expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(newFeeToRTokenBalanceBefore);
+        });
+      });
     });
 
     describe('init and test swaps near price boundaries', async () => {

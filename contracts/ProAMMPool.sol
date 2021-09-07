@@ -44,11 +44,6 @@ contract ProAMMPool is IProAMMPool {
   uint16 public immutable override swapFeeBps;
   int24 public immutable override tickSpacing;
 
-  // the current government fee as a percentage of the swap fee taken on withdrawal
-  // value is fetched from factory and updated whenever a position is modified
-  // or when government fee is collected
-  uint16 private governmentFeeBps;
-
   // see IProAMMPool#getPoolState for explanations of the variables below
   uint160 internal poolSqrtPrice;
   int24 internal poolTick;
@@ -59,7 +54,6 @@ contract ProAMMPool is IProAMMPool {
   uint256 internal poolReinvestmentLiquidity;
   uint256 internal poolReinvestmentLiquidityLast;
   // see IProAMMPool for explanations of the variables below
-  uint256 public override collectedGovernmentFee;
   mapping(int24 => Tick.Data) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
   mapping(bytes32 => Position.Data) public override positions;
@@ -284,8 +278,7 @@ contract ProAMMPool is IProAMMPool {
         reinvestmentToken.totalSupply()
       );
       if (rMintQty != 0) {
-        // mint to pool
-        reinvestmentToken.mint(address(this), rMintQty);
+        mintRTokens(rMintQty);
         // lp != 0 because lp = 0 => rMintQty = 0
         _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
         poolFeeGrowthGlobal = _feeGrowthGlobal;
@@ -421,7 +414,7 @@ contract ProAMMPool is IProAMMPool {
 
     // mint tokens to pool and increment fee growth if needed
     if (rMintQty != 0) {
-      reinvestmentToken.mint(address(this), rMintQty);
+      mintRTokens(rMintQty);
       rTotalSupply += rMintQty;
       // lp != 0 because lp = 0 => rMintQty = 0
       poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
@@ -460,8 +453,6 @@ contract ProAMMPool is IProAMMPool {
     uint160 sqrtPc;
     // the tick associated with the current price
     int24 currentTick;
-    // LP token qty paid as government fee
-    uint256 governmentFee;
     // the current pool liquidity
     uint128 lp;
     // the current reinvestment liquidity
@@ -591,14 +582,10 @@ contract ProAMMPool is IProAMMPool {
     }
 
     // calculate and mint reinvestment tokens if necessary
+    // also calculate government fee and transfer to feeTo
     if (swapData.rTotalSupplyInitial != 0) {
       if (swapData.rTotalSupply > swapData.rTotalSupplyInitial) {
-        unchecked {
-          reinvestmentToken.mint(
-            address(this),
-            swapData.rTotalSupply - swapData.rTotalSupplyInitial
-          );
-        }
+        mintRTokens(swapData.rTotalSupply - swapData.rTotalSupplyInitial);
       }
       poolReinvestmentLiquidityLast = swapData.lfLast;
       poolFeeGrowthGlobal = swapData.feeGrowthGlobal;
@@ -638,8 +625,17 @@ contract ProAMMPool is IProAMMPool {
     emit Swap(msg.sender, recipient, deltaQty0, deltaQty1, poolSqrtPrice, poolLiquidity, poolTick);
   }
 
+  function mintRTokens(uint256 rMintQty) internal {
+    reinvestmentToken.mint(address(this), rMintQty);
+    // fetch governmentFeeBps
+    (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
+    if (governmentFeeBps > 0) {
+      // take a cut of fees for government
+      uint256 governmentFeeQty = (rMintQty * governmentFeeBps) / C.BPS;
+      // transfer rTokens to feeTo
+      reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
+    }
+  }
+
   // TODO flash
-  // TODO add governance fee
-  // see IProAMMPoolActions
-  function collectGovernmentFee() external override returns (uint256 governmentFeeQty) {}
 }

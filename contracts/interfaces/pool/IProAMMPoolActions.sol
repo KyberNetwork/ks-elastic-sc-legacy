@@ -92,8 +92,6 @@ interface IProAMMPoolActions {
     bytes calldata data
   ) external returns (int256 qty0, int256 qty1);
 
-  function collectGovernmentFee() external returns (uint256 governmentFeeQty);
-
   // /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
   // /// @dev The caller of this method receives a callback in the form of IUniswapV3FlashCallback#uniswapV3FlashCallback
   // /// @dev Can be used to donate underlying tokens pro-rata to currently in-range liquidity providers by calling
