@@ -31,7 +31,6 @@ interface IProAMMPoolActions {
   /// @param data Data (if any) to be passed through to the callback
   /// @return qty0 token0 quantity sent to the pool in exchange for the minted liquidity.
   /// @return qty1 token1 quantity sent to the pool in exchange for the minted liquidity.
-  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
   function mint(
     address recipient,
     int24 tickLower,
@@ -42,8 +41,7 @@ interface IProAMMPoolActions {
     external
     returns (
       uint256 qty0,
-      uint256 qty1,
-      uint256 feesClaimable
+      uint256 qty1
     );
 
   /// @notice Remove liquidity from the sender
@@ -55,7 +53,6 @@ interface IProAMMPoolActions {
   /// @param qty Liquidity quantity to burn
   /// @return qty0 token0 quantity sent to the recipient
   /// @return qty1 token1 quantity sent to the recipient
-  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
   function burn(
     int24 tickLower,
     int24 tickUpper,
@@ -64,8 +61,7 @@ interface IProAMMPoolActions {
     external
     returns (
       uint256 qty0,
-      uint256 qty1,
-      uint256 feesClaimable
+      uint256 qty1
     );
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1

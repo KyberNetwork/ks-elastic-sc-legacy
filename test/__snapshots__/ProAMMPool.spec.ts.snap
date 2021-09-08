@@ -1,12 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"210720"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"210630"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"160076"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"159986"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"241630"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"241540"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"246401"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"246311"`;
 
 exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"222576"`;
 

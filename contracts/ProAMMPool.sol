@@ -182,7 +182,7 @@ contract ProAMMPool is IProAMMPool {
   /// @return qty1 token1 qty owed to the pool, negative if the pool should pay the recipient
   function _tweakPosition(TweakPositionData memory posData)
     private
-    returns (int256 qty0, int256 qty1, uint256 feesClaimable)
+    returns (int256 qty0, int256 qty1)
   {
     require(posData.tickLower < posData.tickUpper, 'invalid ticks');
     require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
@@ -193,7 +193,7 @@ contract ProAMMPool is IProAMMPool {
     uint128 lp = poolLiquidity;
     uint256 lf = poolReinvestmentLiquidity;
 
-    feesClaimable = _updatePosition(
+    _updatePosition(
       posData.owner,
       posData.tickLower,
       posData.tickUpper,
@@ -262,7 +262,7 @@ contract ProAMMPool is IProAMMPool {
     int24 currentTick,
     uint128 lp,
     uint256 lf
-  ) private returns (uint256 feesClaimable) {
+  ) private {
     Position.Data storage position = positions.get(owner, tickLower, tickUpper);
 
     // SLOADs for gas optimization
@@ -319,7 +319,7 @@ contract ProAMMPool is IProAMMPool {
     );
 
     // calc rTokens to be minted for the position's accumulated fees
-    feesClaimable = position.update(liquidityDelta, feeGrowthInside);
+    uint256 feesClaimable = position.update(liquidityDelta, feeGrowthInside);
     if (feesClaimable > 0) {
       // transfer rTokens from pool to owner
       reinvestmentToken.safeTransfer(owner, feesClaimable);
@@ -342,11 +342,11 @@ contract ProAMMPool is IProAMMPool {
     int24 tickUpper,
     uint128 qty,
     bytes calldata data
-  ) external override lock returns (uint256 qty0, uint256 qty1, uint256 feesClaimable) {
+  ) external override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, '0 qty');
     int256 qty0Int;
     int256 qty1Int;
-    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
+    (qty0Int, qty1Int) = _tweakPosition(
       TweakPositionData({
         owner: recipient,
         tickLower: tickLower,
@@ -373,11 +373,11 @@ contract ProAMMPool is IProAMMPool {
     int24 tickLower,
     int24 tickUpper,
     uint128 qty
-  ) external override lock returns (uint256 qty0, uint256 qty1, uint256 feesClaimable) {
+  ) external override lock returns (uint256 qty0, uint256 qty1) {
     require(qty > 0, '0 qty');
     int256 qty0Int;
     int256 qty1Int;
-    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
+    (qty0Int, qty1Int) = _tweakPosition(
       TweakPositionData({
         owner: msg.sender,
         tickLower: tickLower,

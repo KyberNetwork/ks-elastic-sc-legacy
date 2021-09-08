@@ -1,8 +1,8 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, MIN_SQRT_RATIO, ONE, TWO, MIN_LIQUIDITY, MAX_SQRT_RATIO, TWO_POW_96} from './helpers/helper';
-import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice} from './helpers/utils';
+import {BigNumber} from 'ethers';
+import {BN, PRECISION, ZERO_ADDRESS, ONE, TWO} from './helpers/helper';
+import {encodePriceSqrt} from './helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -15,7 +15,7 @@ import {
 
 import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
-import { ProAMMPool } from '../typechain/ProAMMPool';
+import { ProAMMPool, ProAMMFactory } from '../typechain';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
 
@@ -134,7 +134,7 @@ describe('LiquidityHelper', () => {
       let poolBefore = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
       let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION, gasPrice: txGasPrice });
       let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
@@ -259,7 +259,7 @@ describe('LiquidityHelper', () => {
       }
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testAddLiquidity', [params])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
       let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION.mul(TWO), gasPrice: txGasPrice });
       let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
