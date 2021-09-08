@@ -1,28 +1,39 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, MIN_SQRT_RATIO, ONE, TWO, MIN_LIQUIDITY, MAX_SQRT_RATIO, TWO_POW_96} from './helpers/helper';
+import {
+  BN,
+  PRECISION,
+  ZERO_ADDRESS,
+  MIN_SQRT_RATIO,
+  ONE,
+  TWO,
+  MIN_LIQUIDITY,
+  MAX_SQRT_RATIO,
+  TWO_POW_96,
+  ZERO
+} from './helpers/helper';
 import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice} from './helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
 import {
-  MockToken, MockToken__factory,
-  MockWeth, MockWeth__factory,
-  MockLiquidityHelper, MockLiquidityHelper__factory
+  MockToken,
+  MockToken__factory,
+  MockWeth,
+  MockWeth__factory,
+  MockLiquidityHelper,
+  MockLiquidityHelper__factory,
+  ProAMMFactory
 } from '../typechain';
 
 import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
-import { ProAMMPool } from '../typechain/ProAMMPool';
-
-const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
+import {ProAMMPool} from '../typechain/ProAMMPool';
 
 let Token: MockToken__factory;
 let LiquidityHelper: MockLiquidityHelper__factory;
-let admin;
-let user;
 let factory: ProAMMFactory;
 let liquidityHelper: MockLiquidityHelper;
 let tokenA: MockToken;
@@ -33,13 +44,7 @@ let tickSpacingArray = [10, 60];
 let initialPrice: BigNumber;
 let snapshotId: any;
 
-let getBalances: (
-  who: string,
-  tokens: string[]
-) => Promise<{
-  tokenBalances: BigNumber[]
-}>
-
+let getBalances: (who: string, tokens: string[]) => Promise<BigNumber[]>;
 
 describe('LiquidityHelper', () => {
   const [user, admin] = waffle.provider.getWallets();
@@ -54,7 +59,7 @@ describe('LiquidityHelper', () => {
     weth = await WETH.deploy();
 
     // use liquidity helper
-    LiquidityHelper = await ethers.getContractFactory('MockLiquidityHelper') as MockLiquidityHelper__factory;
+    LiquidityHelper = (await ethers.getContractFactory('MockLiquidityHelper')) as MockLiquidityHelper__factory;
     liquidityHelper = await LiquidityHelper.deploy(factory.address, weth.address);
 
     // add any newly defined tickSpacing apart from default ones
@@ -66,7 +71,7 @@ describe('LiquidityHelper', () => {
 
     initialPrice = encodePriceSqrt(1, 1);
 
-    await weth.connect(user).deposit({ value: PRECISION.mul(BN.from(10)) });
+    await weth.connect(user).deposit({value: PRECISION.mul(BN.from(10))});
     await weth.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
     await tokenA.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
     await tokenB.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
@@ -75,15 +80,13 @@ describe('LiquidityHelper', () => {
       let balances = [];
       for (let i = 0; i < tokens.length; i++) {
         if (tokens[i] == ZERO_ADDRESS) {
-          balances.push(await ethers.provider.getBalance(account))
+          balances.push(await ethers.provider.getBalance(account));
         } else {
-          balances.push(await (await Token.attach(tokens[i])).balanceOf(account));
+          balances.push(await Token.attach(tokens[i]).balanceOf(account));
         }
       }
-      return {
-        tokenBalances: balances
-      }
-    }
+      return balances;
+    };
 
     snapshotId = await snapshot();
   });
@@ -92,7 +95,7 @@ describe('LiquidityHelper', () => {
     await factory.createPool(token0, token1, fee);
     let pool = (await ethers.getContractAt('ProAMMPool', await factory.getPool(token0, token1, fee))) as ProAMMPool;
     return pool;
-  }
+  };
 
   describe('#unlockPool', async () => {
     beforeEach('revert to snapshot', async () => {
@@ -103,7 +106,7 @@ describe('LiquidityHelper', () => {
     it('correct tokens transfer from user to the pool', async () => {
       let firstTokens = [weth.address, tokenA.address, tokenB.address];
       let secondTokens = [tokenA.address, tokenB.address, weth.address];
-      for (let i = 0 ; i < firstTokens.length; i++) {
+      for (let i = 0; i < firstTokens.length; i++) {
         let fee = swapFeeBpsArray[i % swapFeeBpsArray.length];
         let initPrice = encodePriceSqrt(121, 100);
         let pool = await createPool(firstTokens[i], secondTokens[i], fee);
@@ -116,12 +119,8 @@ describe('LiquidityHelper', () => {
         let userAfter = await getBalances(user.address, [firstTokens[i], secondTokens[i]]);
         let poolAfter = await getBalances(pool.address, [firstTokens[i], secondTokens[i]]);
 
-        expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0])).to.be.eq(
-          poolAfter.tokenBalances[0].sub(poolBefore.tokenBalances[0])
-        );
-        expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
-          poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
-        );
+        expect(userBefore[0].sub(userAfter[0])).to.be.eq(poolAfter[0].sub(poolBefore[0]));
+        expect(userBefore[1].sub(userAfter[1])).to.be.eq(poolAfter[1].sub(poolBefore[1]));
       }
     });
 
@@ -133,21 +132,18 @@ describe('LiquidityHelper', () => {
       let userBefore = await getBalances(user.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
       let poolBefore = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
-      let multicallData = [liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      let multicallData = [
+        liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice])
+      ];
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
-      let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION, gasPrice: txGasPrice });
-      let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+      await liquidityHelper.connect(user).multicall(multicallData, {value: PRECISION, gasPrice: ZERO});
 
       let userAfter = await getBalances(user.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
       let poolAfter = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
-      expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
-        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
-      );
-      expect(userBefore.tokenBalances[2].sub(userAfter.tokenBalances[2])).to.be.eq(
-        poolAfter.tokenBalances[2].sub(poolBefore.tokenBalances[2])
-      );
+      expect(userBefore[0].sub(userAfter[0])).to.be.eq(poolAfter[1].sub(poolBefore[1]));
+      expect(userBefore[2].sub(userAfter[2])).to.be.eq(poolAfter[2].sub(poolBefore[2]));
     });
 
     it('revert pool already unlocked', async () => {
@@ -175,9 +171,16 @@ describe('LiquidityHelper', () => {
 
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
-          token0: token0, token1: token1, fee: swapFeeBpsArray[0], recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
-          amount0Desired: PRECISION, amount1Desired: PRECISION, amount0Min: BN.from(0), amount1Min: BN.from(0)
+          token0: token0,
+          token1: token1,
+          fee: swapFeeBpsArray[0],
+          recipient: user.address,
+          tickLower: -100 * tickSpacingArray[0],
+          tickUpper: 100 * tickSpacingArray[0],
+          amount0Desired: PRECISION,
+          amount1Desired: PRECISION,
+          amount0Min: BN.from(0),
+          amount1Min: BN.from(0)
         })
       ).to.be.revertedWith('LiquidityHelper: invalid token order');
     });
@@ -190,16 +193,30 @@ describe('LiquidityHelper', () => {
 
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
-          token0: token0, token1: token1, fee: swapFeeBpsArray[0], recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
-          amount0Desired: PRECISION, amount1Desired: PRECISION, amount0Min: PRECISION.add(ONE), amount1Min: BN.from(0)
+          token0: token0,
+          token1: token1,
+          fee: swapFeeBpsArray[0],
+          recipient: user.address,
+          tickLower: -100 * tickSpacingArray[0],
+          tickUpper: 100 * tickSpacingArray[0],
+          amount0Desired: PRECISION,
+          amount1Desired: PRECISION,
+          amount0Min: PRECISION.add(ONE),
+          amount1Min: BN.from(0)
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
-          token0: token0, token1: token1, fee: swapFeeBpsArray[0], recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
-          amount0Desired: PRECISION, amount1Desired: PRECISION, amount0Min: BN.from(0), amount1Min: PRECISION.add(ONE)  
+          token0: token0,
+          token1: token1,
+          fee: swapFeeBpsArray[0],
+          recipient: user.address,
+          tickLower: -100 * tickSpacingArray[0],
+          tickUpper: 100 * tickSpacingArray[0],
+          amount0Desired: PRECISION,
+          amount1Desired: PRECISION,
+          amount0Min: BN.from(0),
+          amount1Min: PRECISION.add(ONE)
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
     });
@@ -207,7 +224,7 @@ describe('LiquidityHelper', () => {
     it('correct tokens transfer to pool', async () => {
       let firstTokens = [weth.address, tokenA.address, tokenB.address];
       let secondTokens = [tokenA.address, tokenB.address, weth.address];
-      for (let i = 0 ; i < firstTokens.length; i++) {
+      for (let i = 0; i < firstTokens.length; i++) {
         let index = i % swapFeeBpsArray.length;
         let fee = swapFeeBpsArray[index];
 
@@ -221,21 +238,23 @@ describe('LiquidityHelper', () => {
         let poolBefore = await getBalances(pool.address, [firstTokens[i], secondTokens[i]]);
 
         await liquidityHelper.connect(user).testAddLiquidity({
-          token0: token0, token1: token1, fee: fee, recipient: user.address,
-          tickLower: -100 * tickSpacingArray[index], tickUpper: 100 * tickSpacingArray[index],
-          amount0Desired: PRECISION, amount1Desired: PRECISION,
-          amount0Min: BN.from(0), amount1Min: BN.from(0)  
+          token0: token0,
+          token1: token1,
+          fee: fee,
+          recipient: user.address,
+          tickLower: -100 * tickSpacingArray[index],
+          tickUpper: 100 * tickSpacingArray[index],
+          amount0Desired: PRECISION,
+          amount1Desired: PRECISION,
+          amount0Min: BN.from(0),
+          amount1Min: BN.from(0)
         });
 
         let userAfter = await getBalances(user.address, [firstTokens[i], secondTokens[i]]);
         let poolAfter = await getBalances(pool.address, [firstTokens[i], secondTokens[i]]);
 
-        expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0])).to.be.eq(
-          poolAfter.tokenBalances[0].sub(poolBefore.tokenBalances[0])
-        );
-        expect(userBefore.tokenBalances[1].sub(userAfter.tokenBalances[1])).to.be.eq(
-          poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
-        );
+        expect(userBefore[0].sub(userAfter[0])).to.be.eq(poolAfter[0].sub(poolBefore[0]));
+        expect(userBefore[1].sub(userAfter[1])).to.be.eq(poolAfter[1].sub(poolBefore[1]));
       }
     });
 
@@ -252,27 +271,28 @@ describe('LiquidityHelper', () => {
       let token1 = weth.address > tokenA.address ? weth.address : tokenA.address;
 
       let params = {
-        token0: token0, token1: token1, fee: fee, recipient: user.address,
-        tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
-        amount0Desired: PRECISION, amount1Desired: PRECISION,
-        amount0Min: BN.from(0), amount1Min: BN.from(0)
-      }
+        token0: token0,
+        token1: token1,
+        fee: fee,
+        recipient: user.address,
+        tickLower: -100 * tickSpacingArray[0],
+        tickUpper: 100 * tickSpacingArray[0],
+        amount0Desired: PRECISION,
+        amount1Desired: PRECISION,
+        amount0Min: BN.from(0),
+        amount1Min: BN.from(0)
+      };
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testAddLiquidity', [params])];
-      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH', [])); // refund redundant eth back to user
+      multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
-      let tx = await liquidityHelper.connect(user).multicall(multicallData, { value: PRECISION.mul(TWO), gasPrice: txGasPrice });
-      let txFee = txGasPrice.mul((await tx.wait()).gasUsed);
+      await liquidityHelper.connect(user).multicall(multicallData, {value: PRECISION.mul(TWO), gasPrice: ZERO});
 
       let userAfter = await getBalances(user.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
       let poolAfter = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
-      expect(userBefore.tokenBalances[0].sub(userAfter.tokenBalances[0]).sub(txFee)).to.be.eq(
-        poolAfter.tokenBalances[1].sub(poolBefore.tokenBalances[1])
-      );
-      expect(userBefore.tokenBalances[2].sub(userAfter.tokenBalances[2])).to.be.eq(
-        poolAfter.tokenBalances[2].sub(poolBefore.tokenBalances[2])
-      );
+      expect(userBefore[0].sub(userAfter[0])).to.be.eq(poolAfter[1].sub(poolBefore[1]));
+      expect(userBefore[2].sub(userAfter[2])).to.be.eq(poolAfter[2].sub(poolBefore[2]));
     });
   });
 });

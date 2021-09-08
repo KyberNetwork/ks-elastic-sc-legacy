@@ -6,6 +6,7 @@ import {SafeCast} from '../libraries/SafeCast.sol';
 import {TickMath} from '../libraries/TickMath.sol';
 import {PathHelper} from './libraries/PathHelper.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
+import {PoolTicksCounter} from './libraries/PoolTicksCounter.sol';
 
 import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
 import {IProAMMSwapCallback} from '../interfaces/callback/IProAMMSwapCallback.sol';
@@ -113,7 +114,11 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     int24 tickAfter;
     (, tickBefore, , ) = pool.getPoolState();
     (amount, sqrtPriceX96After, tickAfter) = parseRevertReason(reason);
-    // TODO: re-implement initializedTicksCrossed
+    initializedTicksCrossed = PoolTicksCounter.countInitializedTicksCrossed(
+      pool,
+      tickBefore,
+      tickAfter
+    );
 
     return (amount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate);
   }

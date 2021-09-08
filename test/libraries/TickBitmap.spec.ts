@@ -1,21 +1,23 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {ZERO, ONE, MINUS_ONE, TWO, TWO_POW_128, MAX_INT_128, MAX_UINT_128, MIN_INT_128} from '../helpers/helper';
+import {BigNumber as BN} from 'ethers';
+
+import {ONE} from '../helpers/helper';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {MockTickBitmap, MockTickBitmap__factory} from '../../typechain';
+import {MockTickBitmap, MockTickBitmap__factory, TickBitmapEchidnaTest, TickBitmapEchidnaTest__factory} from '../../typechain';
 
 let tickBitmap: MockTickBitmap;
 
 describe('TickBitmap', () => {
   beforeEach('deploy TickBitmapTest', async () => {
     const factory = (await ethers.getContractFactory('MockTickBitmap')) as MockTickBitmap__factory;
-    tickBitmap = await factory.deploy();
+    tickBitmap = await factory.deploy(ONE);
   });
 
-  async function initTicks(ticks: number[]): Promise<void> {
+  async function initTicks (ticks: number[]): Promise<void> {
     for (const tick of ticks) {
       await tickBitmap.flipTick(tick);
     }
@@ -73,18 +75,6 @@ describe('TickBitmap', () => {
       expect(await tickBitmap.isInitialized(-259)).to.eq(true);
       expect(await tickBitmap.isInitialized(-229)).to.eq(false);
     });
-
-    // it('gas cost of flipping first tick in word to initialized', async () => {
-    //   await snapshotGasCost(await tickBitmap.getGasCostOfFlipTick(1))
-    // })
-    // it('gas cost of flipping second tick in word to initialized', async () => {
-    //   await tickBitmap.flipTick(0)
-    //   await snapshotGasCost(await tickBitmap.getGasCostOfFlipTick(1))
-    // })
-    // it('gas cost of flipping a tick that results in deleting a word', async () => {
-    //   await tickBitmap.flipTick(0)
-    //   await snapshotGasCost(await tickBitmap.getGasCostOfFlipTick(0))
-    // })
   });
 
   describe('#nextInitializedTickWithinOneWord', () => {
@@ -226,6 +216,39 @@ describe('TickBitmap', () => {
       // it('gas cost for entire word', async () => {
       //   await snapshotGasCost(await tickBitmap.getGasCostOfNextInitializedTickWithinOneWord(1024, true))
       // })
+    });
+  });
+
+  describe('special case at MAX_TICK_DISTANCE', async () => {
+    beforeEach('init', async () => {
+      const factory = (await ethers.getContractFactory('MockTickBitmap')) as MockTickBitmap__factory;
+      tickBitmap = await factory.deploy(BN.from(50));
+
+      await initTicks([-200, -50, 50, 300, 1000]);
+    });
+
+    it('upper tick', async() => {
+      let {next, initialized} = await tickBitmap.nextInitializedTickWithinOneWord(0, true);
+      expect(next).to.eq(50);
+      expect(initialized).to.eq(true);
+    });
+
+    it('upper tick reach MAX_TICK_DISTANCE', async() => {
+      let {next, initialized} = await tickBitmap.nextInitializedTickWithinOneWord(300, true);
+      expect(next).to.eq(787); // 300 + 487
+      expect(initialized).to.eq(false);
+    });
+
+    it('lower tick', async() => {
+      let {next, initialized} = await tickBitmap.nextInitializedTickWithinOneWord(1000, false);
+      expect(next).to.eq(1000); // 300 + 487
+      expect(initialized).to.eq(true);
+    });
+
+    it('lower tick reach MAX_TICK_DISTANCE', async() => {
+      let {next, initialized} = await tickBitmap.nextInitializedTickWithinOneWord(999, false);
+      expect(next).to.eq(512); // 999 - 487
+      expect(initialized).to.eq(false);
     });
   });
 });

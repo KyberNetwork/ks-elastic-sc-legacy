@@ -15,7 +15,7 @@ import {
   ProAMMFactory__factory,
   ProAMMPool__factory
 } from '../typechain';
-import { getCreate2Address } from './helpers/utils';
+import {getCreate2Address} from './helpers/utils';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -113,16 +113,18 @@ describe('ProAMMFactory', () => {
         await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
         let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
         const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+        expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
         expect(poolAddress).to.eql(
           getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], ProAMMPoolContract.bytecode)
         );
-        expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
       });
     });
 
     describe('#updateConfigMaster', async () => {
       it('should revert if msg.sender != configMaster', async () => {
-        await expect(factory.connect(operator).updateConfigMaster(configMaster.address)).to.be.revertedWith('forbidden');
+        await expect(factory.connect(operator).updateConfigMaster(configMaster.address)).to.be.revertedWith(
+          'forbidden'
+        );
       });
 
       it('should correctly update configMaster and emit event', async () => {
@@ -200,7 +202,9 @@ describe('ProAMMFactory', () => {
         await expect(factory.connect(admin).updateFeeConfiguration(admin.address, 2001)).to.be.revertedWith(
           'invalid fee'
         );
-        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, BPS)).to.be.revertedWith('invalid fee');
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, BPS)).to.be.revertedWith(
+          'invalid fee'
+        );
       });
 
       it('should set new feeTo and governmentFeeBps, and emit event', async () => {
@@ -223,7 +227,9 @@ describe('ProAMMFactory', () => {
       });
 
       it('should be unable to update governmentFeeBps to 0 if feeTo is not null', async () => {
-        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, ZERO)).to.be.revertedWith('bad config');
+        await expect(factory.connect(admin).updateFeeConfiguration(admin.address, ZERO)).to.be.revertedWith(
+          'bad config'
+        );
       });
 
       it('should be unable to update to null feeTo if governmentFeeBps is not 0', async () => {
