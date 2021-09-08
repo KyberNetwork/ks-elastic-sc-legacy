@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BigNumber as BN, ContractTransaction} from 'ethers';
 import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT} from '../helpers/helper';
-import {encodePriceSqrt, getPriceFromTick} from '../helpers/utils';
+import {encodePriceSqrt, getBalances, getPriceFromTick} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -46,8 +46,6 @@ let ticks: number[];
 let firstSnapshot: any;
 let snapshotId: any;
 
-let getBalances: (who: string, tokens: string[]) => Promise<BN[]>;
-
 describe('ProAMMRouter', () => {
   const [user, admin] = waffle.provider.getWallets();
 
@@ -81,18 +79,6 @@ describe('ProAMMRouter', () => {
     await tokenB.connect(user).approve(router.address, MAX_UINT);
 
     snapshotId = await snapshot();
-
-    getBalances = async (account: string, tokens: string[]) => {
-      let balances = [];
-      for (let i = 0; i < tokens.length; i++) {
-        if (tokens[i] == ZERO_ADDRESS) {
-          balances.push(await ethers.provider.getBalance(account));
-        } else {
-          balances.push(await Token.attach(tokens[i]).balanceOf(account));
-        }
-      }
-      return balances;
-    };
   });
 
   const setupCallback = async function (tokenA: MockToken, tokenB: MockToken) {

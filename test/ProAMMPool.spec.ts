@@ -45,7 +45,6 @@ import {
 } from './helpers/utils';
 import {genRandomBN} from './helpers/genRandomBN';
 import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
-import {encodePath} from './helpers/swapPath';
 
 let factory: ProAMMFactory;
 let token0: MockToken;

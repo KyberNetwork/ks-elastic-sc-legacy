@@ -1,19 +1,8 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {
-  BN,
-  PRECISION,
-  ZERO_ADDRESS,
-  MIN_SQRT_RATIO,
-  ONE,
-  TWO,
-  MIN_LIQUIDITY,
-  MAX_SQRT_RATIO,
-  TWO_POW_96,
-  ZERO
-} from './helpers/helper';
-import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice} from './helpers/utils';
+import {BigNumber as BN} from 'ethers';
+import {PRECISION, ZERO_ADDRESS, ONE, TWO, ZERO, MAX_UINT} from './helpers/helper';
+import {encodePriceSqrt, getBalances} from './helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -32,8 +21,7 @@ import {deployFactory} from './helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from './helpers/hardhat';
 import {ProAMMPool} from '../typechain/ProAMMPool';
 
-let Token: MockToken__factory;
-let LiquidityHelper: MockLiquidityHelper__factory;
+let TokenFactory: MockToken__factory;
 let factory: ProAMMFactory;
 let liquidityHelper: MockLiquidityHelper;
 let tokenA: MockToken;
@@ -41,26 +29,26 @@ let tokenB: MockToken;
 let weth: MockWeth;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
-let initialPrice: BigNumber;
+let initialPrice = encodePriceSqrt(1, 1);
 let snapshotId: any;
-
-let getBalances: (who: string, tokens: string[]) => Promise<BigNumber[]>;
 
 describe('LiquidityHelper', () => {
   const [user, admin] = waffle.provider.getWallets();
 
   before('factory, token and callback setup', async () => {
-    Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
-    tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
-    tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
+    TokenFactory = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
+    tokenA = await TokenFactory.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
+    tokenB = await TokenFactory.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
     factory = await deployFactory(admin);
 
-    const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
-    weth = await WETH.deploy();
+    const WETHContract = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
+    weth = await WETHContract.deploy();
 
     // use liquidity helper
-    LiquidityHelper = (await ethers.getContractFactory('MockLiquidityHelper')) as MockLiquidityHelper__factory;
-    liquidityHelper = await LiquidityHelper.deploy(factory.address, weth.address);
+    const LiquidityHelpeContract = (await ethers.getContractFactory(
+      'MockLiquidityHelper'
+    )) as MockLiquidityHelper__factory;
+    liquidityHelper = await LiquidityHelpeContract.deploy(factory.address, weth.address);
 
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -69,24 +57,10 @@ describe('LiquidityHelper', () => {
       }
     }
 
-    initialPrice = encodePriceSqrt(1, 1);
-
     await weth.connect(user).deposit({value: PRECISION.mul(BN.from(10))});
-    await weth.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
-    await tokenA.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
-    await tokenB.connect(user).approve(liquidityHelper.address, BN.from(2).pow(255));
-
-    getBalances = async (account: string, tokens: string[]) => {
-      let balances = [];
-      for (let i = 0; i < tokens.length; i++) {
-        if (tokens[i] == ZERO_ADDRESS) {
-          balances.push(await ethers.provider.getBalance(account));
-        } else {
-          balances.push(await Token.attach(tokens[i]).balanceOf(account));
-        }
-      }
-      return balances;
-    };
+    await weth.connect(user).approve(liquidityHelper.address, MAX_UINT);
+    await tokenA.connect(user).approve(liquidityHelper.address, MAX_UINT);
+    await tokenB.connect(user).approve(liquidityHelper.address, MAX_UINT);
 
     snapshotId = await snapshot();
   });
