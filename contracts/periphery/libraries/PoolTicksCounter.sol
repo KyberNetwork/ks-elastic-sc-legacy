@@ -21,30 +21,15 @@ library PoolTicksCounter {
     bool tickAfterInitialized;
 
     {
-      // Get the key and offset in the tick bitmap of the active tick before and after the swap.
-      int16 wordPos = int16((tickBefore / self.tickSpacing()) >> 8);
-      uint8 bitPos = uint8(uint24(tickBefore / self.tickSpacing()) % 256);
+      int24 tickSpacing = self.tickSpacing();
+      int16 wordPos;
+      uint8 bitPos;
+      (wordPos, bitPos, tickBeforeInitialized) = position(self, tickBefore, tickSpacing);
+      int16 wordPosAfter;
+      uint8 bitPosAfter;
+      (wordPosAfter, bitPosAfter, tickAfterInitialized) = position(self, tickAfter, tickSpacing);
 
-      int16 wordPosAfter = int16((tickAfter / self.tickSpacing()) >> 8);
-      uint8 bitPosAfter = uint8(uint24(tickAfter / self.tickSpacing()) % 256);
-
-      // In the case where tickAfter is initialized, we only want to count it if we are swapping downwards.
-      // If the initializable tick after the swap is initialized, our original tickAfter is a
-      // multiple of tick spacing, and we are swapping downwards we know that tickAfter is initialized
-      // and we shouldn't count it.
-      tickAfterInitialized =
-        ((self.tickBitmap(wordPosAfter) & (1 << bitPosAfter)) > 0) &&
-        ((tickAfter % self.tickSpacing()) == 0) &&
-        (tickBefore > tickAfter);
-
-      // In the case where tickBefore is initialized, we only want to count it if we are swapping upwards.
-      // Use the same logic as above to decide whether we should count tickBefore or not.
-      tickBeforeInitialized =
-        ((self.tickBitmap(wordPos) & (1 << bitPos)) > 0) &&
-        ((tickBefore % self.tickSpacing()) == 0) &&
-        (tickBefore < tickAfter);
-
-      if (wordPos < wordPosAfter || (wordPos == wordPosAfter && bitPos <= bitPosAfter)) {
+      if (tickBefore <= tickAfter) {
         wordPosLower = wordPos;
         bitPosLower = bitPos;
         wordPosHigher = wordPosAfter;
@@ -74,15 +59,36 @@ library PoolTicksCounter {
       mask = type(uint256).max;
     }
 
-    if (tickAfterInitialized) {
+    // In the case where tickAfter is initialized, we only want to count it if we are swapping downwards.
+    if (tickAfterInitialized && tickBefore > tickAfter) {
       initializedTicksCrossed -= 1;
     }
 
-    if (tickBeforeInitialized) {
+    // In the case where tickBefore is initialized, we only want to count it if we are swapping upwards.
+    if (tickBeforeInitialized && tickBefore < tickAfter) {
       initializedTicksCrossed -= 1;
     }
 
     return initializedTicksCrossed;
+  }
+
+  function position(
+    IProAMMPool self,
+    int24 tick,
+    int24 tickSpacing
+  )
+    private
+    view
+    returns (
+      int16 wordPos,
+      uint8 bitPos,
+      bool isInitialized
+    )
+  {
+    int24 compressed = tick / tickSpacing;
+    wordPos = int16(compressed >> 8);
+    bitPos = uint8(int8(compressed % 256));
+    isInitialized = ((tick % tickSpacing) == 0) && (self.tickBitmap(wordPos) & (1 << bitPos) > 0);
   }
 
   function countOneBits(uint256 x) private pure returns (uint16) {
