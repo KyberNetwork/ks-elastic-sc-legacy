@@ -3,10 +3,12 @@ pragma solidity 0.8.4;
 pragma abicoder v2;
 
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {INonfungiblePositionManager, IERC721Metadata} from '../interfaces/periphery/INonfungiblePositionManager.sol';
+import {INonfungiblePositionManager, IERC721Metadata, IRouterTokenHelper} from '../interfaces/periphery/INonfungiblePositionManager.sol';
 import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
-import {LiquidityHelper, ImmutableRouterStorage} from './base/LiquidityHelper.sol';
+import {FullMath} from '../libraries/FullMath.sol';
+import {MathConstants} from '../libraries/MathConstants.sol';
+import {LiquidityHelper, ImmutableRouterStorage, RouterTokenHelper} from './base/LiquidityHelper.sol';
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
@@ -30,12 +32,17 @@ contract NonfungiblePositionManager is
     int24 tickUpper;
     // the liquidity of the position
     uint128 liquidity;
+    // the current rToken that the position owed
+    uint256 rTokenOwed;
+    // fee growth per unit of liquidity as of the last update to liquidity
+    uint256 feeGrowthInsideLast;
   }
 
   struct PoolInfo {
     address token0;
     uint16 fee;
     address token1;
+    address rToken;
   }
 
   address private immutable _tokenDescriptor;
@@ -44,6 +51,9 @@ contract NonfungiblePositionManager is
   mapping (address => uint80) private _addressToPoolId;
   // pool id => pool info
   mapping (uint80 => PoolInfo) private _poolInfoById;
+  mapping (address => bool) public isRToken;
+  mapping (uint80 => mapping (int24 => mapping (int24 => uint256))) public totalLiquidity;
+
   uint80 private _nextPoolId = 1;
   uint256 private _nextTokenId = 1;
 
@@ -101,7 +111,12 @@ contract NonfungiblePositionManager is
     tokenId = _nextTokenId++;
     _mint(params.recipient, tokenId);
 
-    uint80 poolId = _storePoolInfo(address(pool), PoolInfo({ token0: params.token0, fee: params.fee, token1: params.token1 }));
+    uint80 poolId = _storePoolInfo(
+      address(pool),
+      PoolInfo({ token0: params.token0, fee: params.fee, token1: params.token1, rToken: address(pool.reinvestmentToken()) })
+    );
+
+    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, params.tickLower, params.tickUpper);
 
     _positions[tokenId] = Position({
       nonce: 0,
@@ -109,10 +124,10 @@ contract NonfungiblePositionManager is
       poolId: poolId,
       tickLower: params.tickLower,
       tickUpper: params.tickUpper,
-      liquidity: liquidity
+      liquidity: liquidity,
+      rTokenOwed: 0,
+      feeGrowthInsideLast: feeGrowthInsideLast
     });
-
-    // TODO: Emit event
   }
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
@@ -138,7 +153,18 @@ contract NonfungiblePositionManager is
       amount0Min: params.amount0Min, amount1Min: params.amount1Min
     }));
 
+    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, pos.tickLower, pos.tickUpper);
+
+    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+      pos.rTokenOwed += FullMath.mulDivFloor(
+        pos.liquidity,
+        feeGrowthInsideLast - pos.feeGrowthInsideLast,
+        MathConstants.TWO_POW_96
+      );
+    }
+
     pos.liquidity += liquidity;
+    pos.feeGrowthInsideLast = feeGrowthInsideLast;
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -161,7 +187,43 @@ contract NonfungiblePositionManager is
     (amount0, amount1, feesClaimable) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
+    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, pos.tickLower, pos.tickUpper);
+
+    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+      pos.rTokenOwed += FullMath.mulDivFloor(
+        pos.liquidity,
+        feeGrowthInsideLast - pos.feeGrowthInsideLast,
+        MathConstants.TWO_POW_96
+      );
+    }
+
     pos.liquidity -= params.liquidity;
+    pos.feeGrowthInsideLast = feeGrowthInsideLast;
+  }
+
+  function burnRTokens(BurnRTokenParams calldata params)
+    external
+    override
+    isAuthorizedForToken(params.tokenId)
+    onlyNotExpired(params.deadline)
+    returns (
+      uint256 rTokenQty,
+      uint256 amount0,
+      uint256 amount1
+    )
+  {
+    Position storage pos = _positions[params.tokenId];
+    PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
+    IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
+
+    rTokenQty = pos.rTokenOwed;
+    if (rTokenQty <= 1) return (0, 0, 0);
+
+    // keep 1 twei to save gas
+    pos.rTokenOwed = 1;
+    rTokenQty -= 1;
+    (amount0, amount1) = pool.burnRTokens(rTokenQty);
+    require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
   }
 
   /**
@@ -170,8 +232,22 @@ contract NonfungiblePositionManager is
    */
   function burn(uint256 tokenId) external payable override isAuthorizedForToken(tokenId) {
     require(_positions[tokenId].liquidity == 0, 'Should remove liquidity first');
+    require(_positions[tokenId].rTokenOwed == 0, 'Should burn rToken first');
     delete _positions[tokenId];
     _burn(tokenId);
+  }
+
+  /**
+   * @dev Override this function to not allow transferring rTokens
+   * @notice it also means this PositionManager can not work with LP of a rToken and another token
+   */
+  function transferAllTokens(
+    address token,
+    uint256 minAmount,
+    address recipient
+  ) public payable override(IRouterTokenHelper, RouterTokenHelper) {
+    require(!isRToken[token], 'Can not transfer rToken');
+    super.transferAllTokens(token, minAmount, recipient);
   }
 
   function _storePoolInfo(address pool, PoolInfo memory info) private returns (uint80 poolId) {
@@ -179,7 +255,16 @@ contract NonfungiblePositionManager is
     if (poolId == 0) {
       _addressToPoolId[pool] = (poolId = _nextPoolId++);
       _poolInfoById[poolId] = info;
+      isRToken[info.rToken] = true;
     }
+  }
+
+  function _getFeeGrowInside(IProAMMPool pool, int24 tickLower, int24 tickUpper)
+    internal view
+    returns (uint256 feeGrowthInsideLast)
+  {
+    bytes32 positonKey = _positionKey(tickLower, tickUpper);
+    (, feeGrowthInsideLast) = pool.positions(positonKey);
   }
 
   function _positionKey(int24 tickLower, int24 tickUpper) internal view returns (bytes32) {

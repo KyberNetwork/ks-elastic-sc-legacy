@@ -42,6 +42,13 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
     uint256 deadline;
   }
 
+  struct BurnRTokenParams {
+    uint256 tokenId;
+    uint256 amount0Min;
+    uint256 amount1Min;
+    uint256 deadline;
+  }
+
   /// @notice Creates a new pool if it does not exist, then unlocks if it has not been unlocked
   /// @param token0 the token0 of the pool
   /// @param token1 the token1 of the pool
@@ -82,6 +89,14 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
       uint256 amount0,
       uint256 amount1,
       uint256 feesClaimable
+    );
+
+  function burnRTokens(BurnRTokenParams calldata params)
+    external
+    returns (
+      uint256 rTokenQty,
+      uint256 amount0,
+      uint256 amount1
     );
 
   /**
