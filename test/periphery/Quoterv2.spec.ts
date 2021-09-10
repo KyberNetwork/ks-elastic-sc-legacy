@@ -79,6 +79,9 @@ describe('QuoterV2', function () {
     )) as MockProAMMCallbacks2__factory;
     let callback = await CallbackContract.deploy();
 
+    // whitelist callback
+    await factory.connect(admin).addNFTManager(callback.address);
+
     // init tokens by asc order
     const MockTokenContract = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     const tokens: MockToken[] = [];

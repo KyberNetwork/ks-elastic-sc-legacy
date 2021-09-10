@@ -52,6 +52,18 @@ interface IProAMMFactory {
   /// and current government fee charged in basis points
   function feeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);
 
+  //// @notice Returns all whitelisted NFT managers
+  /// Only whitelisted NFT manager(s) are allowed to burn liquidity tokens
+  /// on behalf of users
+  function getWhitelistedNFTManagers() external view returns (address[] memory);
+
+  /// @notice Checks if sender is a whitelisted NFT manager
+  /// Only whitelisted NFT manager(s) are allowed to burn liquidity tokens
+  /// on behalf of users
+  /// @param sender address to be checked
+  /// @return true if sender is a whistelisted NFT manager, false otherwise
+  function isWhitelistedNFTManager(address sender) external view returns (bool);
+
   /// @notice Returns the pool address for a given pair of tokens and a swap fee
   /// @dev Token order does not matter
   /// @param tokenA Contract address of either token0 or token1
@@ -63,6 +75,24 @@ interface IProAMMFactory {
     address tokenB,
     uint16 swapFeeBps
   ) external view returns (address pool);
+
+  /// @notice Fetch parameters to be used for pool creation
+  /// @dev Called by the pool constructor to fetch the parameters of the pool
+  /// @return factory The factory address
+  /// @return token0 First pool token by address sort order
+  /// @return token1 Second pool token by address sort order
+  /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
+  /// @return tickSpacing Minimum number of ticks between initialized ticks
+  function parameters()
+    external
+    view
+    returns (
+      address factory,
+      address token0,
+      address token1,
+      uint16 swapFeeBps,
+      int24 tickSpacing
+    );
 
   /// @notice Creates a pool for the given two tokens and fee
   /// @param tokenA One of the two tokens in the desired pool
@@ -96,22 +126,4 @@ interface IProAMMFactory {
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
   function updateFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
-
-  /// @notice Fetch parameters to be used for pool creation
-  /// @dev Called by the pool constructor to fetch the parameters of the pool
-  /// @return factory The factory address
-  /// @return token0 First pool token by address sort order
-  /// @return token1 Second pool token by address sort order
-  /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @return tickSpacing Minimum number of ticks between initialized ticks
-  function parameters()
-    external
-    view
-    returns (
-      address factory,
-      address token0,
-      address token1,
-      uint16 swapFeeBps,
-      int24 tickSpacing
-    );
 }

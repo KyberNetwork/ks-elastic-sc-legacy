@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0;
 
 import {FullMath} from './FullMath.sol';
-import {MathConstants} from './MathConstants.sol';
+import {MathConstants as C} from './MathConstants.sol';
 import {LiqDeltaMath} from './LiqDeltaMath.sol';
 
 /// @title Position
@@ -48,7 +48,7 @@ library Position {
     feesClaimable = FullMath.mulDivFloor(
       feeGrowthInside - _self.feeGrowthInsideLast,
       _self.liquidity,
-      MathConstants.TWO_POW_96
+      C.TWO_POW_96
     );
     // update the position
     self.liquidity = LiqDeltaMath.addLiquidityDelta(_self.liquidity, liquidityDelta);

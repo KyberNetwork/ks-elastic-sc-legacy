@@ -354,6 +354,7 @@ contract ProAMMPool is IProAMMPool {
     )
   {
     require(qty > 0, '0 qty');
+    require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
@@ -440,7 +441,7 @@ contract ProAMMPool is IProAMMPool {
     }
 
     // burn _qty of caller
-    // router should transfer _qty from user to itself, but not send it to the pool
+    // position manager should transfer _qty from user to itself, but not send it to the pool
     // for direct calls, msg.sender should have sufficient balance
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning
