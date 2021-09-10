@@ -59,6 +59,7 @@ let swapFeeBpsArray = [5, 30];
 let swapFeeBps = swapFeeBpsArray[0];
 let tickSpacingArray = [10, 60];
 let tickSpacing = tickSpacingArray[0];
+let vestingPeriod = 100;
 
 let minTick = getMinTick(tickSpacing);
 let maxTick = getMaxTick(tickSpacing);
@@ -85,8 +86,8 @@ class Fixtures {
 describe('ProAMMPool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
-  async function fixture(): Promise<Fixtures> {
-    let factory = await deployMockFactory(admin);
+  async function fixture (): Promise<Fixtures> {
+    let factory = await deployMockFactory(admin, vestingPeriod);
     const ProAMMPoolContract = (await ethers.getContractFactory('MockProAMMPool')) as MockProAMMPool__factory;
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {

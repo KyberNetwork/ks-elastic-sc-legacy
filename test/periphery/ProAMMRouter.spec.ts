@@ -38,6 +38,7 @@ let pool: ProAMMPool;
 let weth: MockWeth;
 let router: ProAMMRouter;
 let callback: MockProAMMCallbacks;
+let vestingPeriod = 100;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
 let initialPrice: BN;
@@ -53,7 +54,7 @@ describe('ProAMMRouter', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
-    factory = await deployFactory(admin);
+    factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();

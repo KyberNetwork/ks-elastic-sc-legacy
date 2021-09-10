@@ -23,6 +23,7 @@ let tokenA: MockToken;
 let tokenB: MockToken;
 let swapFeeBps: number;
 let tickSpacing: number;
+let vestingPeriod = 100;
 
 describe('ProAMMFactory', () => {
   const [operator, admin, configMaster, nftManager, nftManager2] = waffle.provider.getWallets();
@@ -37,7 +38,7 @@ describe('ProAMMFactory', () => {
     reinvestmentMaster = await ReinvestmentMaster.deploy();
 
     const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address);
+    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
   }
 
   beforeEach('load fixture', async () => {
@@ -114,6 +115,25 @@ describe('ProAMMFactory', () => {
         getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], ProAMMPoolContract.bytecode)
       );
       expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
+    });
+  });
+
+  describe('#updateVestingPeriod', async () => {
+    it('should revert if msg.sender != configMaster', async () => {
+      await expect(factory.connect(operator).updateVestingPeriod(vestingPeriod)).to.be.revertedWith('forbidden');
+    });
+
+    it('should set new vesting period, and emit event', async () => {
+      let newVestingPeriod = 1000;
+      await expect(factory.connect(admin).updateVestingPeriod(newVestingPeriod))
+        .to.emit(factory, 'VestingPeriodUpdated')
+        .withArgs(newVestingPeriod);
+      expect(await factory.vestingPeriod()).to.be.eql(newVestingPeriod);
+    });
+
+    it('should be able to update vesting period to 0', async () => {
+      await factory.connect(admin).updateVestingPeriod(ZERO);
+      expect(await factory.vestingPeriod()).to.be.eql(0);
     });
   });
 

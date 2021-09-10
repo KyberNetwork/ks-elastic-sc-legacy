@@ -16,6 +16,7 @@ import {MockProAMMCallbacks2, MockProAMMCallbacks2__factory} from '../../typecha
 
 let swapFeeBpsArray = [5, 2];
 let tickSpacingArray = [10, 6];
+let vestingPeriod = 100;
 
 class Fixtures {
   constructor (
@@ -63,7 +64,7 @@ describe('QuoterV2', function () {
   let [admin, wallet] = waffle.provider.getWallets();
 
   async function fixture (): Promise<Fixtures> {
-    let factory = await deployFactory(admin);
+    let factory = await deployFactory(admin, vestingPeriod);
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {

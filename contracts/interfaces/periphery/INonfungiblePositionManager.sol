@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
+import {ISnipAttack} from '../ISnipAttackData.sol';
 
 
 interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IERC721Permit {
@@ -24,6 +25,8 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
     uint256 rTokenOwed;
     // fee growth per unit of liquidity as of the last update to liquidity
     uint256 feeGrowthInsideLast;
+    // variables needed for anti-snipping attack
+    ISnipAttack.Data antiSnipAttackData;
   }
 
   struct PoolInfo {

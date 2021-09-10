@@ -29,4 +29,9 @@ contract ReinvestmentTokenMaster is ERC20PermitInitializable, IReinvestmentToken
     _burn(user, amount);
     emit Burn(user, amount);
   }
+
+  function burn(uint256 amount) external override {
+    _burn(msg.sender, amount);
+    emit Burn(msg.sender, amount);
+  }
 }

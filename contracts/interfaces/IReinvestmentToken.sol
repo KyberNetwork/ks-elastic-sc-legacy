@@ -11,7 +11,10 @@ interface IReinvestmentToken is IERC20 {
   /// callable by ProAMMPool only
   function mint(address recipient, uint256 amount) external;
 
-  /// @notice burns speicifed amount of tokens from user
+  /// @notice burns specified amount of tokens from user
   /// callable by ProAMMPool only
   function burn(address user, uint256 amount) external;
+
+  /// @notice burns specified amount of tokens from caller
+  function burn(uint256 amount) external;
 }

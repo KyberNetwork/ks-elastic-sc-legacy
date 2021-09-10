@@ -39,6 +39,7 @@ let weth: MockWeth;
 let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
+let vestingPeriod = 0;
 let initialPrice: BigNumber;
 let snapshotId: any;
 let initialSnapshotId: any;
@@ -59,7 +60,7 @@ describe('NonFungiblePositionManager', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(100000000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(100000000000).mul(PRECISION));
-    factory = await deployFactory(admin);
+    factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();
