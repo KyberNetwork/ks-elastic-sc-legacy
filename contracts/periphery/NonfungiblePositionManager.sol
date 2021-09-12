@@ -20,45 +20,23 @@ contract NonfungiblePositionManager is
   ERC721Permit,
   LiquidityHelper
 {
-  struct Position {
-    // the nonce for permits
-    uint96 nonce;
-    // the address that is approved for spending this token
-    address operator;
-    // the ID of the pool with which this token is connected
-    uint80 poolId;
-    // the tick range of the position
-    int24 tickLower;
-    int24 tickUpper;
-    // the liquidity of the position
-    uint128 liquidity;
-    // the current rToken that the position owed
-    uint256 rTokenOwed;
-    // fee growth per unit of liquidity as of the last update to liquidity
-    uint256 feeGrowthInsideLast;
-  }
-
-  struct PoolInfo {
-    address token0;
-    uint16 fee;
-    address token1;
-    address rToken;
-  }
 
   address private immutable _tokenDescriptor;
-
-  // pool address => pool id
-  mapping (address => uint80) private _addressToPoolId;
-  // pool id => pool info
-  mapping (uint80 => PoolInfo) private _poolInfoById;
-  mapping (address => bool) public isRToken;
-  mapping (uint80 => mapping (int24 => mapping (int24 => uint256))) public totalLiquidity;
-
   uint80 private _nextPoolId = 1;
   uint256 private _nextTokenId = 1;
-
-  // tokenId => Position
+  // pool id => pool info
+  mapping (uint80 => PoolInfo) private _poolInfoById;
+  // tokenId => position
   mapping (uint256 => Position) private _positions;
+
+  mapping (address => bool) public override isRToken;
+  // pool address => pool id
+  mapping (address => uint80) public override addressToPoolId;
+
+  modifier isAuthorizedForToken(uint256 tokenId) {
+    require(_isApprovedOrOwner(msg.sender, tokenId), 'Not approved');
+    _;
+  }
 
   constructor(address _factory, address _WETH, address _descriptor)
     ERC721Permit('ProAMM NFT Positions V1', 'PRO-AMM-POS-V1', '1')
@@ -232,14 +210,25 @@ contract NonfungiblePositionManager is
    */
   function burn(uint256 tokenId) external payable override isAuthorizedForToken(tokenId) {
     require(_positions[tokenId].liquidity == 0, 'Should remove liquidity first');
-    require(_positions[tokenId].rTokenOwed == 0, 'Should burn rToken first');
+    require(_positions[tokenId].rTokenOwed <= 1, 'Should burn rToken first');
     delete _positions[tokenId];
     _burn(tokenId);
   }
 
+  function positions(uint256 tokenId)
+    external view override
+    returns (
+      Position memory pos,
+      PoolInfo memory info
+    )
+  {
+    pos = _positions[tokenId];
+    info = _poolInfoById[pos.poolId];
+  }
+
   /**
    * @dev Override this function to not allow transferring rTokens
-   * @notice it also means this PositionManager can not work with LP of a rToken and another token
+   * @notice it also means this PositionManager can not support LP of a rToken and another token
    */
   function transferAllTokens(
     address token,
@@ -250,10 +239,20 @@ contract NonfungiblePositionManager is
     super.transferAllTokens(token, minAmount, recipient);
   }
 
+  function tokenURI(uint256 tokenId) public view override(ERC721, IERC721Metadata) returns (string memory) {
+    require(_exists(tokenId));
+    return INonfungibleTokenPositionDescriptor(_tokenDescriptor).tokenURI(this, tokenId);
+  }
+
+  function getApproved(uint256 tokenId) public view override(ERC721, IERC721) returns (address) {
+    require(_exists(tokenId), 'ERC721: approved query for nonexistent token');
+    return _positions[tokenId].operator;
+  }
+
   function _storePoolInfo(address pool, PoolInfo memory info) private returns (uint80 poolId) {
-    poolId = _addressToPoolId[pool];
+    poolId = addressToPoolId[pool];
     if (poolId == 0) {
-      _addressToPoolId[pool] = (poolId = _nextPoolId++);
+      addressToPoolId[pool] = (poolId = _nextPoolId++);
       _poolInfoById[poolId] = info;
       isRToken[info.rToken] = true;
     }
@@ -269,21 +268,6 @@ contract NonfungiblePositionManager is
 
   function _positionKey(int24 tickLower, int24 tickUpper) internal view returns (bytes32) {
     return keccak256(abi.encodePacked(address(this), tickLower, tickUpper));
-  }
-
-  modifier isAuthorizedForToken(uint256 tokenId) {
-    require(_isApprovedOrOwner(msg.sender, tokenId), 'Not approved');
-    _;
-  }
-
-  function tokenURI(uint256 tokenId) public view override(ERC721, IERC721Metadata) returns (string memory) {
-    require(_exists(tokenId));
-    return INonfungibleTokenPositionDescriptor(_tokenDescriptor).tokenURI(this, tokenId);
-  }
-
-  function getApproved(uint256 tokenId) public view override(ERC721, IERC721) returns (address) {
-    require(_exists(tokenId), 'ERC721: approved query for nonexistent token');
-    return _positions[tokenId].operator;
   }
 
   /// @dev Overrides _approve to use the operator in the position, which is packed with the position permit nonce
