@@ -655,5 +655,47 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     }
   }
 
-  // TODO flash
+  /// @inheritdoc IProAMMPoolActions
+  function flash(
+    address recipient,
+    uint256 qty0,
+    uint256 qty1,
+    bytes calldata data
+  ) external override lock {
+    require(poolLiquidity > 0, '0 liquidity');
+
+    // send all collected fees to feeTo
+    (address feeTo, ) = factory.feeConfiguration();
+    uint256 feeQty0;
+    uint256 feeQty1;
+    if (feeTo != address(0)) {
+       feeQty0 = qty0 * swapFeeBps / C.BPS;
+       feeQty1 = qty1 * swapFeeBps / C.BPS;
+    }
+    uint256 balance0Before = poolBalToken0();
+    uint256 balance1Before = poolBalToken1();
+
+    if (qty0 > 0) token0.safeTransfer(recipient, qty0);
+    if (qty1 > 0) token1.safeTransfer(recipient, qty1);
+
+    IProAMMFlashCallback(msg.sender).proAMMFlashCallback(feeQty0, feeQty1, data);
+
+    uint256 balance0After = poolBalToken0();
+    uint256 balance1After = poolBalToken1();
+
+    require(balance0Before + feeQty0 <= balance0After, 'lacking feeQty0');
+    require(balance1Before + feeQty1 <= balance1After, 'lacking feeQty1');
+
+    uint256 paid0;
+    uint256 paid1;
+    unchecked {
+      paid0 = balance0After - balance0Before;
+      paid1 = balance1After - balance1Before;
+    }
+
+    if (paid0 > 0) token0.safeTransfer(feeTo, paid0);
+    if (paid1 > 0) token1.safeTransfer(feeTo, paid1);
+    
+    emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
+  }
 }

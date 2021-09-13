@@ -68,4 +68,20 @@ interface IProAMMPoolEvents {
     uint128 liquidity,
     int24 tick
   );
+
+  /// @notice Emitted by the pool for any flash loans of token0/token1
+  /// @param sender The address that initiated the flash loan, and that received the callback
+  /// @param recipient The address that received the flash loan quantities
+  /// @param qty0 token0 quantity loaned to the recipient
+  /// @param qty1 token1 quantity loaned to the recipient
+  /// @param paid0 token0 quantity paid for the flash, which can exceed qty0 + fee
+  /// @param paid1 token1 quantity paid for the flash, which can exceed qty0 + fee
+  event Flash(
+    address indexed sender,
+    address indexed recipient,
+    uint256 qty0,
+    uint256 qty1,
+    uint256 paid0,
+    uint256 paid1
+  );
 }

@@ -34,18 +34,36 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 22000,
+            runs: 100000,
           },
         },
       },
     ],
     overrides: {
+      'contracts/ProAMMFactory.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10000,
+          },
+        }
+      },
+      'contracts/ProAMMPool.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10000,
+          },
+        }
+      },
       'contracts/periphery/NonfungiblePositionManager.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
             enabled: true,
-            runs: 2000,
+            runs: 10000,
           },
         }
       }
