@@ -58,20 +58,22 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     if (isExactInput) {
       assembly {
         let ptr := mload(0x40)
-        mstore(ptr, amountReceived)
-        mstore(add(ptr, 0x20), sqrtPriceX96After)
-        mstore(add(ptr, 0x40), tickAfter)
-        revert(ptr, 96)
+        mstore(ptr, amountToPay)
+        mstore(add(ptr, 0x20), amountReceived)
+        mstore(add(ptr, 0x40), sqrtPriceX96After)
+        mstore(add(ptr, 0x60), tickAfter)
+        revert(ptr, 128)
       }
     } else {
       // if the cache has been populated, ensure that the full output amount has been received
       if (amountOutCached != 0) require(amountReceived == amountOutCached);
       assembly {
         let ptr := mload(0x40)
-        mstore(ptr, amountToPay)
-        mstore(add(ptr, 0x20), sqrtPriceX96After)
-        mstore(add(ptr, 0x40), tickAfter)
-        revert(ptr, 96)
+        mstore(ptr, amountReceived)
+        mstore(add(ptr, 0x20), amountToPay)
+        mstore(add(ptr, 0x40), sqrtPriceX96After)
+        mstore(add(ptr, 0x60), tickAfter)
+        revert(ptr, 128)
       }
     }
   }
@@ -81,76 +83,62 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     private
     pure
     returns (
-      uint256 amount,
+      uint256 usedAmount,
+      uint256 returnedAmount,
       uint160 sqrtPriceX96After,
       int24 tickAfter
     )
   {
-    if (reason.length != 96) {
+    if (reason.length != 128) {
       if (reason.length < 68) revert('Unexpected error');
       assembly {
         reason := add(reason, 0x04)
       }
       revert(abi.decode(reason, (string)));
     }
-    return abi.decode(reason, (uint256, uint160, int24));
+    return abi.decode(reason, (uint256, uint256, uint160, int24));
   }
 
   function handleRevert(
     bytes memory reason,
     IProAMMPool pool,
     uint256 gasEstimate
-  )
-    private
-    view
-    returns (
-      uint256 amount,
-      uint160 sqrtPriceX96After,
-      uint32 initializedTicksCrossed,
-      uint256
-    )
-  {
+  ) private view returns (QuoteOutput memory output) {
     int24 tickBefore;
     int24 tickAfter;
     (, tickBefore, , ) = pool.getPoolState();
-    (amount, sqrtPriceX96After, tickAfter) = parseRevertReason(reason);
-    initializedTicksCrossed = PoolTicksCounter.countInitializedTicksCrossed(
+    (
+      output.usedAmount,
+      output.returnedAmount,
+      output.sqrtPriceX96After,
+      tickAfter
+    ) = parseRevertReason(reason);
+    output.initializedTicksCrossed = PoolTicksCounter.countInitializedTicksCrossed(
       pool,
       tickBefore,
       tickAfter
     );
-
-    return (amount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate);
+    output.gasEstimate = gasEstimate;
   }
 
   function quoteExactInputSingle(QuoteExactInputSingleParams memory params)
     public
     override
-    returns (
-      uint256 amountOut,
-      uint160 sqrtPriceX96After,
-      uint32 initializedTicksCrossed,
-      uint256 gasEstimate
-    )
+    returns (QuoteOutput memory output)
   {
     // if tokenIn < tokenOut, token input and specified token is token0, swap from 0 to 1
     bool isToken0 = params.tokenIn < params.tokenOut;
     IProAMMPool pool = getPool(params.tokenIn, params.tokenOut, params.feeBps);
-
+    bytes memory data = abi.encodePacked(params.tokenIn, params.feeBps, params.tokenOut);
+    uint160 priceLimit = params.sqrtPriceLimitX96 == 0
+      ? (isToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+      : params.sqrtPriceLimitX96;
     uint256 gasBefore = gasleft();
-    try
-      pool.swap(
-        address(this), // address(0) might cause issues with some tokens
-        params.amountIn.toInt256(),
-        isToken0,
-        params.sqrtPriceLimitX96 == 0
-          ? (isToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-          : params.sqrtPriceLimitX96,
-        abi.encodePacked(params.tokenIn, params.feeBps, params.tokenOut)
-      )
-    {} catch (bytes memory reason) {
-      gasEstimate = gasBefore - gasleft();
-      return handleRevert(reason, pool, gasEstimate);
+    try pool.swap(address(this), params.amountIn.toInt256(), isToken0, priceLimit, data) {} catch (
+      bytes memory reason
+    ) {
+      uint256 gasEstimate = gasBefore - gasleft();
+      output = handleRevert(reason, pool, gasEstimate);
     }
   }
 
@@ -172,12 +160,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
       (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
 
       // the outputs of prior swaps become the inputs to subsequent ones
-      (
-        uint256 _amountOut,
-        uint160 _sqrtPriceX96After,
-        uint32 _initializedTicksCrossed,
-        uint256 _gasEstimate
-      ) = quoteExactInputSingle(
+      QuoteOutput memory quoteOutput = quoteExactInputSingle(
         QuoteExactInputSingleParams({
           tokenIn: tokenIn,
           tokenOut: tokenOut,
@@ -187,10 +170,10 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         })
       );
 
-      sqrtPriceX96AfterList[i] = _sqrtPriceX96After;
-      initializedTicksCrossedList[i] = _initializedTicksCrossed;
-      amountIn = _amountOut;
-      gasEstimate += _gasEstimate;
+      sqrtPriceX96AfterList[i] = quoteOutput.sqrtPriceX96After;
+      initializedTicksCrossedList[i] = quoteOutput.initializedTicksCrossed;
+      amountIn = quoteOutput.returnedAmount;
+      gasEstimate += quoteOutput.gasEstimate;
       i++;
 
       // decide whether to continue or terminate
@@ -205,12 +188,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
   function quoteExactOutputSingle(QuoteExactOutputSingleParams memory params)
     public
     override
-    returns (
-      uint256 amountIn,
-      uint160 sqrtPriceX96After,
-      uint32 initializedTicksCrossed,
-      uint256 gasEstimate
-    )
+    returns (QuoteOutput memory output)
   {
     // if tokenIn > tokenOut, output token and specified token is token0, swap from token1 to token0
     bool isToken0 = params.tokenIn > params.tokenOut;
@@ -230,9 +208,9 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         abi.encodePacked(params.tokenOut, params.feeBps, params.tokenIn)
       )
     {} catch (bytes memory reason) {
-      gasEstimate = gasBefore - gasleft();
+      uint256 gasEstimate = gasBefore - gasleft();
       if (params.sqrtPriceLimitX96 == 0) delete amountOutCached; // clear cache
-      return handleRevert(reason, pool, gasEstimate);
+      output = handleRevert(reason, pool, gasEstimate);
     }
   }
 
@@ -254,12 +232,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
       (address tokenOut, address tokenIn, uint16 feeBps) = path.decodeFirstPool();
 
       // the inputs of prior swaps become the outputs of subsequent ones
-      (
-        uint256 _amountIn,
-        uint160 _sqrtPriceX96After,
-        uint32 _initializedTicksCrossed,
-        uint256 _gasEstimate
-      ) = quoteExactOutputSingle(
+      QuoteOutput memory quoteOutput = quoteExactOutputSingle(
         QuoteExactOutputSingleParams({
           tokenIn: tokenIn,
           tokenOut: tokenOut,
@@ -268,11 +241,10 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
           sqrtPriceLimitX96: 0
         })
       );
-
-      sqrtPriceX96AfterList[i] = _sqrtPriceX96After;
-      initializedTicksCrossedList[i] = _initializedTicksCrossed;
-      amountOut = _amountIn;
-      gasEstimate += _gasEstimate;
+      sqrtPriceX96AfterList[i] = quoteOutput.sqrtPriceX96After;
+      initializedTicksCrossedList[i] = quoteOutput.initializedTicksCrossed;
+      amountOut = quoteOutput.returnedAmount;
+      gasEstimate += quoteOutput.gasEstimate;
       i++;
 
       // decide whether to continue or terminate

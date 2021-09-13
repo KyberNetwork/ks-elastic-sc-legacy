@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
 
+import 'hardhat/console.sol';
+
 library PoolTicksCounter {
   /// @dev This function counts the number of initialized ticks that would incur a gas cost between tickBefore and tickAfter.
   /// When tickBefore and/or tickAfter themselves are initialized, the logic over whether we should count them depends on the
@@ -86,9 +88,12 @@ library PoolTicksCounter {
     )
   {
     int24 compressed = tick / tickSpacing;
+    // in case tick is negative, we must round down 
+    // -5 / 4 = -1 (we expected compress = -2)
+    if (tick < 0 && tick % tickSpacing != 0) compressed--;
     wordPos = int16(compressed >> 8);
     bitPos = uint8(int8(compressed % 256));
-    isInitialized = ((tick % tickSpacing) == 0) && (self.tickBitmap(wordPos) & (1 << bitPos) > 0);
+    isInitialized = self.tickBitmap(wordPos) & (1 << bitPos) > 0;
   }
 
   function countOneBits(uint256 x) private pure returns (uint16) {

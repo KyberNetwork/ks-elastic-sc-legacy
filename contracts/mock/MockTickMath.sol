@@ -8,6 +8,10 @@ contract MockTickMath {
     return TickMath.getSqrtRatioAtTick(tick);
   }
 
+  function getMiddleSqrtRatioAtTick(int24 tick) external pure returns (uint160) {
+    return (TickMath.getSqrtRatioAtTick(tick + 1) + TickMath.getSqrtRatioAtTick(tick)) / 2;
+  }
+
   function getGasCostOfGetSqrtRatioAtTick(int24 tick) external view returns (uint256) {
     uint256 gasBefore = gasleft();
     TickMath.getSqrtRatioAtTick(tick);
