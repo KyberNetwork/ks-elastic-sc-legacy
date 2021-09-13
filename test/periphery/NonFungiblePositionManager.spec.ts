@@ -1098,6 +1098,57 @@ describe('NonFungiblePositionManager', () => {
       }
     });
   });
+
+  describe(`#burn token`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('revert unauthorized', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await expect(positionManager.connect(other).burn(nextTokenId)).to.be.revertedWith('Not approved');
+    });
+
+    it('revert liquidity > 0', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await expect(positionManager.connect(user).burn(nextTokenId)).to.be.revertedWith('Should remove liquidity first');
+    });
+
+    it('revert rTokenOwed > 0', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      for (let i = 0; i < 5; i++) {
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(200000));
+      }
+      let userData = await positionManager.positions(nextTokenId);
+      await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
+      await expect(positionManager.connect(user).burn(nextTokenId)).to.be.revertedWith('Should burn rToken first');
+    });
+
+    it('burn rToken and update states', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      for (let i = 0; i < 5; i++) {
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(200000));
+      }
+      let userData = await positionManager.positions(nextTokenId);
+      await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
+      await burnRTokens(tokenA.address, tokenB.address, user, nextTokenId);
+      let tx = await positionManager.burn(nextTokenId);
+      await expect(positionManager.ownerOf(nextTokenId)).to.be.revertedWith("");
+      if (showTxGasUsed) {
+        logMessage(`Average gas use to burn: ${(await tx.wait()).gasUsed.toString()}`);
+      }
+    });
+  });
 });
 
 function logMessage(message: string) {
