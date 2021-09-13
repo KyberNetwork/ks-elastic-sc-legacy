@@ -89,10 +89,7 @@ contract NonfungiblePositionManager is
     tokenId = nextTokenId++;
     _mint(params.recipient, tokenId);
 
-    uint80 poolId = _storePoolInfo(
-      address(pool),
-      PoolInfo({ token0: params.token0, fee: params.fee, token1: params.token1, rToken: address(pool.reinvestmentToken()) })
-    );
+    uint80 poolId = _storePoolInfo(address(pool), params.token0, params.token1, params.fee);
 
     uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, params.tickLower, params.tickUpper);
 
@@ -193,6 +190,8 @@ contract NonfungiblePositionManager is
     )
   {
     Position storage pos = _positions[params.tokenId];
+    require(pos.rTokenOwed > 0, 'No rToken to burn');
+
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
@@ -247,12 +246,13 @@ contract NonfungiblePositionManager is
     return _positions[tokenId].operator;
   }
 
-  function _storePoolInfo(address pool, PoolInfo memory info) private returns (uint80 poolId) {
+  function _storePoolInfo(address pool, address token0, address token1, uint16 fee) private returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {
       addressToPoolId[pool] = (poolId = nextPoolId++);
-      _poolInfoById[poolId] = info;
-      isRToken[info.rToken] = true;
+      address rToken = address(IProAMMPool(pool).reinvestmentToken());
+      _poolInfoById[poolId] = PoolInfo({ token0: token0, fee: fee, token1: token1, rToken: rToken });
+      isRToken[rToken] = true;
     }
   }
 
