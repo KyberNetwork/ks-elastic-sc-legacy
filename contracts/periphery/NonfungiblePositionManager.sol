@@ -12,6 +12,7 @@ import {LiquidityHelper, ImmutableRouterStorage, RouterTokenHelper} from './base
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
+import {PoolAddress} from './libraries/PoolAddress.sol';
 
 
 contract NonfungiblePositionManager is
@@ -73,13 +74,12 @@ contract NonfungiblePositionManager is
       uint256 tokenId,
       uint128 liquidity,
       uint256 amount0,
-      uint256 amount1,
-      uint256 feesClaimable
+      uint256 amount1
     )
   {
     IProAMMPool pool;
   
-    (liquidity, amount0, amount1, feesClaimable, pool) = addLiquidity(AddLiquidityParams({
+    (liquidity, amount0, amount1, , pool) = addLiquidity(AddLiquidityParams({
       token0: params.token0, token1: params.token1, fee: params.fee, recipient: address(this),
       tickLower: params.tickLower, tickUpper: params.tickUpper,
       amount0Desired: params.amount0Desired, amount1Desired: params.amount1Desired,
@@ -117,14 +117,14 @@ contract NonfungiblePositionManager is
       uint128 liquidity,
       uint256 amount0,
       uint256 amount1,
-      uint256 feesClaimable
+      uint256 additionalRTokenOwed
     )
   {
     Position storage pos = _positions[params.tokenId];
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool;
 
-    (liquidity, amount0, amount1, feesClaimable, pool) = addLiquidity(AddLiquidityParams({
+    (liquidity, amount0, amount1, , pool) = addLiquidity(AddLiquidityParams({
       token0: poolInfo.token0, token1: poolInfo.token1, fee: poolInfo.fee, recipient: address(this),
       tickLower: pos.tickLower, tickUpper: pos.tickUpper,
       amount0Desired: params.amount0Desired, amount1Desired: params.amount1Desired,
@@ -134,15 +134,16 @@ contract NonfungiblePositionManager is
     uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
-      pos.rTokenOwed += FullMath.mulDivFloor(
+      additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
         MathConstants.TWO_POW_96
       );
+      pos.rTokenOwed += additionalRTokenOwed;
+      pos.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
     pos.liquidity += liquidity;
-    pos.feeGrowthInsideLast = feeGrowthInsideLast;
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -153,7 +154,7 @@ contract NonfungiblePositionManager is
     returns (
       uint256 amount0,
       uint256 amount1,
-      uint256 feesClaimable
+      uint256 additionalRTokenOwed
     )
   {
     Position storage pos = _positions[params.tokenId];
@@ -162,21 +163,22 @@ contract NonfungiblePositionManager is
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
-    (amount0, amount1, feesClaimable) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
+    (amount0, amount1, ) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
     uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
-      pos.rTokenOwed += FullMath.mulDivFloor(
+      additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
         MathConstants.TWO_POW_96
       );
+      pos.rTokenOwed += additionalRTokenOwed;
+      pos.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
     pos.liquidity -= params.liquidity;
-    pos.feeGrowthInsideLast = feeGrowthInsideLast;
   }
 
   function burnRTokens(BurnRTokenParams calldata params)
@@ -195,11 +197,7 @@ contract NonfungiblePositionManager is
     IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     rTokenQty = pos.rTokenOwed;
-    if (rTokenQty <= 1) return (0, 0, 0);
-
-    // keep 1 twei to save gas
-    pos.rTokenOwed = 1;
-    rTokenQty -= 1;
+    pos.rTokenOwed = 0;
     (amount0, amount1) = pool.burnRTokens(rTokenQty);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
   }
@@ -210,7 +208,7 @@ contract NonfungiblePositionManager is
    */
   function burn(uint256 tokenId) external payable override isAuthorizedForToken(tokenId) {
     require(_positions[tokenId].liquidity == 0, 'Should remove liquidity first');
-    require(_positions[tokenId].rTokenOwed <= 1, 'Should burn rToken first');
+    require(_positions[tokenId].rTokenOwed == 0, 'Should burn rToken first');
     delete _positions[tokenId];
     _burn(tokenId);
   }
@@ -285,6 +283,6 @@ contract NonfungiblePositionManager is
    *  Use determine function to save gas, instead of reading from factory
    */
   function _getPool(address tokenA, address tokenB, uint16 fee) private view returns (IProAMMPool) {
-    return IProAMMPool(IProAMMFactory(factory).getPool(tokenA, tokenB, fee));
+    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
   }
 }

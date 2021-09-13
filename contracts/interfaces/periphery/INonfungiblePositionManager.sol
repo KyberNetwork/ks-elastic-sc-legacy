@@ -94,8 +94,7 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
       uint256 tokenId,
       uint128 liquidity,
       uint256 amount0,
-      uint256 amount1,
-      uint256 feesClaimable
+      uint256 amount1
     );
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
@@ -105,7 +104,7 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
       uint128 liquidity,
       uint256 amount0,
       uint256 amount1,
-      uint256 feesClaimable
+      uint256 additionalRTokenOwed
     );
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -113,7 +112,7 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
     returns (
       uint256 amount0,
       uint256 amount1,
-      uint256 feesClaimable
+      uint256 additionalRTokenOwed
     );
 
   function burnRTokens(BurnRTokenParams calldata params)
