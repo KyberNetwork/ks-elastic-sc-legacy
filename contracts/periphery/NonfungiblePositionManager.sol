@@ -22,8 +22,8 @@ contract NonfungiblePositionManager is
 {
 
   address private immutable _tokenDescriptor;
-  uint80 private _nextPoolId = 1;
-  uint256 private _nextTokenId = 1;
+  uint80 public override nextPoolId = 1;
+  uint256 public override nextTokenId = 1;
   // pool id => pool info
   mapping (uint80 => PoolInfo) private _poolInfoById;
   // tokenId => position
@@ -86,7 +86,7 @@ contract NonfungiblePositionManager is
       amount0Min: params.amount0Min, amount1Min: params.amount1Min
     }));
 
-    tokenId = _nextTokenId++;
+    tokenId = nextTokenId++;
     _mint(params.recipient, tokenId);
 
     uint80 poolId = _storePoolInfo(
@@ -94,7 +94,7 @@ contract NonfungiblePositionManager is
       PoolInfo({ token0: params.token0, fee: params.fee, token1: params.token1, rToken: address(pool.reinvestmentToken()) })
     );
 
-    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, params.tickLower, params.tickUpper);
+    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, params.tickLower, params.tickUpper);
 
     _positions[tokenId] = Position({
       nonce: 0,
@@ -131,7 +131,7 @@ contract NonfungiblePositionManager is
       amount0Min: params.amount0Min, amount1Min: params.amount1Min
     }));
 
-    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, pos.tickLower, pos.tickUpper);
+    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
       pos.rTokenOwed += FullMath.mulDivFloor(
@@ -165,7 +165,7 @@ contract NonfungiblePositionManager is
     (amount0, amount1, feesClaimable) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    uint256 feeGrowthInsideLast = _getFeeGrowInside(pool, pos.tickLower, pos.tickUpper);
+    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
       pos.rTokenOwed += FullMath.mulDivFloor(
@@ -252,13 +252,13 @@ contract NonfungiblePositionManager is
   function _storePoolInfo(address pool, PoolInfo memory info) private returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {
-      addressToPoolId[pool] = (poolId = _nextPoolId++);
+      addressToPoolId[pool] = (poolId = nextPoolId++);
       _poolInfoById[poolId] = info;
       isRToken[info.rToken] = true;
     }
   }
 
-  function _getFeeGrowInside(IProAMMPool pool, int24 tickLower, int24 tickUpper)
+  function _getFeeGrowthInside(IProAMMPool pool, int24 tickLower, int24 tickUpper)
     internal view
     returns (uint256 feeGrowthInsideLast)
   {

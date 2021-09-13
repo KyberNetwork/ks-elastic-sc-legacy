@@ -11,14 +11,19 @@ import {
   MockToken, MockToken__factory,
   MockWeth, MockWeth__factory,
   NonfungiblePositionManager, NonfungiblePositionManager__factory,
-  ProAMMFactory, ProAMMPool
+  ProAMMFactory, ProAMMPool, ProAMMRouter__factory
 } from '../../typechain';
 
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
+import { ProAMMRouter } from '../../typechain/ProAMMRouter';
+import {encodePath} from '../helpers/swapPath';
+import { ProAMMPool } from '../../typechain/ProAMMPool';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
 const showTxGasUsed = true;
+
+const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
 let PositionManager: NonfungiblePositionManager__factory;
@@ -26,13 +31,16 @@ let admin;
 let user;
 let factory: ProAMMFactory;
 let positionManager: NonfungiblePositionManager;
+let router: ProAMMRouter;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let weth: MockWeth;
+let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
 let initialPrice: BigNumber;
 let snapshotId: any;
+let initialSnapshotId: any;
 
 let getBalances: (
   who: string,
@@ -41,14 +49,13 @@ let getBalances: (
   tokenBalances: BigNumber[]
 }>
 
-
 describe('NonFungiblePositionManager', () => {
   const [user, admin, other] = waffle.provider.getWallets();
 
   before('factory, token and callback setup', async () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
-    tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
-    tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
+    tokenA = await Token.deploy('USDC', 'USDC', BN.from(100000000000).mul(PRECISION));
+    tokenB = await Token.deploy('DAI', 'DAI', BN.from(100000000000).mul(PRECISION));
     factory = await deployFactory(admin);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
@@ -56,6 +63,9 @@ describe('NonFungiblePositionManager', () => {
 
     PositionManager = (await ethers.getContractFactory('NonfungiblePositionManager')) as NonfungiblePositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, ZERO_ADDRESS);
+
+    const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
+    router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -66,10 +76,22 @@ describe('NonFungiblePositionManager', () => {
 
     initialPrice = encodePriceSqrt(1, 1);
 
-    await weth.connect(user).deposit({ value: PRECISION.mul(BN.from(10)) });
-    await weth.connect(user).approve(positionManager.address, BN.from(2).pow(255));
-    await tokenA.connect(user).approve(positionManager.address, BN.from(2).pow(255));
-    await tokenB.connect(user).approve(positionManager.address, BN.from(2).pow(255));
+    await weth.connect(user).deposit({ value: PRECISION.mul(10) });
+    await weth.connect(other).deposit({ value: PRECISION.mul(10) });
+
+    let users = [user, other];
+    for (let i = 0; i < users.length; i++) {
+      await weth.connect(users[i]).approve(positionManager.address, BIG_AMOUNT);
+      await tokenA.connect(users[i]).approve(positionManager.address, BIG_AMOUNT);
+      await tokenB.connect(users[i]).approve(positionManager.address, BIG_AMOUNT);
+
+      await weth.connect(users[i]).approve(router.address, BIG_AMOUNT);
+      await tokenA.connect(users[i]).approve(router.address, BIG_AMOUNT);
+      await tokenB.connect(users[i]).approve(router.address, BIG_AMOUNT);
+
+      await tokenA.transfer(users[i].address, PRECISION.mul(2000000));
+      await tokenB.transfer(users[i].address, PRECISION.mul(2000000));
+    }
 
     getBalances = async (account: string, tokens: string[]) => {
       let balances = [];
@@ -85,7 +107,8 @@ describe('NonFungiblePositionManager', () => {
       }
     }
 
-    snapshotId = await snapshot();
+    initialSnapshotId = await snapshot();
+    snapshotId = initialSnapshotId;
   });
 
   describe(`#createAndUnlockPoolIfNecessary`, async () => {
@@ -269,7 +292,7 @@ describe('NonFungiblePositionManager', () => {
   });
 
   const createAndUnlockPools = async () => {
-    let initialPrice = encodePriceSqrt(1, 2);
+    let initialPrice = encodePriceSqrt(1, 1);
     let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
     await positionManager.connect(user).createAndUnlockPoolIfNecessary(
       token0, token1, swapFeeBpsArray[0], initialPrice
@@ -286,6 +309,7 @@ describe('NonFungiblePositionManager', () => {
 
   describe(`#mint`, async () => {
     before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -293,6 +317,7 @@ describe('NonFungiblePositionManager', () => {
     beforeEach('revert to snapshot', async () => {
       await revertToSnapshot(snapshotId);
       snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
     });
 
     it('revert invalid token pair', async () => {
@@ -329,14 +354,34 @@ describe('NonFungiblePositionManager', () => {
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
         tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
-        amount0Min: PRECISION, amount1Min: 0, recipient: user.address, deadline: PRECISION
+        amount0Min: BN.from(1000001), amount1Min: 0, recipient: user.address, deadline: PRECISION
       })).to.be.revertedWith('LiquidityHelper: price slippage check');
       await expect(positionManager.connect(user).mint({
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
         tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
-        amount0Min: 0, amount1Min: PRECISION, recipient: user.address, deadline: PRECISION
+        amount0Min: 0, amount1Min: BN.from(1000001), recipient: user.address, deadline: PRECISION
       })).to.be.revertedWith('LiquidityHelper: price slippage check');
+    });
+
+    it('revert not enough token', async () => {
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
+      await tokenA.connect(user).approve(positionManager.address, 0);
+      await expect(positionManager.connect(user).mint({
+        token0: token0, token1: token1, fee: swapFeeBpsArray[0],
+        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
+        amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
+      })).to.be.reverted;
+      await tokenA.connect(user).approve(positionManager.address, BIG_AMOUNT);
+      await tokenB.connect(user).approve(positionManager.address, 0);
+      await expect(positionManager.connect(user).mint({
+        token0: token0, token1: token1, fee: swapFeeBpsArray[0],
+        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
+        amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
+      })).to.be.reverted;
+      await tokenB.connect(user).approve(positionManager.address, BIG_AMOUNT);
     });
 
     it('mint & create new token', async () => {
@@ -345,7 +390,7 @@ describe('NonFungiblePositionManager', () => {
       let recipients = [user.address, other.address];
       let gasUsed = BN.from(0);
 
-      let nextTokenId = 1;
+      let _nextTokenId = nextTokenId;
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
@@ -375,14 +420,14 @@ describe('NonFungiblePositionManager', () => {
           userBalanceBefore.tokenBalances[1].sub(userBalanceAfter.tokenBalances[1])
         );
 
-        // verify user should be the owner of nextTokenId
+        // verify user should be the owner of _nextTokenId
         expect(await positionManager.balanceOf(recipients[i])).to.be.eq(1);
-        expect(await positionManager.tokenOfOwnerByIndex(recipients[i], 0)).to.be.eq(nextTokenId);
-        expect(await positionManager.ownerOf(nextTokenId)).to.be.eq(recipients[i]);
+        expect(await positionManager.tokenOfOwnerByIndex(recipients[i], 0)).to.be.eq(_nextTokenId);
+        expect(await positionManager.ownerOf(_nextTokenId)).to.be.eq(recipients[i]);
 
         // verify position and pool info in PositionManager
         let pool = (await ethers.getContractAt('ProAMMPool', poolAddress) as ProAMMPool);
-        const { pos, info } = await positionManager.positions(nextTokenId);
+        const { pos, info } = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
         expect(info.fee).to.be.eq(swapFeeBpsArray[0]);
@@ -402,7 +447,7 @@ describe('NonFungiblePositionManager', () => {
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
-        nextTokenId++;
+        _nextTokenId = _nextTokenId.add(1);
       }
       if (showTxGasUsed) {
         logMessage(`Average mint gas: ${(gasUsed.div(BN.from(recipients.length))).toString()}`);
@@ -415,7 +460,7 @@ describe('NonFungiblePositionManager', () => {
       let recipients = [user.address, other.address];
       let gasUsed = BN.from(0);
 
-      let nextTokenId = 1;
+      let _nextTokenId = nextTokenId;
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
@@ -459,14 +504,14 @@ describe('NonFungiblePositionManager', () => {
           )
         }
 
-        // verify user should be the owner of nextTokenId
+        // verify user should be the owner of _nextTokenId
         expect(await positionManager.balanceOf(recipients[i])).to.be.eq(1);
-        expect(await positionManager.tokenOfOwnerByIndex(recipients[i], 0)).to.be.eq(nextTokenId);
-        expect(await positionManager.ownerOf(nextTokenId)).to.be.eq(recipients[i]);
+        expect(await positionManager.tokenOfOwnerByIndex(recipients[i], 0)).to.be.eq(_nextTokenId);
+        expect(await positionManager.ownerOf(_nextTokenId)).to.be.eq(recipients[i]);
 
         // verify position and pool info in PositionManager
         let pool = (await ethers.getContractAt('ProAMMPool', poolAddress) as ProAMMPool);
-        const { pos, info } = await positionManager.positions(nextTokenId);
+        const { pos, info } = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
         expect(info.fee).to.be.eq(swapFeeBpsArray[0]);
@@ -486,10 +531,224 @@ describe('NonFungiblePositionManager', () => {
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
-        nextTokenId++;
+        _nextTokenId = _nextTokenId.add(1);
       }
       if (showTxGasUsed) {
         logMessage(`Average mint gas: ${(gasUsed.div(BN.from(recipients.length))).toString()}`);
+      }
+    });
+  });
+
+  const initLiquidity = async (user: Wallet, token0: string, token1: string) => {
+    [token0, token1] = sortTokens(token0, token1);
+    await positionManager.connect(user).mint({
+      token0: token0, token1: token1, fee: swapFeeBpsArray[0],
+      tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
+      amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
+      amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
+    });
+  }
+
+  const swapExactInput = async function (
+    tokenIn: string, tokenOut: string, poolFee: number, amount: number
+  ) {
+    const swapParams = {
+      tokenIn: tokenIn,
+      tokenOut: tokenOut,
+      fee: poolFee,
+      recipient: user.address,
+      deadline: BN.from(2).pow(255),
+      amountIn: amount,
+      amountOutMinimum: BN.from(0),
+      sqrtPriceLimitX96: BN.from(0)
+    };
+    await router.connect(user).swapExactInputSingle(swapParams);
+  };
+
+  describe(`#add liquidity`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('revert invalid token id', async () => {
+      await expect(positionManager.connect(user).addLiquidity({
+        tokenId: 0, amount0Desired: 0, amount1Desired: 0,
+        amount0Min: 0, amount1Min: 0, deadline: PRECISION
+      })).to.be.reverted;
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      // token id should not exist
+      await expect(positionManager.connect(user).addLiquidity({
+        tokenId: nextTokenId, amount0Desired: 0, amount1Desired: 0,
+        amount0Min: 0, amount1Min: 0, deadline: PRECISION
+      })).to.be.reverted;
+    });
+
+    it('revert expired', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await expect(positionManager.connect(user).addLiquidity({
+        tokenId: 1, amount0Desired: 0, amount1Desired: 0,
+        amount0Min: 0, amount1Min: 0, deadline: 0
+      })).to.be.revertedWith('ProAMM: Expired');
+    });
+
+    it('revert price slippage', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await expect(positionManager.connect(user).addLiquidity({
+        tokenId: 1, amount0Desired: BN.from(100000), amount1Desired: BN.from(100000),
+        amount0Min: BN.from(100001), amount1Min: 0, deadline: PRECISION
+      })).to.be.revertedWith('LiquidityHelper: price slippage check');
+      await expect(positionManager.connect(user).addLiquidity({
+        tokenId: 1, amount0Desired: BN.from(100000), amount1Desired: BN.from(100000),
+        amount0Min: 0, amount1Min: BN.from(100001), deadline: PRECISION
+      })).to.be.revertedWith('LiquidityHelper: price slippage check');
+    });
+
+    it('add liquidity with tokens - no new fees', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await initLiquidity(other, tokenA.address, tokenB.address);
+      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
+
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+      let gasUsed = BN.from(0);
+      let numRuns = 5;
+
+      for (let i = 0; i < numRuns; i++) {
+        let sender = users[i % 2];
+        let amount0 = BN.from(100000 * (i + 1));
+        let amount1 = BN.from(120000 * (i + 1));
+        let tokenId = tokenIds[i % 2];
+
+        let userData = await positionManager.positions(tokenId);
+        let poolData = await poolContract.positions(positionKey);
+
+        let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
+
+        let tx = await positionManager.connect(sender).addLiquidity({
+          tokenId: tokenId, amount0Desired: amount0, amount1Desired: amount1,
+          amount0Min: 0, amount1Min: 0, deadline: PRECISION
+        });
+        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+
+        // verify balance
+        let userBalAfter = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalAfter = await getBalances(pool, [tokenA.address, tokenB.address]);
+        expect(poolBalAfter.tokenBalances[0].sub(poolBalBefore.tokenBalances[0])).to.be.eq(
+          userBalBefore.tokenBalances[0].sub(userBalAfter.tokenBalances[0])
+        );
+        expect(poolBalAfter.tokenBalances[1].sub(poolBalBefore.tokenBalances[1])).to.be.eq(
+          userBalBefore.tokenBalances[1].sub(userBalAfter.tokenBalances[1])
+        );
+
+        // verify liquidity and position
+        let userNewData = await positionManager.positions(tokenId);
+        let newPoolData = await poolContract.positions(positionKey);
+        let rTokenBalAfter = await getBalances(positionManager.address, [userData.info.rToken]);
+
+        expect(rTokenBalAfter.tokenBalances[0]).to.be.eq(0); // no rToken in the contract
+        expect(userNewData.pos.rTokenOwed).to.be.eq(0); // should earn no fee as no swap
+        expect(newPoolData.feeGrowthInsideLast).to.be.eq(userNewData.pos.feeGrowthInsideLast); // should update to latest fee growth
+        // same amount liquidity increases
+        expect(newPoolData.liquidity.sub(poolData.liquidity)).to.be.eq(
+          userNewData.pos.liquidity.sub(userData.pos.liquidity)
+        );
+      }
+      if (showTxGasUsed) {
+        logMessage(`Average gas use for add liquidity - no new fees: ${gasUsed.div(numRuns).toString()}`);
+      }
+    });
+
+    it('add liquidity with tokens - has new fees', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await initLiquidity(other, tokenA.address, tokenB.address);
+      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
+
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+      let gasUsed = BN.from(0);
+      let numRuns = 5;
+
+      for (let i = 0; i < numRuns; i++) {
+        let sender = users[i % 2];
+        let amount0 = BN.from(100000 * (i + 1));
+        let amount1 = BN.from(120000 * (i + 1));
+        let tokenId = tokenIds[i % 2];
+
+        let userData = await positionManager.positions(tokenId);
+        let poolData = await poolContract.positions(positionKey);
+        let rTokenBalBefore = await getBalances(positionManager.address, [userData.info.rToken]);
+
+        // made some swaps to get fees
+        for (let j = 0; j < 5; j++) {
+          let amount = BN.from(100000 * (j + 1));
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          amount = BN.from(150000 * (j + 1));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+        }
+
+        let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
+
+        let tx = await positionManager.connect(sender).addLiquidity({
+          tokenId: tokenId, amount0Desired: amount0, amount1Desired: amount1,
+          amount0Min: 0, amount1Min: 0, deadline: PRECISION
+        });
+        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+
+        // verify balance
+        let userBalAfter = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalAfter = await getBalances(pool, [tokenA.address, tokenB.address]);
+        expect(poolBalAfter.tokenBalances[0].sub(poolBalBefore.tokenBalances[0])).to.be.eq(
+          userBalBefore.tokenBalances[0].sub(userBalAfter.tokenBalances[0])
+        );
+        expect(poolBalAfter.tokenBalances[1].sub(poolBalBefore.tokenBalances[1])).to.be.eq(
+          userBalBefore.tokenBalances[1].sub(userBalAfter.tokenBalances[1])
+        );
+
+        // verify liquidity and position
+        let userNewData = await positionManager.positions(tokenId);
+        let newPoolData = await poolContract.positions(positionKey);
+
+        // additional rToken owed = user_liquidity * (pool_last_fee_growth - user_last_fee_growth) / 2**96
+        let additionalRTokenOwed = userData.pos.liquidity.mul(
+          userNewData.pos.feeGrowthInsideLast.sub(userData.pos.feeGrowthInsideLast)
+        );
+        additionalRTokenOwed = additionalRTokenOwed.div(TWO_POW_96);
+
+        let rTokenBalAfter = await getBalances(positionManager.address, [userData.info.rToken]);
+
+        // additional rToken = liquidity * (new_fee_growth - last_fee_growth) / 2**96
+        let additionRToken = poolData.liquidity.mul(newPoolData.feeGrowthInsideLast.sub(poolData.feeGrowthInsideLast));
+        additionRToken = additionRToken.div(TWO_POW_96);
+        expect(additionRToken).to.be.eq(rTokenBalAfter.tokenBalances[0].sub(rTokenBalBefore.tokenBalances[0]));
+
+        // should update rToken owed and latest fee growth
+        expect(userNewData.pos.rTokenOwed).to.be.eq(
+          userData.pos.rTokenOwed.add(additionalRTokenOwed)
+        );
+        expect(newPoolData.feeGrowthInsideLast).to.be.eq(userNewData.pos.feeGrowthInsideLast);
+        // same amount liquidity increases
+        expect(newPoolData.liquidity.sub(poolData.liquidity)).to.be.eq(
+          userNewData.pos.liquidity.sub(userData.pos.liquidity)
+        );
+      }
+      if (showTxGasUsed) {
+        logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
       }
     });
   });

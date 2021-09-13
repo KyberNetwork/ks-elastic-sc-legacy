@@ -139,4 +139,6 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
 
   function addressToPoolId(address pool) external view returns (uint80);
   function isRToken(address token) external view returns (bool);
+  function nextPoolId() external view returns (uint80);
+  function nextTokenId() external view returns (uint256);
 }

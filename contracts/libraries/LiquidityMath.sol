@@ -70,8 +70,8 @@ library LiquidityMath {
     if (sqrtPriceCurrent >= sqrtPriceB) {
       return getLiquidityFromQty1(sqrtPriceA, sqrtPriceB, qty1);
     }
-    uint128 liq0 = getLiquidityFromQty0(sqrtPriceA, sqrtPriceB, qty0);
-    uint128 liq1 = getLiquidityFromQty1(sqrtPriceA, sqrtPriceB, qty1);
+    uint128 liq0 = getLiquidityFromQty0(sqrtPriceCurrent, sqrtPriceB, qty0);
+    uint128 liq1 = getLiquidityFromQty1(sqrtPriceA, sqrtPriceCurrent, qty1);
     return liq0 < liq1 ? liq0 : liq1;
   }
 }
