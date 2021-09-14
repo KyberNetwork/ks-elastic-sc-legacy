@@ -8,13 +8,19 @@ contract MockTickBitmap {
 
   mapping(int16 => uint256) public bitmap;
 
+  int24 public immutable tickSpacing;
+
+  constructor(int24 _tickSpacing) {
+    tickSpacing = _tickSpacing;
+  }
+
   function flipTick(int24 tick) external {
-    bitmap.flipTick(tick, 1);
+    bitmap.flipTick(tick, tickSpacing);
   }
 
   function getGasCostOfFlipTick(int24 tick) external returns (uint256) {
     uint256 gasBefore = gasleft();
-    bitmap.flipTick(tick, 1);
+    bitmap.flipTick(tick, tickSpacing);
     return gasBefore - gasleft();
   }
 
@@ -23,7 +29,7 @@ contract MockTickBitmap {
     view
     returns (int24 next, bool initialized)
   {
-    return bitmap.nextInitializedTickWithinOneWord(tick, 1, willUpTick);
+    return bitmap.nextInitializedTickWithinOneWord(tick, tickSpacing, willUpTick);
   }
 
   function getGasCostOfNextInitializedTickWithinOneWord(int24 tick, bool willUpTick)
@@ -32,13 +38,13 @@ contract MockTickBitmap {
     returns (uint256)
   {
     uint256 gasBefore = gasleft();
-    bitmap.nextInitializedTickWithinOneWord(tick, 1, willUpTick);
+    bitmap.nextInitializedTickWithinOneWord(tick, tickSpacing, willUpTick);
     return gasBefore - gasleft();
   }
 
   // returns whether the given tick is initialized
   function isInitialized(int24 tick) external view returns (bool) {
-    (int24 next, bool initialized) = bitmap.nextInitializedTickWithinOneWord(tick, 1, false);
+    (int24 next, bool initialized) = bitmap.nextInitializedTickWithinOneWord(tick, tickSpacing, false);
     return next == tick ? initialized : false;
   }
 }

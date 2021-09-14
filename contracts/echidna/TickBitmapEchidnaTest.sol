@@ -21,32 +21,28 @@ contract TickBitmapEchidnaTest is EchidnaAssert {
     isTrue(isInitialized(tick) == !before);
   }
 
-  // TODO: check why this test failed
-  // function checkNextInitializedTickWithinOneWordInvariants(int24 tick, bool willUpTick)
-  //   external
-  //   view
-  // {
-  //   (int24 next, bool initialized) = bitmap.nextInitializedTickWithinOneWord(tick, 1, willUpTick);
-  //   if (willUpTick) {
-  //     // type(int24).max - 256
-  //     require(tick < 8388351);
-  //     assert(next > tick);
-  //     assert(next - tick <= 256);
-  //     // all the ticks between the input tick and the next tick should be uninitialized
-  //     for (int24 i = tick + 1; i < next; i++) {
-  //       assert(!isInitialized(i));
-  //     }
-  //     assert(isInitialized(next) == initialized);
-  //   } else {
-  //     // type(int24).min + 256
-  //     require(tick >= -8388352);
-  //     assert(next <= tick);
-  //     assert(tick - next < 256);
-  //     // all the ticks between the input tick and the next tick should be uninitialized
-  //     for (int24 i = tick; i > next; i--) {
-  //       assert(!isInitialized(i));
-  //     }
-  //     assert(isInitialized(next) == initialized);
-  //   }
-  // }
+  function checkNextInitializedTickWithinOneWordInvariants(int24 tick, bool willUpTick) external {
+    (int24 next, bool initialized) = bitmap.nextInitializedTickWithinOneWord(tick, 1, willUpTick);
+    if (willUpTick) {
+      // type(int24).max - 256
+      require(tick < 8388351);
+      isTrue(next > tick);
+      isTrue(next - tick <= 256);
+      // all the ticks between the input tick and the next tick should be uninitialized
+      for (int24 i = tick + 1; i < next; i++) {
+        isTrue(!isInitialized(i));
+      }
+      isTrue(isInitialized(next) == initialized);
+    } else {
+      // type(int24).min + 256
+      require(tick >= -8388352);
+      isTrue(next <= tick);
+      isTrue(tick - next < 256);
+      // all the ticks between the input tick and the next tick should be uninitialized
+      for (int24 i = tick; i > next; i--) {
+        isTrue(!isInitialized(i));
+      }
+      isTrue(isInitialized(next) == initialized);
+    }
+  }
 }
