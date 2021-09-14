@@ -1,8 +1,8 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, MIN_SQRT_RATIO, ONE, TWO, MIN_LIQUIDITY, MAX_SQRT_RATIO, TWO_POW_96, ZERO} from '../helpers/helper';
-import {encodePriceSqrt, getPriceFromTick, getNearestSpacedTickAtPrice, getPositionKey} from '../helpers/utils';
+import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
+import {encodePriceSqrt, getPositionKey} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -11,15 +11,14 @@ import {
   MockToken, MockToken__factory,
   MockWeth, MockWeth__factory,
   NonfungiblePositionManager, NonfungiblePositionManager__factory,
-  ProAMMFactory, ProAMMPool, ProAMMRouter__factory
+  ProAMMFactory, ProAMMPool, ProAMMRouter__factory,
+  MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory
 } from '../../typechain';
 
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import { ProAMMRouter } from '../../typechain/ProAMMRouter';
-import {encodePath} from '../helpers/swapPath';
 import { ProAMMPool } from '../../typechain/ProAMMPool';
-import Contract from 'web3/eth/contract';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
 const showTxGasUsed = true;
@@ -33,6 +32,7 @@ let user;
 let factory: ProAMMFactory;
 let positionManager: NonfungiblePositionManager;
 let router: ProAMMRouter;
+let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let weth: MockWeth;
@@ -62,8 +62,11 @@ describe('NonFungiblePositionManager', () => {
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();
 
+    const Descriptor = (await ethers.getContractFactory('MockTokenPositionDescriptor')) as MockTokenPositionDescriptor__factory;
+    tokenDescriptor = await Descriptor.deploy();
+
     PositionManager = (await ethers.getContractFactory('NonfungiblePositionManager')) as NonfungiblePositionManager__factory;
-    positionManager = await PositionManager.deploy(factory.address, weth.address, ZERO_ADDRESS);
+    positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
 
     const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
     router = await Router.deploy(factory.address, weth.address);
@@ -1147,6 +1150,100 @@ describe('NonFungiblePositionManager', () => {
       if (showTxGasUsed) {
         logMessage(`Average gas use to burn: ${(await tx.wait()).gasUsed.toString()}`);
       }
+    });
+  });
+
+  describe(`#transfer all tokens`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('revert not enough token', async () => {
+      await expect(positionManager.connect(user).transferAllTokens(tokenA.address, PRECISION, user.address))
+        .to.be.revertedWith('Insufficient token');
+    });
+
+    it('revert can not transfer rToken', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      let userData = await positionManager.positions(nextTokenId);
+      let rToken = userData.info.rToken;
+      await expect(positionManager.connect(user).transferAllTokens(rToken, PRECISION, user.address))
+        .to.be.revertedWith('Can not transfer rToken');
+    });
+
+    it('transfer all tokens to recipient', async () => {
+      await tokenA.transfer(positionManager.address, PRECISION);
+      let balance = await tokenA.balanceOf(positionManager.address);
+      let recipientBal = await tokenA.balanceOf(other.address);
+      await positionManager.connect(user).transferAllTokens(tokenA.address, 0, other.address);
+      expect((await tokenA.balanceOf(other.address)).sub(recipientBal)).to.be.eq(balance);
+      expect(await tokenA.balanceOf(positionManager.address)).to.be.eq(0);
+    });
+  });
+
+  describe(`#approve`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('revert token not exist', async () => {
+      await expect(positionManager.getApproved(nextTokenId.add(1)))
+        .to.be.revertedWith('ERC721: approved query for nonexistent token');
+    });
+
+    it('approve and check', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      expect(await positionManager.getApproved(nextTokenId)).to.be.eq(ZERO_ADDRESS);
+      await positionManager.approve(other.address, nextTokenId);
+      expect(await positionManager.getApproved(nextTokenId)).to.be.eq(other.address);
+      await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(1000000));
+      // now `other` can remove liquidity, burnRTokens, and burn nft token
+      let userData = await positionManager.positions(nextTokenId);
+      await removeLiquidity(tokenA.address, tokenB.address, other, nextTokenId, userData.pos.liquidity);
+      await burnRTokens(tokenA.address, tokenB.address, other, nextTokenId);
+      await positionManager.connect(other).burn(nextTokenId);
+    });
+  });
+
+  describe(`#tokenUri`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('revert token not exist', async () => {
+      await expect(positionManager.tokenURI(nextTokenId.add(1)))
+        .to.be.revertedWith('Nonexistent token');
+    });
+
+    it('check data', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      expect(await positionManager.tokenURI(nextTokenId)).to.be.eq('');
+      await tokenDescriptor.setTokenUri('new token uri');
+      expect(await positionManager.tokenURI(nextTokenId)).to.be.eq('new token uri');
     });
   });
 });
