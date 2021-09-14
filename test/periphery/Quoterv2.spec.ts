@@ -35,7 +35,7 @@ async function quoteToPrice (
   isInput: boolean
 ): Promise<BN> {
   if (isInput) {
-    const {usedAmount: amountIn, afterSqrtPice} = await quoter.callStatic.quoteExactInputSingle({
+    const {usedAmount: amountIn, afterSqrtPrice} = await quoter.callStatic.quoteExactInputSingle({
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amountIn: PRECISION.mul(PRECISION),
@@ -43,10 +43,10 @@ async function quoteToPrice (
       sqrtPriceLimitX96: targetSqrtPrice
     });
     // assert that we reach the targetPrice
-    expect(afterSqrtPice).to.eq(targetSqrtPrice);
+    expect(afterSqrtPrice).to.eq(targetSqrtPrice);
     return amountIn;
   } else {
-    const {usedAmount: amountOut, afterSqrtPice} = await quoter.callStatic.quoteExactOutputSingle({
+    const {usedAmount: amountOut, afterSqrtPrice} = await quoter.callStatic.quoteExactOutputSingle({
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amount: PRECISION.mul(PRECISION),
@@ -54,7 +54,7 @@ async function quoteToPrice (
       sqrtPriceLimitX96: targetSqrtPrice
     });
     // assert that we reach the targetPrice
-    expect(afterSqrtPice).to.eq(targetSqrtPrice);
+    expect(afterSqrtPrice).to.eq(targetSqrtPrice);
     return amountOut;
   }
 }
@@ -149,66 +149,66 @@ describe('QuoterV2', function () {
       it('0 -> 2 cross 2 tick', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(-4);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountIn
         );
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
 
         console.log(`amountOut: ${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 2 tick where after is initialized', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(0);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
 
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountIn
         );
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 1 tick', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(11);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
 
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 0 tick, starting tick not initialized', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(13);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
 
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(0);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 0 tick, starting tick initialized', async () => {
@@ -218,51 +218,51 @@ describe('QuoterV2', function () {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(13);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
 
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 2', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(54);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtPrice, true);
 
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn=${amountIn}`);
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList: ${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList: ${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 2 where tick after is initialized', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(48);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtPrice, true);
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountIn
         );
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
 
         console.log(`amountIn=${amountIn}`);
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList=${afterSqrtPiceList}`);
+        console.log(`afterSqrtPriceList=${afterSqrtPriceList}`);
       });
 
       it('2 -> 0 cross 0 tick, starting tick initialized', async () => {
@@ -271,40 +271,40 @@ describe('QuoterV2', function () {
 
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtPrice, true);
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(0);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList=${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList=${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 0 tick, starting tick not initialized', async () => {
         // Tick 24 initialized. Tick after = 25
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtPrice, true);
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountIn
         );
 
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(0);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountOut=${amountOut}`);
-        console.log(`afterSqrtPiceList=${afterSqrtPiceList[0]}`);
+        console.log(`afterSqrtPriceList=${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 -> 1', async () => {
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(-4);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
-        const {amountOut, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
+        const {amountOut, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath(
             [tokens[0].address, tokens[2].address, tokens[1].address],
             [swapFeeBpsArray[1], swapFeeBpsArray[0]]
@@ -312,12 +312,12 @@ describe('QuoterV2', function () {
           amountIn
         );
 
-        expect(afterSqrtPiceList.length).to.eq(2);
+        expect(afterSqrtPriceList.length).to.eq(2);
         expect(initializedTicksCrossedList.length).to.eq(2);
         expect(initializedTicksCrossedList[0]).to.eq(2);
         expect(initializedTicksCrossedList[1]).to.eq(0);
 
-        console.log(`afterSqrtPiceList=[${afterSqrtPiceList[0]}, ${afterSqrtPiceList[1]}]`);
+        console.log(`afterSqrtPriceList=[${afterSqrtPriceList[0]}, ${afterSqrtPriceList[1]}]`);
         console.log(`amountOut=${amountOut}`);
       });
     });
@@ -328,7 +328,7 @@ describe('QuoterV2', function () {
         const {
           usedAmount: amountIn,
           returnedAmount: amountOut,
-          afterSqrtPice,
+          afterSqrtPrice,
           initializedTicksCrossed,
           gasEstimate
         } = await quoter.callStatic.quoteExactInputSingle({
@@ -344,7 +344,7 @@ describe('QuoterV2', function () {
         console.log(`gasEstimate=${gasEstimate}`);
 
         expect(initializedTicksCrossed).to.be.eq(2);
-        expect(afterSqrtPice).to.be.eq(priceLimit);
+        expect(afterSqrtPrice).to.be.eq(priceLimit);
       });
 
       it('2 -> 0', async () => {
@@ -352,7 +352,7 @@ describe('QuoterV2', function () {
         const {
           usedAmount: amountIn,
           returnedAmount: amountOut,
-          afterSqrtPice,
+          afterSqrtPrice,
           initializedTicksCrossed,
           gasEstimate
         } = await quoter.callStatic.quoteExactInputSingle({
@@ -364,7 +364,7 @@ describe('QuoterV2', function () {
         });
 
         expect(initializedTicksCrossed).to.be.eq(2);
-        expect(afterSqrtPice).to.be.eq(priceLimit);
+        expect(afterSqrtPrice).to.be.eq(priceLimit);
 
         console.log(`amountIn=${amountIn}`);
         console.log(`amountOut=${amountOut.toString()}`);
@@ -376,7 +376,7 @@ describe('QuoterV2', function () {
       it('0 -> 2 cross 2 tick', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(-1);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountOut
         );
@@ -384,42 +384,42 @@ describe('QuoterV2', function () {
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
 
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 2 where tick after is initialized', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(0);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 1 tick', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(6);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 0 tick starting tick initialized', async () => {
@@ -428,90 +428,90 @@ describe('QuoterV2', function () {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(18);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('0 -> 2 cross 0 tick starting tick not initialized', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(18);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(0);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 2 ticks', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(54);
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
         console.log(`amountOut: ${amountOut}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 2 where tick after is initialized', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(48);
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(2);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
         console.log(`amountOut: ${amountOut}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('2 -> 0 cross 1 tick', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(42);
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
         expect(initializedTicksCrossedList[0]).to.eq(1);
-        expect(afterSqrtPiceList.length).to.eq(1);
+        expect(afterSqrtPriceList.length).to.eq(1);
 
         console.log(`amountIn: ${amountIn}`);
         console.log(`amountOut: ${amountOut}`);
-        console.log(`sqrtPrice: ${afterSqrtPiceList[0]}`);
+        console.log(`sqrtPrice: ${afterSqrtPriceList[0]}`);
       });
 
       it('1 -> 2 -> 0', async () => {
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(54);
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtPrice, false);
 
-        const {amountIn, afterSqrtPiceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
+        const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[1].address, tokens[2].address, tokens[0].address].reverse(), [
             swapFeeBpsArray[1],
             swapFeeBpsArray[0]
@@ -519,11 +519,11 @@ describe('QuoterV2', function () {
           amountOut
         );
 
-        expect(afterSqrtPiceList.length).to.eq(2);
+        expect(afterSqrtPriceList.length).to.eq(2);
         expect(initializedTicksCrossedList[0]).to.eq(2);
         expect(initializedTicksCrossedList[1]).to.eq(0);
 
-        console.log(`afterSqrtPiceList=[${afterSqrtPiceList[0]}, ${afterSqrtPiceList[1]}]`);
+        console.log(`afterSqrtPriceList=[${afterSqrtPriceList[0]}, ${afterSqrtPriceList[1]}]`);
         console.log(`amountIn=${amountIn}`);
       });
     });
@@ -532,7 +532,7 @@ describe('QuoterV2', function () {
       it('0 -> 1', async () => {
         const {
           returnedAmount: amountIn,
-          afterSqrtPice,
+          afterSqrtPrice,
           initializedTicksCrossed
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[0].address,
@@ -544,13 +544,13 @@ describe('QuoterV2', function () {
 
         expect(initializedTicksCrossed).to.eq(0);
         console.log(`amountIn=${amountIn}`);
-        console.log(`afterSqrtPice=${afterSqrtPice}`);
+        console.log(`afterSqrtPrice=${afterSqrtPrice}`);
       });
 
       it('1 -> 0', async () => {
         const {
           returnedAmount: amountIn,
-          afterSqrtPice,
+          afterSqrtPrice,
           initializedTicksCrossed
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[1].address,
@@ -562,7 +562,7 @@ describe('QuoterV2', function () {
 
         expect(initializedTicksCrossed).to.eq(0);
         console.log(`amountIn=${amountIn}`);
-        console.log(`afterSqrtPice=${afterSqrtPice}`);
+        console.log(`afterSqrtPrice=${afterSqrtPrice}`);
       });
     });
   });
