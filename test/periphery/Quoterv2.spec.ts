@@ -139,11 +139,6 @@ describe('QuoterV2', function () {
   let tickMath: MockTickMath;
   let pool02: ProAMMPool;
 
-  before('create fixture loader', async () => {
-    const wallets = await (ethers as any).getSigners();
-    [wallet, trader] = wallets;
-  });
-
   // helper for getting weth and token balances
   beforeEach('load fixture', async () => {
     ({pool02, tokens, callback, quoter, tickMath} = await loadFixture(fixture));
