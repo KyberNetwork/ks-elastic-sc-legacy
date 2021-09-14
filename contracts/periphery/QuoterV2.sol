@@ -49,7 +49,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
     IProAMMPool pool = getPool(tokenIn, tokenOut, feeBps);
     require(address(pool) == msg.sender, 'invalid sender');
-    (uint160 sqrtPriceX96After, int24 tickAfter, , ) = pool.getPoolState();
+    (uint160 afterSqrtPice, int24 tickAfter, , ) = pool.getPoolState();
 
     (bool isExactInput, uint256 amountToPay, uint256 amountReceived) = amount0Delta > 0
       ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
@@ -60,7 +60,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         let ptr := mload(0x40)
         mstore(ptr, amountToPay)
         mstore(add(ptr, 0x20), amountReceived)
-        mstore(add(ptr, 0x40), sqrtPriceX96After)
+        mstore(add(ptr, 0x40), afterSqrtPice)
         mstore(add(ptr, 0x60), tickAfter)
         revert(ptr, 128)
       }
@@ -71,7 +71,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         let ptr := mload(0x40)
         mstore(ptr, amountReceived)
         mstore(add(ptr, 0x20), amountToPay)
-        mstore(add(ptr, 0x40), sqrtPriceX96After)
+        mstore(add(ptr, 0x40), afterSqrtPice)
         mstore(add(ptr, 0x60), tickAfter)
         revert(ptr, 128)
       }
@@ -85,7 +85,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     returns (
       uint256 usedAmount,
       uint256 returnedAmount,
-      uint160 sqrtPriceX96After,
+      uint160 afterSqrtPice,
       int24 tickAfter
     )
   {
@@ -110,7 +110,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     (
       output.usedAmount,
       output.returnedAmount,
-      output.sqrtPriceX96After,
+      output.afterSqrtPice,
       tickAfter
     ) = parseRevertReason(reason);
     output.initializedTicksCrossed = PoolTicksCounter.countInitializedTicksCrossed(
@@ -147,12 +147,12 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     override
     returns (
       uint256 amountOut,
-      uint160[] memory sqrtPriceX96AfterList,
+      uint160[] memory afterSqrtPiceList,
       uint32[] memory initializedTicksCrossedList,
       uint256 gasEstimate
     )
   {
-    sqrtPriceX96AfterList = new uint160[](path.numPools());
+    afterSqrtPiceList = new uint160[](path.numPools());
     initializedTicksCrossedList = new uint32[](path.numPools());
 
     uint256 i = 0;
@@ -170,7 +170,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         })
       );
 
-      sqrtPriceX96AfterList[i] = quoteOutput.sqrtPriceX96After;
+      afterSqrtPiceList[i] = quoteOutput.afterSqrtPice;
       initializedTicksCrossedList[i] = quoteOutput.initializedTicksCrossed;
       amountIn = quoteOutput.returnedAmount;
       gasEstimate += quoteOutput.gasEstimate;
@@ -180,7 +180,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
       if (path.hasMultiplePools()) {
         path = path.skipToken();
       } else {
-        return (amountIn, sqrtPriceX96AfterList, initializedTicksCrossedList, gasEstimate);
+        return (amountIn, afterSqrtPiceList, initializedTicksCrossedList, gasEstimate);
       }
     }
   }
@@ -219,12 +219,12 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     override
     returns (
       uint256 amountIn,
-      uint160[] memory sqrtPriceX96AfterList,
+      uint160[] memory afterSqrtPiceList,
       uint32[] memory initializedTicksCrossedList,
       uint256 gasEstimate
     )
   {
-    sqrtPriceX96AfterList = new uint160[](path.numPools());
+    afterSqrtPiceList = new uint160[](path.numPools());
     initializedTicksCrossedList = new uint32[](path.numPools());
 
     uint256 i = 0;
@@ -241,7 +241,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
           sqrtPriceLimitX96: 0
         })
       );
-      sqrtPriceX96AfterList[i] = quoteOutput.sqrtPriceX96After;
+      afterSqrtPiceList[i] = quoteOutput.afterSqrtPice;
       initializedTicksCrossedList[i] = quoteOutput.initializedTicksCrossed;
       amountOut = quoteOutput.returnedAmount;
       gasEstimate += quoteOutput.gasEstimate;
@@ -251,7 +251,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
       if (path.hasMultiplePools()) {
         path = path.skipToken();
       } else {
-        return (amountOut, sqrtPriceX96AfterList, initializedTicksCrossedList, gasEstimate);
+        return (amountOut, afterSqrtPiceList, initializedTicksCrossedList, gasEstimate);
       }
     }
   }
