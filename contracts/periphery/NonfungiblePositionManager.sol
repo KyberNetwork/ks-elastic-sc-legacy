@@ -229,7 +229,7 @@ contract NonfungiblePositionManager is
 
     rTokenQty = pos.rTokenOwed;
     pos.rTokenOwed = 0;
-    (amount0, amount1) = pool.burnRTokens(rTokenQty);
+    (amount0, amount1) = pool.burnRTokens(rTokenQty, false);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
   }
 
@@ -291,9 +291,8 @@ contract NonfungiblePositionManager is
     poolId = addressToPoolId[pool];
     if (poolId == 0) {
       addressToPoolId[pool] = (poolId = nextPoolId++);
-      address rToken = address(IProAMMPool(pool).reinvestmentToken());
-      _poolInfoById[poolId] = PoolInfo({token0: token0, fee: fee, token1: token1, rToken: rToken});
-      isRToken[rToken] = true;
+      _poolInfoById[poolId] = PoolInfo({token0: token0, fee: fee, token1: token1});
+      isRToken[pool] = true;
     }
   }
 

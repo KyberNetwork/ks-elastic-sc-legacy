@@ -5,8 +5,6 @@ pragma abicoder v2;
 import {AntiSnipAttack} from '../periphery/libraries/AntiSnipAttack.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 
-import {IReinvestmentToken} from '../interfaces/IReinvestmentToken.sol';
-
 import './NonfungiblePositionManager.sol';
 
 contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
@@ -131,7 +129,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
-      if (feesBurnable > 0) IReinvestmentToken(poolInfo.rToken).burn(feesBurnable);
+      if (feesBurnable > 0) pool.burnRTokens(feesBurnable, true);
     }
 
     pos.liquidity -= params.liquidity;

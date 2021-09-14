@@ -70,7 +70,9 @@ interface IProAMMPoolActions {
   /// @param qty Reinvestment token quantity to burn
   /// @return qty0 token0 quantity sent to the recipient for burnt reinvestment tokens
   /// @return qty1 token1 quantity sent to the recipient for burnt reinvestment tokens
-  function burnRTokens(uint256 qty) external returns (uint256 qty0, uint256 qty1);
+  function burnRTokens(uint256 qty, bool isLogicalBurn)
+    external
+    returns (uint256 qty0, uint256 qty1);
 
   /// @notice Swap token0 -> token1, or vice versa
   /// @dev This method's caller receives a callback in the form of IProAMMSwapCallback#proAMMSwapCallback

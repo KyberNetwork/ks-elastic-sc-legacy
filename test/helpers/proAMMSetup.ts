@@ -1,7 +1,6 @@
 import {
   MockProAMMFactory__factory,
   ProAMMFactory__factory,
-  ReinvestmentTokenMaster__factory,
   ProAMMFactory,
   ProAMMPool,
   MockProAMMFactory,
@@ -15,23 +14,13 @@ import {getNearestSpacedTickAtPrice} from './utils';
 import {PRECISION} from './helper';
 
 export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockProAMMFactory> {
-  const ReinvestmentMaster = (await ethers.getContractFactory(
-    'ReinvestmentTokenMaster'
-  )) as ReinvestmentTokenMaster__factory;
-  const reinvestmentMaster = await ReinvestmentMaster.deploy();
-
   const ProAMMFactoryContract = (await ethers.getContractFactory('MockProAMMFactory')) as MockProAMMFactory__factory;
-  return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
+  return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
 }
 
 export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<ProAMMFactory> {
-  const ReinvestmentMaster = (await ethers.getContractFactory(
-    'ReinvestmentTokenMaster'
-  )) as ReinvestmentTokenMaster__factory;
-  const reinvestmentMaster = await ReinvestmentMaster.deploy();
-
   const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-  return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
+  return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
 }
 
 export async function createPool(

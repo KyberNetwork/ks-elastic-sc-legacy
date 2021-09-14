@@ -7,18 +7,14 @@ chai.use(solidity);
 
 import {
   ProAMMFactory,
-  ReinvestmentTokenMaster,
   MockToken,
   MockToken__factory,
-  ReinvestmentTokenMaster__factory,
-  ProAMMFactory__factory,
-  ProAMMPool__factory
+  ProAMMFactory__factory
 } from '../typechain';
 import { getCreate2Address } from './helpers/utils';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
-let reinvestmentMaster: ReinvestmentTokenMaster;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let swapFeeBps: number;
@@ -32,13 +28,9 @@ describe('ProAMMFactory', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
-    const ReinvestmentMaster = (await ethers.getContractFactory(
-      'ReinvestmentTokenMaster'
-    )) as ReinvestmentTokenMaster__factory;
-    reinvestmentMaster = await ReinvestmentMaster.deploy();
 
     const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-    return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
+    return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
   }
 
   beforeEach('load fixture', async () => {

@@ -28,7 +28,6 @@ import {
   MockToken__factory,
   MockProAMMCallbacks,
   MockProAMMPool__factory,
-  ReinvestmentTokenMaster,
   QuoterV2,
   QuoterV2__factory,
   MockProAMMCallbacks__factory
@@ -48,7 +47,6 @@ import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 let factory: MockProAMMFactory;
 let token0: MockToken;
 let token1: MockToken;
-let reinvestmentToken: ReinvestmentTokenMaster;
 let quoter: QuoterV2;
 let poolBalToken0: BN;
 let poolBalToken1: BN;
@@ -135,7 +133,6 @@ describe('ProAMMPool', () => {
       expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
       expect(await pool.tickDistance()).to.be.eql(tickDistance);
       expect(await pool.maxTickLiquidity()).to.be.gt(ZERO);
-      expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
       let result = await pool.getReinvestmentState();
       expect(result._poolReinvestmentLiquidity).to.be.eql(ZERO);
       expect(result._poolReinvestmentLiquidityLast).to.be.eql(ZERO);
@@ -197,7 +194,6 @@ describe('ProAMMPool', () => {
       expect(result._poolReinvestmentLiquidity).to.be.eql(MIN_LIQUIDITY);
       expect(result._poolReinvestmentLiquidityLast).to.be.eql(MIN_LIQUIDITY);
 
-      expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
       expect(await pool.secondsPerLiquidityGlobal()).to.be.eql(ZERO);
       expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eql(0);
     });
@@ -1088,11 +1084,6 @@ describe('ProAMMPool', () => {
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(BPS), '0x');
-        // init reinvestment token
-        reinvestmentToken = (await ethers.getContractAt(
-          'ReinvestmentTokenMaster',
-          await pool.reinvestmentToken()
-        )) as ReinvestmentTokenMaster;
       });
 
       it('should fail burning liquidity if user has no position', async () => {
@@ -1155,17 +1146,17 @@ describe('ProAMMPool', () => {
       });
 
       it('will not transfer rTokens to user if position is burnt without any swap', async () => {
-        let userRTokenBalanceBefore = await reinvestmentToken.balanceOf(user.address);
+        let userRTokenBalanceBefore = await pool.balanceOf(user.address);
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS));
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.eql(userRTokenBalanceBefore);
+        expect(await pool.balanceOf(user.address)).to.be.eql(userRTokenBalanceBefore);
       });
 
       it('should transfer rTokens to user after swaps overlapping user position crosses a tick', async () => {
         // swap to outside user position to update feeGrowthGlobal
         await swapToUpTick(pool, user, tickUpper + 1);
-        let userRTokenBalanceBefore = await reinvestmentToken.balanceOf(user.address);
+        let userRTokenBalanceBefore = await pool.balanceOf(user.address);
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(userRTokenBalanceBefore);
+        expect(await pool.balanceOf(user.address)).to.be.gt(userRTokenBalanceBefore);
       });
 
       it('should not transfer any rTokens if fees collected are outside position', async () => {
@@ -1175,9 +1166,9 @@ describe('ProAMMPool', () => {
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
         // swap to below lower tick
         await swapToDownTick(pool, user, tickLower - 5);
-        let userRTokenBalanceBefore = await reinvestmentToken.balanceOf(user.address);
+        let userRTokenBalanceBefore = await pool.balanceOf(user.address);
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.eq(userRTokenBalanceBefore);
+        expect(await pool.balanceOf(user.address)).to.be.eq(userRTokenBalanceBefore);
       });
 
       it('should only transfer token0 if position burnt is above current tick', async () => {
@@ -1293,14 +1284,10 @@ describe('ProAMMPool', () => {
       it('should mint any outstanding rTokens and send it to feeTo', async () => {
         tickLower = -10 * tickDistance;
         tickUpper = 10 * tickDistance;
-        reinvestmentToken = (await ethers.getContractAt(
-          'ReinvestmentTokenMaster',
-          await pool.reinvestmentToken()
-        )) as ReinvestmentTokenMaster;
 
         // set non-zero and feeTo in factory
         await factory.updateFeeConfiguration(configMaster.address, 5);
-        let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+        let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
 
         // do some random swaps to accumulate fees
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
@@ -1308,7 +1295,7 @@ describe('ProAMMPool', () => {
         await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
         // should have minted and sent rTokens to feeTo
-        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+        expect(await pool.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
       });
     });
   });
@@ -1369,26 +1356,22 @@ describe('ProAMMPool', () => {
         await swapToDownTick(pool, user, 0);
         // burn to mint rTokens
         await pool.connect(user).burn(-100, 100, MIN_LIQUIDITY);
-        reinvestmentToken = (await ethers.getContractAt(
-          'ReinvestmentTokenMaster',
-          await pool.reinvestmentToken()
-        )) as ReinvestmentTokenMaster;
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+        expect(await pool.balanceOf(user.address)).to.be.gt(ZERO);
       });
 
       it('should fail if user tries to burn more rTokens than what he has', async () => {
-        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-        await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE))).to.be.revertedWith(
+        let userRTokenBalance = await pool.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance.add(ONE), false)).to.be.revertedWith(
           'ERC20: burn amount exceeds balance'
         );
       });
 
       it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
         let reinvestmentStateBefore = await pool.getReinvestmentState();
-        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        let userRTokenBalance = await pool.balanceOf(user.address);
         let token0BalanceBefore = await token0.balanceOf(user.address);
         let token1BalanceBefore = await token1.balanceOf(user.address);
-        await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(pool, 'BurnRTokens');
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance, false)).to.emit(pool, 'BurnRTokens');
         let reinvestmentStateAfter = await pool.getReinvestmentState();
         expect(reinvestmentStateAfter._poolReinvestmentLiquidity).to.be.lt(
           reinvestmentStateBefore._poolReinvestmentLiquidity
@@ -1401,14 +1384,14 @@ describe('ProAMMPool', () => {
       });
 
       it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
-        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
+        let userRTokenBalance = await pool.balanceOf(user.address);
         // do a couple of small swaps so that lf is incremented but not lfLast
         await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
         let reinvestmentState = await pool.getReinvestmentState();
         expect(reinvestmentState._poolReinvestmentLiquidity).to.be.gt(
           reinvestmentState._poolReinvestmentLiquidityLast
         );
-        await expect(pool.connect(user).burnRTokens(userRTokenBalance)).to.emit(reinvestmentToken, 'Mint');
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance, false)).to.emit(pool, 'Transfer');
         expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
           reinvestmentState._poolFeeGrowthGlobal
         );
@@ -1417,20 +1400,20 @@ describe('ProAMMPool', () => {
       it('should send a portion of collected fees to feeTo if rMintQty and govtFee > 0', async () => {
         // set non-zero and feeTo in factory
         await factory.updateFeeConfiguration(configMaster.address, 1000);
-        let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+        let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
         // swap till lf > lfLast
         let result = await pool.getReinvestmentState();
         while (result._poolReinvestmentLiquidity.eq(result._poolReinvestmentLiquidityLast)) {
           await doRandomSwaps(pool, user, 1, BN.from(10_000_000));
           result = await pool.getReinvestmentState();
         }
-        await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
+        await pool.connect(user).burnRTokens(await pool.balanceOf(user.address), false);
         // should have minted and sent rTokens to feeTo
-        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+        expect(await pool.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
       });
 
       it('#gas [ @skip-on-coverage ]', async () => {
-        let tx = await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
+        let tx = await pool.connect(user).burnRTokens(await pool.balanceOf(user.address), false);
         await snapshotGasCost(tx);
       });
     });
@@ -1452,18 +1435,14 @@ describe('ProAMMPool', () => {
         await swapToDownTick(pool, user, tickLower);
         // burn to mint rTokens
         await pool.connect(user).burn(tickLower, tickUpper, MIN_LIQUIDITY);
-        reinvestmentToken = (await ethers.getContractAt(
-          'ReinvestmentTokenMaster',
-          await pool.reinvestmentToken()
-        )) as ReinvestmentTokenMaster;
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+        expect(await pool.balanceOf(user.address)).to.be.gt(ZERO);
 
         // swap to max allowable tick
         await swapToUpTick(pool, user, MAX_TICK.toNumber() - 1);
 
         // burnRTokens
-        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-        await expect(pool.connect(user).burnRTokens(userRTokenBalance))
+        let userRTokenBalance = await pool.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance, false))
           .to.emit(token1, 'Transfer')
           .to.not.emit(token0, 'Transfer');
       });
@@ -1484,18 +1463,14 @@ describe('ProAMMPool', () => {
         await swapToDownTick(pool, user, tickLower);
         // burn to mint rTokens
         await pool.connect(user).burn(tickLower, tickUpper, MIN_LIQUIDITY);
-        reinvestmentToken = (await ethers.getContractAt(
-          'ReinvestmentTokenMaster',
-          await pool.reinvestmentToken()
-        )) as ReinvestmentTokenMaster;
-        expect(await reinvestmentToken.balanceOf(user.address)).to.be.gt(ZERO);
+        expect(await pool.balanceOf(user.address)).to.be.gt(ZERO);
 
         // swap to min allowable tick
         await swapToDownTick(pool, user, MIN_TICK.toNumber() + 1);
 
         // burnRTokens
-        let userRTokenBalance = await reinvestmentToken.balanceOf(user.address);
-        await expect(pool.connect(user).burnRTokens(userRTokenBalance))
+        let userRTokenBalance = await pool.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance, false))
           .to.emit(token0, 'Transfer')
           .to.not.emit(token1, 'Transfer');
       });
@@ -1776,33 +1751,29 @@ describe('ProAMMPool', () => {
           tickLower = nearestTickToPrice - 100 * tickDistance;
           tickUpper = nearestTickToPrice + 100 * tickDistance;
           await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
-          reinvestmentToken = (await ethers.getContractAt(
-            'ReinvestmentTokenMaster',
-            await pool.reinvestmentToken()
-          )) as ReinvestmentTokenMaster;
         });
 
         it('will not mint any rTokens if swaps fail to cross tick', async () => {
           await expect(
             callback.swap(pool.address, user.address, MIN_LIQUIDITY, false, MAX_SQRT_RATIO.sub(ONE), '0x')
-          ).to.not.emit(reinvestmentToken, 'Mint');
+          ).to.not.emit(pool, 'Transfer');
         });
 
         it('will mint rTokens but not transfer any for 0 governmentFeeBps', async () => {
           // cross initialized tick to mint rTokens
           await expect(
             callback.swap(pool.address, user.address, PRECISION, false, await getPriceFromTick(tickUpper + 1), '0x')
-          ).to.emit(reinvestmentToken, 'Mint');
-          expect(await reinvestmentToken.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
+          ).to.emit(pool, 'Transfer');
+          expect(await pool.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
         });
 
         it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
-          let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+          let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
           // cross initialized tick to mint rTokens
           await swapToUpTick(pool, user, tickUpper + 1);
-          expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+          expect(await pool.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
         });
 
         it('should only send to updated feeTo address', async () => {
@@ -1810,8 +1781,8 @@ describe('ProAMMPool', () => {
           await factory.updateFeeConfiguration(admin.address, 5);
           // cross initialized tick to mint rTokens
           await swapToUpTick(pool, user, tickUpper + 1);
-          let oldFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(admin.address);
-          let newFeeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+          let oldFeeToRTokenBalanceBefore = await pool.balanceOf(admin.address);
+          let newFeeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
 
           // now update to another feeTo
           await factory.updateFeeConfiguration(configMaster.address, 5);
@@ -1819,9 +1790,9 @@ describe('ProAMMPool', () => {
           await swapToDownTick(pool, user, tickLower);
 
           // old feeTo should have same amount of rTokens
-          expect(await reinvestmentToken.balanceOf(admin.address)).to.be.eq(oldFeeToRTokenBalanceBefore);
+          expect(await pool.balanceOf(admin.address)).to.be.eq(oldFeeToRTokenBalanceBefore);
           // new feeTo should have received rTokens
-          expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(newFeeToRTokenBalanceBefore);
+          expect(await pool.balanceOf(configMaster.address)).to.be.gt(newFeeToRTokenBalanceBefore);
         });
       });
     });
@@ -1897,37 +1868,37 @@ describe('ProAMMPool', () => {
           .to.emit(token0, 'Transfer')
           .withArgs(pool.address, callback.address, PRECISION)
           .to.emit(token1, 'Transfer')
-          .withArgs(pool.address, callback.address, PRECISION.mul(TWO))
+          .withArgs(pool.address, callback.address, PRECISION.mul(TWO));
       });
 
       it('allows flash loan of only token0', async () => {
         await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
           .to.emit(token0, 'Transfer')
           .withArgs(pool.address, callback.address, PRECISION)
-          .to.not.emit(token1, 'Transfer')
+          .to.not.emit(token1, 'Transfer');
       });
 
       it('allows flash loan of only token1', async () => {
         await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
-        .to.emit(token1, 'Transfer')
-        .withArgs(pool.address, callback.address, PRECISION)
-        .to.not.emit(token0, 'Transfer')
+          .to.emit(token1, 'Transfer')
+          .withArgs(pool.address, callback.address, PRECISION)
+          .to.not.emit(token0, 'Transfer');
       });
 
       it('no-op if both amounts are 0', async () => {
         await expect(callback.flash(pool.address, ZERO, ZERO, '0x'))
-        .to.not.emit(token0, 'Transfer')
-        .to.not.emit(token1, 'Transfer')
+          .to.not.emit(token0, 'Transfer')
+          .to.not.emit(token1, 'Transfer');
       });
 
       it('allows flash loan of pool balance', async () => {
         let poolBal0 = await token0.balanceOf(pool.address);
         let poolBal1 = await token0.balanceOf(pool.address);
         await expect(callback.flash(pool.address, poolBal0, poolBal1, '0x'))
-        .to.emit(token0, 'Transfer')
-        .withArgs(pool.address, callback.address, poolBal0)
-        .to.emit(token1, 'Transfer')
-        .withArgs(pool.address, callback.address, poolBal1)
+          .to.emit(token0, 'Transfer')
+          .withArgs(pool.address, callback.address, poolBal0)
+          .to.emit(token1, 'Transfer')
+          .withArgs(pool.address, callback.address, poolBal1);
       });
 
       it('should revert if requested loan amount exceeds pool balance', async () => {
@@ -1938,8 +1909,12 @@ describe('ProAMMPool', () => {
       });
 
       it('should revert if recipient fails to pay back loan', async () => {
-        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, false)).to.be.revertedWith('lacking feeQty0');
-        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, false)).to.be.revertedWith('lacking feeQty1');
+        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, false)).to.be.revertedWith(
+          'lacking feeQty0'
+        );
+        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, false)).to.be.revertedWith(
+          'lacking feeQty1'
+        );
       });
 
       describe('turn on fee', async () => {
@@ -1949,10 +1924,14 @@ describe('ProAMMPool', () => {
         });
 
         it('should revert if recipient pays insufficient fees', async () => {
-          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, true)).to.be.revertedWith('lacking feeQty0');
-          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, true)).to.be.revertedWith('lacking feeQty1');
+          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, true)).to.be.revertedWith(
+            'lacking feeQty0'
+          );
+          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, true)).to.be.revertedWith(
+            'lacking feeQty1'
+          );
         });
-  
+
         it('should not revert if recipient overpays', async () => {
           // send tokens to callback so that it will overpay
           await token0.transfer(callback.address, PRECISION);
@@ -1960,34 +1939,34 @@ describe('ProAMMPool', () => {
           await token1.transfer(callback.address, PRECISION);
           await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x')).to.not.be.reverted;
         });
-  
+
         it('should send collected fees to feeTo if not null', async () => {
           let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
           await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x'))
-          .to.emit(token0, 'Transfer')
-          .withArgs(pool.address, configMaster.address, swapFee)
-          .to.emit(token1, 'Transfer')
-          .withArgs(pool.address, configMaster.address, swapFee);
+            .to.emit(token0, 'Transfer')
+            .withArgs(pool.address, configMaster.address, swapFee)
+            .to.emit(token1, 'Transfer')
+            .withArgs(pool.address, configMaster.address, swapFee);
         });
-  
+
         it('should send only token0 fees if loan is taken in only token0', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
           let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
           await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
-          .to.emit(token0, 'Transfer')
-          .withArgs(pool.address, configMaster.address, swapFee)
-          .to.not.emit(token1, 'Transfer');
+            .to.emit(token0, 'Transfer')
+            .withArgs(pool.address, configMaster.address, swapFee)
+            .to.not.emit(token1, 'Transfer');
         });
-  
+
         it('should send only token1 fees if loan is taken in only token1', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
           let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
           await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
-          .to.emit(token1, 'Transfer')
-          .withArgs(pool.address, configMaster.address, swapFee)
-          .to.not.emit(token0, 'Transfer');
+            .to.emit(token1, 'Transfer')
+            .withArgs(pool.address, configMaster.address, swapFee)
+            .to.not.emit(token0, 'Transfer');
         });
       });
 

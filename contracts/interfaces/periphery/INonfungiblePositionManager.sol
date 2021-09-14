@@ -28,7 +28,6 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
     address token0;
     uint16 fee;
     address token1;
-    address rToken;
   }
 
   /// @notice Params for the first time adding liquidity, mint new nft to sender

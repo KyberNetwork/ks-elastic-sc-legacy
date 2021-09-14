@@ -4,7 +4,6 @@ pragma solidity >=0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {IProAMMFactory} from './IProAMMFactory.sol';
-import {IReinvestmentToken} from './IReinvestmentToken.sol';
 
 interface IPoolStorage {
   /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
@@ -18,11 +17,6 @@ interface IPoolStorage {
   /// @notice The second of the two tokens of the pool, sorted by address
   /// @return The token contract address
   function token1() external view returns (IERC20);
-
-  /// @notice The reinvestment token of the pool
-  /// @dev Used for to handle accounting of reinvestment of swap fees collected
-  /// @return The reinvestment token contract address
-  function reinvestmentToken() external view returns (IReinvestmentToken);
 
   /// @notice The pool's fee in basis points
   /// @return The fee in basis points

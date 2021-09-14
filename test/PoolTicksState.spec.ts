@@ -46,15 +46,10 @@ describe('LiquidityMath', () => {
   let [user1, user2] = waffle.provider.getWallets();
 
   beforeEach('setup', async () => {
-    // deploy reinvestment master
-    const ReinvestmentMaster = (await ethers.getContractFactory(
-      'ReinvestmentTokenMaster'
-    )) as ReinvestmentTokenMaster__factory;
-    const reinvestmentMaster = await ReinvestmentMaster.deploy();
     const MockPoolTicksStateFactoryContract = (await ethers.getContractFactory(
       'MockPoolTicksStateFactory'
     )) as MockPoolTicksStateFactory__factory;
-    factory = await MockPoolTicksStateFactoryContract.deploy(reinvestmentMaster.address);
+    factory = await MockPoolTicksStateFactoryContract.deploy();
 
     // deploy mock poolTicksState
     await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, tickSpacing);
