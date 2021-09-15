@@ -109,18 +109,18 @@ describe('LiquidityMath', () => {
     });
 
     it('should return 0 if qty is 0', async () => {
-      expect(await liquidityMath.getLiquidityFromQties(TWO_POW_96.add(ONE), TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, PRECISION)).to.be.eql(ZERO);
-      expect(await liquidityMath.getLiquidityFromQties(TWO_POW_96.add(ONE), TWO_POW_96, TWO_POW_96.mul(TWO), PRECISION, ZERO)).to.be.eql(ZERO);
+      expect(await liquidityMath.getLiquidityFromQties(TWO_POW_96.add(ONE), TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, BN.from(1000000))).to.be.eql(ZERO);
+      expect(await liquidityMath.getLiquidityFromQties(TWO_POW_96.add(ONE), TWO_POW_96, TWO_POW_96.mul(TWO), BN.from(1000000), ZERO)).to.be.eql(ZERO);
     });
 
     it('returns min of liquidity for price of 1 to 1.21', async () => {
-      // qty0: 11x, qty1: 10x
+      let amount = BN.from(1000000000);
       const liquidity = await liquidityMath.getLiquidityFromQties(
-        encodePriceSqrt(1, 1).add(1), encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION, PRECISION
+        encodePriceSqrt(1, 1).add(1), encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), amount, amount
       );
-      expect(liquidity).to.eq(PRECISION.mul(10));
+      expect(liquidity).to.eq(amount.mul(11));
       expect(liquidity).to.eq(
-        await liquidityMath.getLiquidityFromQties(encodePriceSqrt(1, 1).add(1), encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), PRECISION, PRECISION)
+        await liquidityMath.getLiquidityFromQties(encodePriceSqrt(1, 1).add(1), encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), amount, amount)
       );
     });
 
