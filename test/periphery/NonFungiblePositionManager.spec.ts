@@ -3,6 +3,7 @@ import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
 import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
 import {encodePriceSqrt, getPositionKey} from '../helpers/utils';
+import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -236,7 +237,7 @@ describe('NonFungiblePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0, token1, swapFeeBpsArray[0], initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
-          userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]),
+          userBalancesBefore.tokenBalances[2].sub(userBalancesAfter.tokenBalances[2]),
           false
         );
       } else {
@@ -278,7 +279,7 @@ describe('NonFungiblePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0, token1, swapFeeBpsArray[0], initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
-          userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]),
+          userBalancesBefore.tokenBalances[2].sub(userBalancesAfter.tokenBalances[2]),
           false
         );
       } else {
@@ -1244,6 +1245,65 @@ describe('NonFungiblePositionManager', () => {
       expect(await positionManager.tokenURI(nextTokenId)).to.be.eq('');
       await tokenDescriptor.setTokenUri('new token uri');
       expect(await positionManager.tokenURI(nextTokenId)).to.be.eq('new token uri');
+    });
+  });
+
+  describe(`#permit-erc721`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+      await initLiquidity(user, tokenA.address, tokenB.address);
+    });
+
+    it('revert expired', async () => {
+      const { v, r, s } = await getEC721PermitSignature(user, positionManager, other.address, nextTokenId, PRECISION);
+      await expect(positionManager.connect(user).permit(other.address, nextTokenId, 1, v, r, s))
+        .to.be.revertedWith('ProAMM: Expired');
+    });
+
+    it('revert call twice with the same signature', async () => {
+      const { v, r, s } = await getEC721PermitSignature(user, positionManager, other.address, nextTokenId, PRECISION);
+      await positionManager.connect(user).permit(other.address, nextTokenId, PRECISION, v, r, s);
+      await expect(positionManager.connect(user).permit(other.address, nextTokenId, PRECISION, v, r, s))
+        .to.be.reverted;
+    });
+
+    it('revert invalid signature', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      const { v, r, s } = await getEC721PermitSignature(user, positionManager, other.address, nextTokenId, PRECISION);
+      await expect(positionManager.permit(other.address, nextTokenId, PRECISION, v + 3, r, s))
+        .to.be.revertedWith('Invalid signature');
+      await expect(positionManager.connect(user).permit(other.address, nextTokenId.add(1), PRECISION, v, r, s))
+        .to.be.reverted;
+      await expect(positionManager.connect(user).permit(other.address, nextTokenId, PRECISION.sub(1), v, r, s))
+      .to.be.reverted;
+    });
+
+    it('revert signature not from owner', async () => {
+      const { v, r, s } = await getEC721PermitSignature(other, positionManager, admin.address, nextTokenId, PRECISION);
+      await expect(positionManager.connect(user).permit(admin.address, nextTokenId, PRECISION, v, r, s))
+        .to.be.revertedWith('Unauthorized');
+    });
+
+    it('revert approve to current owner', async () => {
+      const { v, r, s } = await getEC721PermitSignature(user, positionManager, user.address, nextTokenId, PRECISION);
+      await expect(positionManager.connect(user).permit(user.address, nextTokenId, PRECISION, v, r, s))
+        .to.be.revertedWith('ERC721Permit: approval to current owner');
+    });
+
+    it('should change the operator of the position and increase the nonce', async () => {
+      const { v, r, s } = await getEC721PermitSignature(user, positionManager, other.address, nextTokenId, PRECISION);
+      await positionManager.connect(user).permit(other.address, nextTokenId, PRECISION, v, r, s);
+      expect((await positionManager.positions(nextTokenId)).pos.nonce).to.eq(1)
+      expect((await positionManager.positions(nextTokenId)).pos.operator).to.eq(other.address);
+      expect(await positionManager.getApproved(nextTokenId)).to.be.eq(other.address);
     });
   });
 });

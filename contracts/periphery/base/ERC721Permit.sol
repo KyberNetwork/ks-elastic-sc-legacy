@@ -71,8 +71,6 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
     bytes32 r,
     bytes32 s
   ) external payable override onlyNotExpired(deadline) {
-    require(_blockTimestamp() <= deadline, 'Permit expired');
-
     bytes32 digest =
       keccak256(
         abi.encodePacked(
