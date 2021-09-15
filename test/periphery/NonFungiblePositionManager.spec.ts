@@ -67,6 +67,7 @@ describe('NonFungiblePositionManager', () => {
 
     PositionManager = (await ethers.getContractFactory('NonfungiblePositionManager')) as NonfungiblePositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
+    await factory.connect(admin).addNFTManager(positionManager.address);
 
     const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
     router = await Router.deploy(factory.address, weth.address);

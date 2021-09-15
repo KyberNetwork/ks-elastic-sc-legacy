@@ -161,9 +161,9 @@ describe('ProAMMPool', () => {
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
 
       // use valid token0 so that poolBalToken1() will revert
-      // token0.address.toLowerCase() < user.address.toLowerCase() with default test-wallets.js
-      await factory.createPool(token0.address, user.address, swapFeeBps);
-      badPool = ProAMMPoolContract.attach(await factory.getPool(token0.address, user.address, swapFeeBps));
+      let badAddress = '0xffffffffffffffffffffffffffffffffffffffff';
+      await factory.createPool(token0.address, badAddress, swapFeeBps);
+      badPool = ProAMMPoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
     });
 

@@ -36,6 +36,10 @@ interface IProAMMFactory {
   /// to be collected out of the fee charged for a pool swap
   event FeeConfigurationUpdated(address feeTo, uint16 governmentFeeBps);
 
+  /// @notice Emitted when whitelist feature is disabled / enabled
+  /// @param whitelistDisabled True if whitelist feature is disabled, false if enabled
+  event WhitelistDisabled(bool whitelistDisabled);
+
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
   /// @param swapFeeBps The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee
@@ -52,14 +56,19 @@ interface IProAMMFactory {
   /// and current government fee charged in basis points
   function feeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);
 
+  /// @notice Returns the status of whitelisting feature of NFT managers
+  /// If true, anyone can mint liquidity tokens
+  /// Otherwise, only whitelisted NFT manager(s) are allowed to mint liquidity tokens
+  function whitelistDisabled() external view returns (bool);
+
   //// @notice Returns all whitelisted NFT managers
-  /// Only whitelisted NFT manager(s) are allowed to burn liquidity tokens
-  /// on behalf of users
+  /// If the whitelisting feature is turned on,
+  /// only whitelisted NFT manager(s) are allowed to mint liquidity tokens
   function getWhitelistedNFTManagers() external view returns (address[] memory);
 
   /// @notice Checks if sender is a whitelisted NFT manager
-  /// Only whitelisted NFT manager(s) are allowed to burn liquidity tokens
-  /// on behalf of users
+  /// If the whitelisting feature is turned on,
+  /// only whitelisted NFT manager(s) are allowed to mint liquidity tokens
   /// @param sender address to be checked
   /// @return true if sender is a whistelisted NFT manager, false otherwise
   function isWhitelistedNFTManager(address sender) external view returns (bool);
@@ -126,4 +135,9 @@ interface IProAMMFactory {
   /// @param governmentFeeBps Fee amount, in basis points,
   /// to be collected out of the fee charged for a pool swap
   function updateFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
+
+  /// @notice Updates the whitelisting feature
+  /// @dev Only configMaster is able to perform the update
+  /// If true, disable the whitelisting feature. Otherwise, enable it
+  function disableWhitelist(bool) external;
 }

@@ -29,6 +29,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   address public immutable override reinvestmentTokenMaster;
   address public override configMaster;
+  bool public override whitelistDisabled;
 
   address private feeTo;
   uint16 private governmentFeeBps;
@@ -95,6 +96,12 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     configMaster = _configMaster;
   }
 
+  /// @inheritdoc IProAMMFactory
+  function disableWhitelist(bool _whitelistDisabled) external override onlyConfigMaster {
+    whitelistDisabled = _whitelistDisabled;
+    emit WhitelistDisabled(_whitelistDisabled);
+  }
+
   // Whitelists an NFT manager
   // Returns true if addition was successful, that is if it was not already present
   function addNFTManager(address _nftManager) external onlyConfigMaster returns (bool added) {
@@ -151,6 +158,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
 
   /// @inheritdoc IProAMMFactory
   function isWhitelistedNFTManager(address sender) external view override returns (bool) {
+    if (whitelistDisabled) return true;
     return whitelistedNFTManagers.contains(sender);
   }
 
