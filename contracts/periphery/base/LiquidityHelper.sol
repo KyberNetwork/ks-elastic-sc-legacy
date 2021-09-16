@@ -45,7 +45,6 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
     if (deltaQty1 > 0) transferTokens(callbackData.token1, callbackData.source, msg.sender, deltaQty1);
   }
 
-  /// TODO: Do we have to verify amounts
   /// @dev Unlock pool with initial liquidity
   /// @param token0 the first token of the pool
   /// @param token1 the second token of the pool

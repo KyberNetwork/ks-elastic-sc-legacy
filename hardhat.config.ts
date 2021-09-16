@@ -39,6 +39,17 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+    overrides: {
+      'contracts/periphery/NonfungiblePositionManager.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 2000,
+          },
+        }
+      }
+    }
   },
 
   paths: {

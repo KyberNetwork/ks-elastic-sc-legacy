@@ -2,7 +2,7 @@
 pragma solidity 0.8.4;
 pragma abicoder v2;
 
-import {IERC20, IProAMMPool} from '../interfaces/IProAMMPool.sol';
+import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
 import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
@@ -14,7 +14,7 @@ import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
-import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
+import {PoolAddress} from './libraries/PoolAddress.sol';
 
 /// @title KyberDMM V2 Swap Router
 contract ProAMMRouter is
@@ -231,6 +231,6 @@ contract ProAMMRouter is
     address tokenB,
     uint16 fee
   ) private view returns (IProAMMPool) {
-    return IProAMMPool(IProAMMFactory(factory).getPool(tokenA, tokenB, fee));
+    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
   }
 }

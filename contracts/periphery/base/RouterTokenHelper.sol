@@ -27,7 +27,7 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
     address token,
     uint256 minAmount,
     address recipient
-  ) external payable override {
+  ) public payable virtual override {
     uint256 balanceToken = IERC20(token).balanceOf(address(this));
     require(balanceToken >= minAmount, 'Insufficient token');
 
