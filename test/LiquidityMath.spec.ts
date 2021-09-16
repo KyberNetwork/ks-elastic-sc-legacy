@@ -42,12 +42,12 @@ describe('LiquidityMath', () => {
     });
 
     it('works for prices that overflow', async () => {
-      liquidityMath.getLiquidityFromQty0(
+      await liquidityMath.getLiquidityFromQty0(
         encodePriceSqrt(TWO.pow(100), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION
       );
-      liquidityMath.getLiquidityFromQty0(
+      await liquidityMath.getLiquidityFromQty0(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION
@@ -80,12 +80,12 @@ describe('LiquidityMath', () => {
     });
 
     it('works for prices that overflow', async () => {
-      liquidityMath.getLiquidityFromQty1(
+      await liquidityMath.getLiquidityFromQty1(
         encodePriceSqrt(TWO.pow(100), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION
       );
-      liquidityMath.getLiquidityFromQty1(
+      await liquidityMath.getLiquidityFromQty1(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION
@@ -143,15 +143,15 @@ describe('LiquidityMath', () => {
     });
 
     it('works for prices that overflow', async () => {
-      liquidityMath.getLiquidityFromQties(
-        encodePriceSqrt(TWO_POW_96, 1).add(1),
+      await liquidityMath.getLiquidityFromQties(
+        encodePriceSqrt(TWO.pow(98), 1),
         encodePriceSqrt(TWO.pow(100), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION,
         PRECISION
       );
-      liquidityMath.getLiquidityFromQties(
-        encodePriceSqrt(TWO_POW_96, 1).sub(1),
+      await liquidityMath.getLiquidityFromQties(
+        encodePriceSqrt(TWO.pow(98), 1),
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION,

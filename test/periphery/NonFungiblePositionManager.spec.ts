@@ -19,7 +19,6 @@ import {
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import { ProAMMRouter } from '../../typechain/ProAMMRouter';
-import { ProAMMPool } from '../../typechain/ProAMMPool';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
 const showTxGasUsed = true;
@@ -486,7 +485,7 @@ describe('NonFungiblePositionManager', () => {
           amount0Min: BN.from(0), amount1Min: BN.from(0), recipient: recipients[i], deadline: PRECISION
         }
         let multicallData = [positionManager.interface.encodeFunctionData('mint', [mintParams])];
-        multicallData.push(positionManager.interface.encodeFunctionData('refundETH', []));
+        multicallData.push(positionManager.interface.encodeFunctionData('refundETH'));
         let tx = await positionManager.connect(user).multicall(multicallData, { value: amount, gasPrice: txGasPrice });
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
         let txFee = (await tx.wait()).gasUsed.mul(txGasPrice);
@@ -555,7 +554,7 @@ describe('NonFungiblePositionManager', () => {
   }
 
   const swapExactInput = async function (
-    tokenIn: string, tokenOut: string, poolFee: number, amount: number
+    tokenIn: string, tokenOut: string, poolFee: number, amount: BigNumber
   ) {
     const swapParams = {
       tokenIn: tokenIn,

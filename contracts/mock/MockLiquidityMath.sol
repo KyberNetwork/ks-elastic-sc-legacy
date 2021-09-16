@@ -21,12 +21,12 @@ contract MockLiquidityMath {
   }
 
   function getLiquidityFromQties(
-    uint160 sqrtPriceX,
+    uint160 sqrtPriceCurrent,
     uint160 sqrtPriceA,
     uint160 sqrtPriceB,
     uint256 qty0,
     uint256 qty1
   ) external pure returns (uint128) {
-    return LiquidityMath.getLiquidityFromQties(sqrtPriceX, sqrtPriceA, sqrtPriceB, qty0, qty1);
+    return LiquidityMath.getLiquidityFromQties(sqrtPriceCurrent, sqrtPriceA, sqrtPriceB, qty0, qty1);
   }
 }
