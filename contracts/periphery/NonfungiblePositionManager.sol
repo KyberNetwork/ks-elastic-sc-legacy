@@ -50,7 +50,7 @@ contract NonfungiblePositionManager is
     address token0,
     address token1,
     uint16 fee,
-    uint160 sqrtPriceX96
+    uint160 sqrtPriceCurrent
   ) external payable override returns (address pool) {
     require(token0 < token1);
     pool = IProAMMFactory(factory).getPool(token0, token1, fee);
@@ -61,7 +61,7 @@ contract NonfungiblePositionManager is
 
     (uint160 poolSqrtPriceX96, , , ) = IProAMMPool(pool).getPoolState();
     if (poolSqrtPriceX96 == 0) {
-      IProAMMPool(pool).unlockPool(sqrtPriceX96, _callbackData(token0, token1, fee));
+      IProAMMPool(pool).unlockPool(sqrtPriceCurrent, _callbackData(token0, token1, fee));
     }
   }
 
