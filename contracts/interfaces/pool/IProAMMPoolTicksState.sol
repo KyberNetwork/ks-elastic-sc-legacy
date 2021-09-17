@@ -8,6 +8,7 @@ interface IProAMMPoolTicksState {
   /// that uses the pool either as tick lower or tick upper
   /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
   /// feeGrowthOutside the fee growth on the other side of the tick from the current tick
+  /// secondsPerLiquidityOutside the seconds spent on the other side of the tick from the current tick
   /// initialized True iff liquidityGross is greater than 0, otherwise equal to false.
   function ticks(int24 tick)
     external
@@ -16,6 +17,7 @@ interface IProAMMPoolTicksState {
       uint128 liquidityGross,
       int128 liquidityNet,
       uint256 feeGrowthOutside,
+      uint160 secondsPerLiquidityOutside,
       bool initialized
     );
 

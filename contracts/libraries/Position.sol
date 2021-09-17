@@ -35,7 +35,7 @@ library Position {
   /// @param self The individual position to update
   /// @param liquidityDelta The change in pool liquidity as a result of the position update
   /// this value should not be zero when called
-  /// @param feeGrowthInside The all-time fee growth in LP tokens, per unit of liquidity, inside the position's tick boundaries
+  /// @param feeGrowthInside All-time fee growth in LP tokens, per unit of liquidity, inside the position's tick boundaries
   function update(
     Data storage self,
     int128 liquidityDelta,

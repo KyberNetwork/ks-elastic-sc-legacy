@@ -196,6 +196,8 @@ describe('ProAMMPool', () => {
       expect(result._poolReinvestmentLiquidityLast).to.be.eql(MIN_LIQUIDITY);
 
       expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
+      expect(await pool.secondsPerLiquidityGlobal()).to.be.eql(ZERO);
+      expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eql(0);
     });
 
     it('#gas [ @skip-on-coverage ]', async () => {
@@ -391,6 +393,9 @@ describe('ProAMMPool', () => {
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            // secondsPerLiquidityOutside
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
 
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
@@ -407,19 +412,27 @@ describe('ProAMMPool', () => {
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            // secondsPerLiquidityOutside
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
           });
 
-          it('should not change initialized ticks status or update feeGrowthOutside for liquidity addition', async () => {
+          it('should not change initialized ticks status or update feeGrowthOutside & secondsPerLiquidityOutside for liquidity addition', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
             // add liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
 
+            tickLowerData = await pool.ticks(tickLower);
+            tickUpperData = await pool.ticks(tickUpper);
+
             // should be unchanged
-            expect((await pool.ticks(tickLower)).initialized).to.be.true;
-            expect((await pool.ticks(tickUpper)).initialized).to.be.true;
-            expect((await pool.ticks(tickLower)).feeGrowthOutside).to.be.eql(ZERO);
-            expect((await pool.ticks(tickUpper)).feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.initialized).to.be.true;
+            expect(tickUpperData.initialized).to.be.true;
+            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
           });
 
           it('should add on liquidity to same position', async () => {
@@ -461,6 +474,8 @@ describe('ProAMMPool', () => {
             expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
             // should have increased fees
             expect(positionData.feeGrowthInsideLast).to.be.gt(ZERO);
+            // should have non-zero secondsPerLiquidityInside
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.gt(ZERO);
           });
 
           it('#gas [ @skip-on-coverage ]', async () => {
