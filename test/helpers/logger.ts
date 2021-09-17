@@ -1,4 +1,4 @@
-import {BigNumber} from './utils';
+import {BigNumber} from 'ethers';
 import {ProAMMPool} from '../../typechain';
 export enum SwapTitle {
   BEFORE_SWAP,

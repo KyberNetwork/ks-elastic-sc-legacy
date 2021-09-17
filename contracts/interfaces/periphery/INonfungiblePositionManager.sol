@@ -78,13 +78,13 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
   /// @param token0 the token0 of the pool
   /// @param token1 the token1 of the pool
   /// @param fee the fee for the pool
-  /// @param sqrtPriceCurrent the initial price of the pool
+  /// @param currentSqrtP the initial price of the pool
   /// @return pool returns the pool address
   function createAndUnlockPoolIfNecessary(
     address token0,
     address token1,
     uint16 fee,
-    uint160 sqrtPriceCurrent
+    uint160 currentSqrtP
   ) external payable returns (address pool);
 
   function mint(MintParams calldata params)
