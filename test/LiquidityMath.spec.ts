@@ -36,9 +36,6 @@ describe('LiquidityMath', () => {
     it('returns 11x liquidity for price of 1 to 1.21, qty: 10**18', async () => {
       const liquidity = await liquidityMath.getLiquidityFromQty0(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
       expect(liquidity).to.eq(PRECISION.mul(11));
-      expect(liquidity).to.eq(
-        await liquidityMath.getLiquidityFromQty0(encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), PRECISION)
-      );
     });
 
     it('works for prices that overflow', async () => {
@@ -74,9 +71,6 @@ describe('LiquidityMath', () => {
     it('returns 10x liquidity for price of 1 to 1.21', async () => {
       const liquidity = await liquidityMath.getLiquidityFromQty1(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
       expect(liquidity).to.eq(PRECISION.mul(10));
-      expect(liquidity).to.eq(
-        await liquidityMath.getLiquidityFromQty1(encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), PRECISION)
-      );
     });
 
     it('works for prices that overflow', async () => {
@@ -119,9 +113,6 @@ describe('LiquidityMath', () => {
         encodePriceSqrt(1, 1).add(1), encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), amount, amount
       );
       expect(liquidity).to.eq(amount.mul(11));
-      expect(liquidity).to.eq(
-        await liquidityMath.getLiquidityFromQties(encodePriceSqrt(1, 1).add(1), encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), amount, amount)
-      );
     });
 
     it('returns liquidity from qty0 when price is low', async () => {

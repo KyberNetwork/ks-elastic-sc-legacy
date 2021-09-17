@@ -21,8 +21,6 @@ library LiquidityMath {
     uint160 upperSqrtP,
     uint256 qty0
   ) internal pure returns (uint128) {
-    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
-
     uint256 liq = FullMath.mulDivFloor(lowerSqrtP, upperSqrtP, C.TWO_POW_96);
     unchecked {
       return FullMath.mulDivFloor(liq, qty0, upperSqrtP - lowerSqrtP).toUint128();
@@ -41,8 +39,6 @@ library LiquidityMath {
     uint160 upperSqrtP,
     uint256 qty1
   ) internal pure returns (uint128) {
-    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
-
     unchecked {
       return FullMath.mulDivFloor(qty1, C.TWO_POW_96, upperSqrtP - lowerSqrtP).toUint128();
     }
@@ -62,8 +58,6 @@ library LiquidityMath {
     uint256 qty0,
     uint256 qty1
   ) internal pure returns (uint128) {
-    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
-
     if (currentSqrtP <= lowerSqrtP) {
       return getLiquidityFromQty0(lowerSqrtP, upperSqrtP, qty0);
     }
