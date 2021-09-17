@@ -80,4 +80,36 @@ contract MockSwapMath {
       isToken0
     );
   }
+
+  function computeSwapStep(
+    uint256 liquidity,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
+    uint256 feeInBps,
+    int256 amountRemaining,
+    bool isExactInput,
+    bool isToken0
+  )
+    external
+    view
+    returns (
+      int256 delta,
+      int256 actualDelta,
+      uint256 fee,
+      uint160 nextSqrtP,
+      uint256 gasCost
+    )
+  {
+    uint256 start = gasleft();
+    (delta, actualDelta, fee, nextSqrtP) = SwapMath.computeSwapStep(
+      liquidity,
+      currentSqrtP,
+      targetSqrtP,
+      feeInBps,
+      amountRemaining,
+      isExactInput,
+      isToken0
+    );
+    gasCost = start - gasleft();
+  }
 }

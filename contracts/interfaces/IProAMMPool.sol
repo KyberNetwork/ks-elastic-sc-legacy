@@ -66,8 +66,8 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
     view
     returns (
       uint256 poolFeeGrowthGlobal,
-      uint256 poolReinvestmentLiquidity,
-      uint256 poolReinvestmentLiquidityLast
+      uint128 poolReinvestmentLiquidity,
+      uint128 poolReinvestmentLiquidityLast
     );
 
   /// @notice Look up information about a specific tick in the pool
