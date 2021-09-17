@@ -5,8 +5,9 @@ import {IERC20, IProAMMFactory} from './IProAMMFactory.sol';
 import {IReinvestmentToken} from './IReinvestmentToken.sol';
 import {IProAMMPoolActions} from './pool/IProAMMPoolActions.sol';
 import {IProAMMPoolEvents} from './pool/IProAMMPoolEvents.sol';
+import {IProAMMPoolTicksState} from './pool/IProAMMPoolTicksState.sol';
 
-interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
+interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents, IProAMMPoolTicksState {
   /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
   /// @return The contract address
   function factory() external view returns (IProAMMFactory);
@@ -69,33 +70,4 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents {
       uint128 poolReinvestmentLiquidity,
       uint128 poolReinvestmentLiquidityLast
     );
-
-  /// @notice Look up information about a specific tick in the pool
-  /// @param tick The tick to look up
-  /// @return liquidityGross the total amount of position liquidity
-  /// that uses the pool either as tick lower or tick upper
-  /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
-  /// feeGrowthOutside the fee growth on the other side of the tick from the current tick
-  /// initialized True iff liquidityGross is greater than 0, otherwise equal to false.
-  function ticks(int24 tick)
-    external
-    view
-    returns (
-      uint128 liquidityGross,
-      int128 liquidityNet,
-      uint256 feeGrowthOutside,
-      bool initialized
-    );
-
-  /// @notice Returns 256 packed tick initialized boolean values. See TickBitmap for more information
-  function tickBitmap(int16 wordPosition) external view returns (uint256);
-
-  /// @notice Returns the information about a position by the position's key
-  /// @param key keccak256(abi.encodePacked(owner, tickLower, tickUpper))
-  /// @return liquidity liquidity quantity of the position
-  /// @return feeGrowthInsideLast fee growth inside the tick range as of the last mint / burn action performed
-  function positions(bytes32 key)
-    external
-    view
-    returns (uint128 liquidity, uint256 feeGrowthInsideLast);
 }

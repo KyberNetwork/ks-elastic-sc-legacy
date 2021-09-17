@@ -14,32 +14,34 @@ import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
 
-
 contract NonfungiblePositionManager is
   INonfungiblePositionManager,
   Multicall,
   ERC721Permit,
   LiquidityHelper
 {
-
   address private immutable _tokenDescriptor;
   uint80 public override nextPoolId = 1;
   uint256 public override nextTokenId = 1;
   // pool id => pool info
-  mapping (uint80 => PoolInfo) private _poolInfoById;
+  mapping(uint80 => PoolInfo) private _poolInfoById;
   // tokenId => position
-  mapping (uint256 => Position) private _positions;
+  mapping(uint256 => Position) private _positions;
 
-  mapping (address => bool) public override isRToken;
+  mapping(address => bool) public override isRToken;
   // pool address => pool id
-  mapping (address => uint80) public override addressToPoolId;
+  mapping(address => uint80) public override addressToPoolId;
 
   modifier isAuthorizedForToken(uint256 tokenId) {
     require(_isApprovedOrOwner(msg.sender, tokenId), 'Not approved');
     _;
   }
 
-  constructor(address _factory, address _WETH, address _descriptor)
+  constructor(
+    address _factory,
+    address _WETH,
+    address _descriptor
+  )
     ERC721Permit('ProAMM NFT Positions V1', 'PRO-AMM-POS-V1', '1')
     ImmutableRouterStorage(_factory, _WETH)
   {
@@ -78,13 +80,21 @@ contract NonfungiblePositionManager is
     )
   {
     IProAMMPool pool;
-  
-    (liquidity, amount0, amount1, , pool) = addLiquidity(AddLiquidityParams({
-      token0: params.token0, token1: params.token1, fee: params.fee, recipient: address(this),
-      tickLower: params.tickLower, tickUpper: params.tickUpper,
-      amount0Desired: params.amount0Desired, amount1Desired: params.amount1Desired,
-      amount0Min: params.amount0Min, amount1Min: params.amount1Min
-    }));
+
+    (liquidity, amount0, amount1, , pool) = addLiquidity(
+      AddLiquidityParams({
+        token0: params.token0,
+        token1: params.token1,
+        fee: params.fee,
+        recipient: address(this),
+        tickLower: params.tickLower,
+        tickUpper: params.tickUpper,
+        amount0Desired: params.amount0Desired,
+        amount1Desired: params.amount1Desired,
+        amount0Min: params.amount0Min,
+        amount1Min: params.amount1Min
+      })
+    );
 
     tokenId = nextTokenId++;
     _mint(params.recipient, tokenId);
@@ -121,12 +131,20 @@ contract NonfungiblePositionManager is
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool;
 
-    (liquidity, amount0, amount1, , pool) = addLiquidity(AddLiquidityParams({
-      token0: poolInfo.token0, token1: poolInfo.token1, fee: poolInfo.fee, recipient: address(this),
-      tickLower: pos.tickLower, tickUpper: pos.tickUpper,
-      amount0Desired: params.amount0Desired, amount1Desired: params.amount1Desired,
-      amount0Min: params.amount0Min, amount1Min: params.amount1Min
-    }));
+    (liquidity, amount0, amount1, , pool) = addLiquidity(
+      AddLiquidityParams({
+        token0: poolInfo.token0,
+        token1: poolInfo.token1,
+        fee: poolInfo.fee,
+        recipient: address(this),
+        tickLower: pos.tickLower,
+        tickUpper: pos.tickUpper,
+        amount0Desired: params.amount0Desired,
+        amount1Desired: params.amount1Desired,
+        amount0Min: params.amount0Min,
+        amount1Min: params.amount1Min
+      })
+    );
 
     uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
@@ -213,11 +231,10 @@ contract NonfungiblePositionManager is
   }
 
   function positions(uint256 tokenId)
-    external view override
-    returns (
-      Position memory pos,
-      PoolInfo memory info
-    )
+    external
+    view
+    override
+    returns (Position memory pos, PoolInfo memory info)
   {
     pos = _positions[tokenId];
     info = _poolInfoById[pos.poolId];
@@ -236,7 +253,12 @@ contract NonfungiblePositionManager is
     super.transferAllTokens(token, minAmount, recipient);
   }
 
-  function tokenURI(uint256 tokenId) public view override(ERC721, IERC721Metadata) returns (string memory) {
+  function tokenURI(uint256 tokenId)
+    public
+    view
+    override(ERC721, IERC721Metadata)
+    returns (string memory)
+  {
     require(_exists(tokenId), 'Nonexistent token');
     return INonfungibleTokenPositionDescriptor(_tokenDescriptor).tokenURI(this, tokenId);
   }
@@ -246,26 +268,27 @@ contract NonfungiblePositionManager is
     return _positions[tokenId].operator;
   }
 
-  function _storePoolInfo(address pool, address token0, address token1, uint16 fee) private returns (uint80 poolId) {
+  function _storePoolInfo(
+    address pool,
+    address token0,
+    address token1,
+    uint16 fee
+  ) private returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {
       addressToPoolId[pool] = (poolId = nextPoolId++);
       address rToken = address(IProAMMPool(pool).reinvestmentToken());
-      _poolInfoById[poolId] = PoolInfo({ token0: token0, fee: fee, token1: token1, rToken: rToken });
+      _poolInfoById[poolId] = PoolInfo({token0: token0, fee: fee, token1: token1, rToken: rToken});
       isRToken[rToken] = true;
     }
   }
 
-  function _getFeeGrowthInside(IProAMMPool pool, int24 tickLower, int24 tickUpper)
-    internal view
-    returns (uint256 feeGrowthInsideLast)
-  {
-    bytes32 positonKey = _positionKey(tickLower, tickUpper);
-    (, feeGrowthInsideLast) = pool.positions(positonKey);
-  }
-
-  function _positionKey(int24 tickLower, int24 tickUpper) internal view returns (bytes32) {
-    return keccak256(abi.encodePacked(address(this), tickLower, tickUpper));
+  function _getFeeGrowthInside(
+    IProAMMPool pool,
+    int24 tickLower,
+    int24 tickUpper
+  ) internal view returns (uint256 feeGrowthInsideLast) {
+    (, feeGrowthInsideLast) = pool.getPositions(address(this), tickLower, tickUpper);
   }
 
   /// @dev Overrides _approve to use the operator in the position, which is packed with the position permit nonce
@@ -282,7 +305,11 @@ contract NonfungiblePositionManager is
    * @dev Return the pool for the given token pair and fee. The pool contract may or may not exist.
    *  Use determine function to save gas, instead of reading from factory
    */
-  function _getPool(address tokenA, address tokenB, uint16 fee) private view returns (IProAMMPool) {
+  function _getPool(
+    address tokenA,
+    address tokenB,
+    uint16 fee
+  ) private view returns (IProAMMPool) {
     return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
   }
 }

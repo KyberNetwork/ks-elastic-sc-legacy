@@ -40,10 +40,6 @@ export async function getPriceFromTick (tick: BigNumberish): Promise<BN> {
   return await (await deployTickMath()).getSqrtRatioAtTick(tick);
 }
 
-export function getPositionKey (owner: string, tickLower: BigNumberish, tickUpper: BigNumberish): string {
-  return ethers.utils.solidityKeccak256(['address', 'int24', 'int24'], [owner, tickLower, tickUpper]);
-}
-
 async function _getTickAtPrice (sqrtRatio: BN): Promise<number> {
   return await (await deployTickMath()).getTickAtSqrtRatio(sqrtRatio);
 }

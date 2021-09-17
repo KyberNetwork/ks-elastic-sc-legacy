@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.4;
 
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+
 import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
 import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
 import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
 import {MathConstants as C} from './libraries/MathConstants.sol';
@@ -16,20 +18,15 @@ import {ReinvestmentMath} from './libraries/ReinvestmentMath.sol';
 import {SwapMath} from './libraries/SwapMath.sol';
 import {FullMath} from './libraries/FullMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
-import {Tick, TickMath} from './libraries/Tick.sol';
-import {TickBitmap} from './libraries/TickBitmap.sol';
-import {Position} from './libraries/Position.sol';
+import {TickMath} from './libraries/TickMath.sol';
+import {ProAMMPoolTicksState} from './ProAMMPoolTicksState.sol';
 
-contract ProAMMPool is IProAMMPool {
+contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   using Clones for address;
   using SafeCast for uint256;
   using SafeCast for int256;
   using SafeERC20 for IERC20;
   using SafeERC20 for IReinvestmentToken;
-  using Tick for mapping(int24 => Tick.Data);
-  using TickBitmap for mapping(int16 => uint256);
-  using Position for mapping(bytes32 => Position.Data);
-  using Position for Position.Data;
 
   address private constant LIQUIDITY_LOCKUP_ADDRESS = 0xD444422222222222222222222222222222222222;
   uint128 private constant MIN_LIQUIDITY = 100000;
@@ -47,16 +44,11 @@ contract ProAMMPool is IProAMMPool {
   uint160 internal poolSqrtPrice;
   int24 internal poolTick;
   bool private locked;
+  // see IProAMMPool#getReinvestmentState for explanations of the variables below
   uint128 internal poolLiquidity;
   uint128 internal poolReinvestmentLiquidity;
   uint128 internal poolReinvestmentLiquidityLast;
-
-  // see IProAMMPool#getReinvestmentAndFees for explanations of the variables below
   uint256 internal poolFeeGrowthGlobal;
-  // see IProAMMPool for explanations of the variables below
-  mapping(int24 => Tick.Data) public override ticks;
-  mapping(int16 => uint256) public override tickBitmap;
-  mapping(bytes32 => Position.Data) public override positions;
 
   /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
   /// Also prevents entrance to pool actions prior to initalization
@@ -82,7 +74,7 @@ contract ProAMMPool is IProAMMPool {
     swapFeeBps = _swapFeeBps;
     tickSpacing = _tickSpacing;
 
-    maxLiquidityPerTick = Tick.calcMaxLiquidityPerTickFromSpacing(_tickSpacing);
+    maxLiquidityPerTick = calcMaxLiquidityPerTick(_tickSpacing);
     IReinvestmentToken _reinvestmentToken = IReinvestmentToken(
       IProAMMFactory(_factory).reinvestmentTokenMaster().clone()
     );
@@ -113,6 +105,7 @@ contract ProAMMPool is IProAMMPool {
     return abi.decode(data, (uint256));
   }
 
+  // TODO move _poolLiquidity to getReinvestmentState to save 1 slot
   function getPoolState()
     external
     view
@@ -163,21 +156,11 @@ contract ProAMMPool is IProAMMPool {
     emit Initialize(initialSqrtPrice, poolTick);
   }
 
-  struct TweakPositionData {
-    // address of owner of the position
-    address owner;
-    // position's lower and upper ticks
-    int24 tickLower;
-    int24 tickUpper;
-    // any change in liquidity
-    int128 liquidityDelta;
-  }
-
   /// @dev Make changes to a position
   /// @param posData the position details and the change to the position's liquidity to effect
   /// @return qty0 token0 qty owed to the pool, negative if the pool should pay the recipient
   /// @return qty1 token1 qty owed to the pool, negative if the pool should pay the recipient
-  function _tweakPosition(TweakPositionData memory posData)
+  function _tweakPosition(UpdatePositionData memory posData)
     private
     returns (
       int256 qty0,
@@ -190,19 +173,38 @@ contract ProAMMPool is IProAMMPool {
     require(posData.tickUpper <= TickMath.MAX_TICK, 'invalid upper tick');
 
     // SLOADs for gas optimization
+    uint160 _poolSqrtPrice = poolSqrtPrice;
     int24 _poolTick = poolTick;
     uint128 lp = poolLiquidity;
     uint128 lf = poolReinvestmentLiquidity;
+    uint256 _feeGrowthGlobal = poolFeeGrowthGlobal;
+
+    {
+      uint128 lfLast = poolReinvestmentLiquidityLast;
+      uint256 rMintQty = ReinvestmentMath.calcrMintQty(
+        lf,
+        lfLast,
+        lp,
+        reinvestmentToken.totalSupply()
+      );
+      if (rMintQty != 0) {
+        mintRTokens(rMintQty);
+        // lp != 0 because lp = 0 => rMintQty = 0
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+        poolFeeGrowthGlobal = _feeGrowthGlobal;
+      }
+      // update poolReinvestmentLiquidityLast
+      poolReinvestmentLiquidityLast = lf;
+    }
 
     feesClaimable = _updatePosition(
-      posData.owner,
-      posData.tickLower,
-      posData.tickUpper,
-      posData.liquidityDelta,
+      posData,
       _poolTick,
-      lp,
-      lf
+      _feeGrowthGlobal,
+      maxLiquidityPerTick,
+      tickSpacing
     );
+    if (feesClaimable != 0) reinvestmentToken.safeTransfer(posData.owner, feesClaimable);
 
     if (_poolTick < posData.tickLower) {
       // current tick < position range
@@ -217,8 +219,6 @@ contract ProAMMPool is IProAMMPool {
       );
     } else if (_poolTick < posData.tickUpper) {
       // current tick is inside the passed range
-      uint160 _poolSqrtPrice = poolSqrtPrice; // SLOAD for gas optimization
-
       qty0 = QtyDeltaMath.getQty0Delta(
         _poolSqrtPrice,
         TickMath.getSqrtRatioAtTick(posData.tickUpper),
@@ -247,95 +247,6 @@ contract ProAMMPool is IProAMMPool {
     }
   }
 
-  /// @dev Gets and updates a position with the given liquidity delta
-  /// @param owner address of owner of the position
-  /// @param tickLower position's lower tick
-  /// @param tickUpper position's upper tick
-  /// @param liquidityDelta change in position's liquidity
-  /// @param currentTick  current pool tick, passed to avoid sload
-  /// @param lp current pool liquidity, passed to avoid sload
-  /// @param lf current pool reinvestment liquidity, passed to avoid sload
-  function _updatePosition(
-    address owner,
-    int24 tickLower,
-    int24 tickUpper,
-    int128 liquidityDelta,
-    int24 currentTick,
-    uint128 lp,
-    uint128 lf
-  ) private returns (uint256 feesClaimable) {
-    Position.Data storage position = positions.get(owner, tickLower, tickUpper);
-
-    // SLOADs for gas optimization
-    uint256 _feeGrowthGlobal = poolFeeGrowthGlobal;
-    uint128 lfLast = poolReinvestmentLiquidityLast;
-
-    // local scope rMintQty - for mint reinvestment tokens if necessary
-    {
-      uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-        lf,
-        lfLast,
-        lp,
-        reinvestmentToken.totalSupply()
-      );
-      if (rMintQty != 0) {
-        mintRTokens(rMintQty);
-        // lp != 0 because lp = 0 => rMintQty = 0
-        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-        poolFeeGrowthGlobal = _feeGrowthGlobal;
-      }
-      // update poolReinvestmentLiquidityLast
-      poolReinvestmentLiquidityLast = lf;
-    }
-
-    // update ticks if necessary
-    bool flippedLower = ticks.update(
-      tickLower,
-      currentTick,
-      liquidityDelta,
-      _feeGrowthGlobal,
-      true,
-      maxLiquidityPerTick
-    );
-    if (flippedLower) {
-      tickBitmap.flipTick(tickLower, tickSpacing);
-    }
-    bool flippedUpper = ticks.update(
-      tickUpper,
-      currentTick,
-      liquidityDelta,
-      _feeGrowthGlobal,
-      false,
-      maxLiquidityPerTick
-    );
-    if (flippedUpper) {
-      tickBitmap.flipTick(tickUpper, tickSpacing);
-    }
-
-    uint256 feeGrowthInside = ticks.getFeeGrowthInside(
-      tickLower,
-      tickUpper,
-      currentTick,
-      _feeGrowthGlobal
-    );
-
-    // calc rTokens to be minted for the position's accumulated fees
-    feesClaimable = position.update(liquidityDelta, feeGrowthInside);
-    if (feesClaimable > 0) {
-      // transfer rTokens from pool to owner
-      reinvestmentToken.safeTransfer(owner, feesClaimable);
-    }
-    // clear any tick data that is no longer needed
-    if (liquidityDelta < 0) {
-      if (flippedLower) {
-        ticks.clear(tickLower);
-      }
-      if (flippedUpper) {
-        ticks.clear(tickUpper);
-      }
-    }
-  }
-
   /// see IProAMMPoolActions
   function mint(
     address recipient,
@@ -358,7 +269,7 @@ contract ProAMMPool is IProAMMPool {
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
-      TweakPositionData({
+      UpdatePositionData({
         owner: recipient,
         tickLower: tickLower,
         tickUpper: tickUpper,
@@ -398,7 +309,7 @@ contract ProAMMPool is IProAMMPool {
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
-      TweakPositionData({
+      UpdatePositionData({
         owner: msg.sender,
         tickLower: tickLower,
         tickUpper: tickUpper,
@@ -512,7 +423,7 @@ contract ProAMMPool is IProAMMPool {
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
       SwapStep memory step;
-      (step.nextTick, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+      (step.nextTick, step.initialized) = nextInitializedTick(
         swapData.currentTick,
         tickSpacing,
         willUpTick
@@ -575,7 +486,7 @@ contract ProAMMPool is IProAMMPool {
           }
           swapData.lfLast = swapData.lf;
 
-          int128 liquidityNet = ticks.crossToTick(step.nextTick, swapData.feeGrowthGlobal);
+          int128 liquidityNet = crossToTick(step.nextTick, swapData.feeGrowthGlobal);
           // need to switch signs for decreasing tick
           if (!willUpTick) liquidityNet = -liquidityNet;
           swapData.lp = LiqDeltaMath.addLiquidityDelta(swapData.lp, liquidityNet);

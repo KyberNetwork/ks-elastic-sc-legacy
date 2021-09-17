@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
 import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
-import {encodePriceSqrt, getPositionKey} from '../helpers/utils';
+import {encodePriceSqrt} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 import chai from 'chai';
 const {solidity} = waffle;
@@ -52,6 +52,8 @@ let getBalances: (
 
 describe('NonFungiblePositionManager', () => {
   const [user, admin, other] = waffle.provider.getWallets();
+  const tickLower = -100 * tickSpacingArray[0];
+  const tickUpper = 100 * tickSpacingArray[0];
 
   before('factory, token and callback setup', async () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
@@ -447,8 +449,7 @@ describe('NonFungiblePositionManager', () => {
         expect(pos.tickUpper).to.be.eq(tickUpper);
 
         // check liquidity & fee growth record
-        let positionKey = getPositionKey(positionManager.address, pos.tickLower, pos.tickUpper);
-        const { liquidity, feeGrowthInsideLast } = await pool.positions(positionKey);
+        const { liquidity, feeGrowthInsideLast } = await pool.getPositions(positionManager.address, tickLower, tickUpper);
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
@@ -531,8 +532,7 @@ describe('NonFungiblePositionManager', () => {
         expect(pos.tickUpper).to.be.eq(tickUpper);
 
         // check liquidity & fee growth record
-        let positionKey = getPositionKey(positionManager.address, pos.tickLower, pos.tickUpper);
-        const { liquidity, feeGrowthInsideLast } = await pool.positions(positionKey);
+        const { liquidity, feeGrowthInsideLast } = await pool.getPositions(positionManager.address, tickLower, tickUpper);
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
@@ -648,8 +648,6 @@ describe('NonFungiblePositionManager', () => {
     it('add liquidity with tokens - no new fees', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
-      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
-
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
 
@@ -665,7 +663,7 @@ describe('NonFungiblePositionManager', () => {
         let tokenId = tokenIds[i % 2];
 
         let userData = await positionManager.positions(tokenId);
-        let poolData = await poolContract.positions(positionKey);
+        let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
 
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
@@ -689,7 +687,7 @@ describe('NonFungiblePositionManager', () => {
 
         // verify liquidity and position
         let userNewData = await positionManager.positions(tokenId);
-        let newPoolData = await poolContract.positions(positionKey);
+        let newPoolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalAfter = await getBalances(positionManager.address, [userData.info.rToken]);
 
         // no new rToken in the contract
@@ -710,7 +708,6 @@ describe('NonFungiblePositionManager', () => {
     it('add liquidity with tokens - has new fees', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
-      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
@@ -727,7 +724,7 @@ describe('NonFungiblePositionManager', () => {
         let tokenId = tokenIds[i % 2];
 
         let userData = await positionManager.positions(tokenId);
-        let poolData = await poolContract.positions(positionKey);
+        let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalBefore = await getBalances(positionManager.address, [userData.info.rToken]);
 
         // made some swaps to get fees
@@ -759,7 +756,7 @@ describe('NonFungiblePositionManager', () => {
 
         // verify liquidity and position
         let userNewData = await positionManager.positions(tokenId);
-        let newPoolData = await poolContract.positions(positionKey);
+        let newPoolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
 
         // additional rToken owed = user_liquidity * (pool_last_fee_growth - user_last_fee_growth) / 2**96
         let additionalRTokenOwed = userData.pos.liquidity.mul(
@@ -843,7 +840,6 @@ describe('NonFungiblePositionManager', () => {
     it('remove liquidity with tokens - no new fees', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
-      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
@@ -858,7 +854,7 @@ describe('NonFungiblePositionManager', () => {
         let tokenId = tokenIds[i % 2];
 
         let userData = await positionManager.positions(tokenId);
-        let poolData = await poolContract.positions(positionKey);
+        let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
 
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
@@ -880,7 +876,7 @@ describe('NonFungiblePositionManager', () => {
 
         // verify liquidity and position
         let userNewData = await positionManager.positions(tokenId);
-        let newPoolData = await poolContract.positions(positionKey);
+        let newPoolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalAfter = await getBalances(positionManager.address, [userData.info.rToken]);
 
         // no rToken in the contract
@@ -899,7 +895,6 @@ describe('NonFungiblePositionManager', () => {
     it('remove liquidity with tokens - has new fees', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
-      let positionKey = getPositionKey(positionManager.address, -100 * tickSpacingArray[0], 100 * tickSpacingArray[0]);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
@@ -914,7 +909,7 @@ describe('NonFungiblePositionManager', () => {
         let tokenId = tokenIds[i % 2];
 
         let userData = await positionManager.positions(tokenId);
-        let poolData = await poolContract.positions(positionKey);
+        let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalBefore = await getBalances(positionManager.address, [userData.info.rToken]);
 
         // made some swaps to get fees
@@ -944,7 +939,7 @@ describe('NonFungiblePositionManager', () => {
 
         // verify liquidity and position
         let userNewData = await positionManager.positions(tokenId);
-        let newPoolData = await poolContract.positions(positionKey);
+        let newPoolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
 
         // additional rToken owed = user_liquidity * (pool_last_fee_growth - user_last_fee_growth) / 2**96
         let additionalRTokenOwed = userData.pos.liquidity.mul(
