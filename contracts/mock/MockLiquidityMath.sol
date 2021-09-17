@@ -5,28 +5,28 @@ import '../libraries/LiquidityMath.sol';
 
 contract MockLiquidityMath {
   function getLiquidityFromQty0(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty0
   ) external pure returns (uint128) {
-    return LiquidityMath.getLiquidityFromQty0(sqrtPriceA, sqrtPriceB, qty0);
+    return LiquidityMath.getLiquidityFromQty0(lowerSqrtP, upperSqrtP, qty0);
   }
 
   function getLiquidityFromQty1(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty1
   ) external pure returns (uint128) {
-    return LiquidityMath.getLiquidityFromQty1(sqrtPriceA, sqrtPriceB, qty1);
+    return LiquidityMath.getLiquidityFromQty1(lowerSqrtP, upperSqrtP, qty1);
   }
 
   function getLiquidityFromQties(
-    uint160 sqrtPriceCurrent,
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+    uint160 currentSqrtP,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty0,
     uint256 qty1
   ) external pure returns (uint128) {
-    return LiquidityMath.getLiquidityFromQties(sqrtPriceCurrent, sqrtPriceA, sqrtPriceB, qty0, qty1);
+    return LiquidityMath.getLiquidityFromQties(currentSqrtP, lowerSqrtP, upperSqrtP, qty0, qty1);
   }
 }

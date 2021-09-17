@@ -12,66 +12,66 @@ library LiquidityMath {
   /// @notice Gets liquidity from qty 0 and the price range
   /// qty0 = liquidity * (sqrt(upper) - sqrt(lower)) / (sqrt(upper) * sqrt(lower))
   /// => liquidity = qty0 * (sqrt(upper) * sqrt(lower)) / (sqrt(upper) - sqrt(lower))
-  /// @param sqrtPriceLower A lower sqrt price
-  /// @param sqrtPriceUpper An upper sqrt price
+  /// @param lowerSqrtP A lower sqrt price
+  /// @param upperSqrtP An upper sqrt price
   /// @param qty0 amount of token0
   /// @return liquidity amount of returned liquidity to not exceed the qty0
   function getLiquidityFromQty0(
-    uint160 sqrtPriceLower,
-    uint160 sqrtPriceUpper,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty0
   ) internal pure returns (uint128) {
-    if (sqrtPriceLower > sqrtPriceUpper) (sqrtPriceLower, sqrtPriceUpper) = (sqrtPriceUpper, sqrtPriceLower);
+    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
 
-    uint256 liq = FullMath.mulDivFloor(sqrtPriceLower, sqrtPriceUpper, C.TWO_POW_96);
+    uint256 liq = FullMath.mulDivFloor(lowerSqrtP, upperSqrtP, C.TWO_POW_96);
     unchecked {
-      return FullMath.mulDivFloor(liq, qty0, sqrtPriceUpper - sqrtPriceLower).toUint128();
+      return FullMath.mulDivFloor(liq, qty0, upperSqrtP - lowerSqrtP).toUint128();
     }
   }
 
   /// @notice Gets liquidity from qty 1 and the price range
   /// @dev qty1 = liquidity * (sqrt(upper) - sqrt(lower))
   ///   thus, liquidity = qty1 / (sqrt(upper) - sqrt(lower))
-  /// @param sqrtPriceLower A lower sqrt price
-  /// @param sqrtPriceUpper An upper sqrt price
+  /// @param lowerSqrtP A lower sqrt price
+  /// @param upperSqrtP An upper sqrt price
   /// @param qty1 amount of token1
   /// @return liquidity amount of returned liquidity to not exceed to qty1
   function getLiquidityFromQty1(
-    uint160 sqrtPriceLower,
-    uint160 sqrtPriceUpper,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty1
   ) internal pure returns (uint128) {
-    if (sqrtPriceLower > sqrtPriceUpper) (sqrtPriceLower, sqrtPriceUpper) = (sqrtPriceUpper, sqrtPriceLower);
+    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
 
     unchecked {
-      return FullMath.mulDivFloor(qty1, C.TWO_POW_96, sqrtPriceUpper - sqrtPriceLower).toUint128();
+      return FullMath.mulDivFloor(qty1, C.TWO_POW_96, upperSqrtP - lowerSqrtP).toUint128();
     }
   }
 
   /// @notice Gets liquidity given price range and 2 qties of token0 and token1
-  /// @param sqrtPriceCurrent current price
-  /// @param sqrtPriceLower A lower sqrt price
-  /// @param sqrtPriceUpper An upper sqrt price
+  /// @param currentSqrtP current price
+  /// @param lowerSqrtP A lower sqrt price
+  /// @param upperSqrtP An upper sqrt price
   /// @param qty0 amount of token0 - at most
   /// @param qty1 amount of token1 - at most
   /// @return liquidity amount of returned liquidity to not exceed the given qties
   function getLiquidityFromQties(
-    uint160 sqrtPriceCurrent,
-    uint160 sqrtPriceLower,
-    uint160 sqrtPriceUpper,
+    uint160 currentSqrtP,
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint256 qty0,
     uint256 qty1
   ) internal pure returns (uint128) {
-    if (sqrtPriceLower > sqrtPriceUpper) (sqrtPriceLower, sqrtPriceUpper) = (sqrtPriceUpper, sqrtPriceLower);
+    if (lowerSqrtP > upperSqrtP) (lowerSqrtP, upperSqrtP) = (upperSqrtP, lowerSqrtP);
 
-    if (sqrtPriceCurrent <= sqrtPriceLower) {
-      return getLiquidityFromQty0(sqrtPriceLower, sqrtPriceUpper, qty0);
+    if (currentSqrtP <= lowerSqrtP) {
+      return getLiquidityFromQty0(lowerSqrtP, upperSqrtP, qty0);
     }
-    if (sqrtPriceCurrent >= sqrtPriceUpper) {
-      return getLiquidityFromQty1(sqrtPriceLower, sqrtPriceUpper, qty1);
+    if (currentSqrtP >= upperSqrtP) {
+      return getLiquidityFromQty1(lowerSqrtP, upperSqrtP, qty1);
     }
-    uint128 liq0 = getLiquidityFromQty0(sqrtPriceCurrent, sqrtPriceUpper, qty0);
-    uint128 liq1 = getLiquidityFromQty1(sqrtPriceLower, sqrtPriceCurrent, qty1);
+    uint128 liq0 = getLiquidityFromQty0(currentSqrtP, upperSqrtP, qty0);
+    uint128 liq1 = getLiquidityFromQty1(lowerSqrtP, currentSqrtP, qty1);
     return liq0 < liq1 ? liq0 : liq1;
   }
 }

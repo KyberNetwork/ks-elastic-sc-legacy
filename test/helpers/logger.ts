@@ -1,4 +1,4 @@
-import {BigNumberish} from 'ethers';
+import {BigNumber} from 'ethers';
 import {ProAMMPool} from '../../typechain';
 export enum SwapTitle {
   BEFORE_SWAP,
@@ -18,7 +18,7 @@ export async function logSwapState(title: SwapTitle, pool: ProAMMPool) {
   console.log(`reinvestment: ${reinvestmentState._poolReinvestmentLiquidity.toString()}`);
 }
 
-export function logBalanceChange(token0Change: BigNumberish, token1Change: BigNumberish) {
+export function logBalanceChange(token0Change: BigNumber, token1Change: BigNumber) {
   console.log(`=== BALANCE CHANGES ===`);
   console.log(`token0 delta: ${token0Change.toString()}`);
   console.log(`token1 delta: ${token1Change.toString()}`);
