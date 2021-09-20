@@ -1,8 +1,10 @@
 import {
+  MockProAMMFactory__factory,
   ProAMMFactory__factory,
   ReinvestmentTokenMaster__factory,
   ProAMMFactory,
   ProAMMPool,
+  MockProAMMFactory,
   MockToken,
   ProAMMPool__factory,
   MockProAMMCallbacks2
@@ -11,6 +13,16 @@ import {ethers} from 'hardhat';
 import {BigNumberish, BigNumber as BN} from 'ethers';
 import {getNearestSpacedTickAtPrice} from './utils';
 import {PRECISION} from './helper';
+
+export async function deployMockFactory (admin: any): Promise<MockProAMMFactory> {
+  const ReinvestmentMaster = (await ethers.getContractFactory(
+    'ReinvestmentTokenMaster'
+  )) as ReinvestmentTokenMaster__factory;
+  const reinvestmentMaster = await ReinvestmentMaster.deploy();
+
+  const ProAMMFactoryContract = (await ethers.getContractFactory('MockProAMMFactory')) as MockProAMMFactory__factory;
+  return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address);
+}
 
 export async function deployFactory (admin: any): Promise<ProAMMFactory> {
   const ReinvestmentMaster = (await ethers.getContractFactory(

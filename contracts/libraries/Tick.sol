@@ -126,16 +126,17 @@ library Tick {
   /// @param self Mapping containing all tick data for initialized ticks
   /// @param tick Destination tick of the transition
   /// @param feeGrowthGlobal All-time global fee growth, per unit of liquidity
+  /// @param secondsPerLiquidityGlobal All-time seconds per unit of liquidity of the pool
   /// @return liquidityNet liquidity quantity to be added | removed when tick is crossed up | down
   function crossToTick(
     mapping(int24 => Tick.Data) storage self,
     int24 tick,
     uint256 feeGrowthGlobal,
-    uint160 secondsPerLiquidity
+    uint160 secondsPerLiquidityGlobal
   ) internal returns (int128 liquidityNet) {
     Tick.Data storage data = self[tick];
     data.feeGrowthOutside = feeGrowthGlobal - data.feeGrowthOutside;
-    data.secondsPerLiquidityOutside = secondsPerLiquidity - data.secondsPerLiquidityOutside;
+    data.secondsPerLiquidityOutside = secondsPerLiquidityGlobal - data.secondsPerLiquidityOutside;
     liquidityNet = data.liquidityNet;
   }
 }

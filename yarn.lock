@@ -880,7 +880,7 @@
     "@types/yargs" "^16.0.0"
     chalk "^4.0.0"
 
-"@kyber.network/utils-sc@^2.2.1":
+"@kyber.network/utils-sc@2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@kyber.network/utils-sc/-/utils-sc-2.2.1.tgz#1864b473608a7c48aa9382ba01eea8f4cd1092bc"
   integrity sha512-cv4NPf+L95rsRbFvbDDpwTd7lFWb6lhUR47xQdOMv/0ZmHDm5Jrn1kXh0WfugY5VwMVEMdPvSnSPWpCra3xTLw==
@@ -941,10 +941,10 @@
     fs-extra "^8.1.0"
     try-require "^1.2.1"
 
-"@openzeppelin/contracts@^4.2.0":
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.2.0.tgz#260d921d99356e48013d9d760caaa6cea35dc642"
-  integrity sha512-LD4NnkKpHHSMo5z9MvFsG4g1xxZUDqV3A3Futu3nvyfs4wPwXxqOgMaxOoa2PeyGL2VNeSlbxT54enbQzGcgJQ==
+"@openzeppelin/contracts@4.3.1":
+  version "4.3.1"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.3.1.tgz#c01f791ce6c9d3989ac1a643267501dbe336b9e3"
+  integrity sha512-QjgbPPlmDK2clK1hzjw2ROfY8KA5q+PfhDUUxZFEBCZP9fi6d5FuNoh/Uq0oCTMEKPmue69vhX2jcl0N/tFKGw==
 
 "@openzeppelin/test-helpers@0.5.6":
   version "0.5.6"

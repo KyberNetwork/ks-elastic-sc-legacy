@@ -153,7 +153,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         secondsPerLiquidityGlobal
       )
     );
-    // in the case where position is in range (tickLower < _poolTick < tickUpper),
+    // in the case where position is in range (tickLower <= _poolTick < tickUpper),
     // need to add timeElapsed per liquidity
     if (tickLower <= _poolTick && _poolTick < tickUpper) {
       uint256 secondsElapsed = _blockTimestamp() - secondsPerLiquidityUpdateTime;

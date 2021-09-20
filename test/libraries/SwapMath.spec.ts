@@ -181,7 +181,7 @@ describe('SwapMath', () => {
     expect(finalPrice).to.lte(priceEnd); // 79623317895830914417022576523 >= 79623317895830914510639640423
   });
 
-  describe('#gas', async () => {
+  describe('#gas [ @skip-on-coverage ]', async () => {
     it('from token0 -> token1 exact input', async () => {
       const liquidity = PRECISION.mul(ONE);
       const priceStart = encodePriceSqrt(1, 1);
