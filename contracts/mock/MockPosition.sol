@@ -7,7 +7,7 @@ contract MockPosition {
   using Position for mapping(bytes32 => Position.Data);
   using Position for Position.Data;
   mapping(bytes32 => Position.Data) private positions;
-  uint256 public rTokensOwed;
+  uint256 public feesClaimable;
 
   function get(
     address owner,
@@ -25,6 +25,6 @@ contract MockPosition {
     uint256 feeGrowthInside
   ) external {
     Position.Data storage position = positions.get(owner, tickLower, tickUpper);
-    rTokensOwed = position.update(liquidityDelta, feeGrowthInside);
+    feesClaimable = position.update(liquidityDelta, feeGrowthInside);
   }
 }

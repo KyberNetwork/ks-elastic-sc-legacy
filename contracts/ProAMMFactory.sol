@@ -6,12 +6,14 @@ import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
 import {BaseSplitCodeFactory} from './libraries/BaseSplitCodeFactory.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {ProAMMPool} from './ProAMMPool.sol';
 
 /// @title ProAMM factory
 /// @notice Deploys ProAMM pools and manages control over government fees
 contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   using Clones for address;
+  using EnumerableSet for EnumerableSet.AddressSet;
 
   struct Parameters {
     address factory;
@@ -27,6 +29,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   /// @inheritdoc IProAMMFactory
   address public immutable override reinvestmentTokenMaster;
   address public override configMaster;
+  bool public override whitelistDisabled;
 
   address private feeTo;
   uint16 private governmentFeeBps;
@@ -35,6 +38,13 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   mapping(uint16 => int24) public override feeAmountTickSpacing;
   /// @inheritdoc IProAMMFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
+
+  // list of whitelisted NFT position manager(s)
+  // that are allowed to burn liquidity tokens on behalf of users
+  EnumerableSet.AddressSet internal whitelistedNFTManagers;
+
+  event NFTManagerAdded(address _nftManager, bool added);
+  event NFTManagerRemoved(address _nftManager, bool removed);
 
   modifier onlyConfigMaster() {
     require(msg.sender == configMaster, 'forbidden');
@@ -87,6 +97,32 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
+  function enableWhitelist() external override onlyConfigMaster {
+    whitelistDisabled = false;
+    emit WhitelistEnabled();
+  }
+
+  /// @inheritdoc IProAMMFactory
+  function disableWhitelist() external override onlyConfigMaster {
+    whitelistDisabled = true;
+    emit WhitelistDisabled();
+  }
+
+  // Whitelists an NFT manager
+  // Returns true if addition was successful, that is if it was not already present
+  function addNFTManager(address _nftManager) external onlyConfigMaster returns (bool added) {
+    added = whitelistedNFTManagers.add(_nftManager);
+    emit NFTManagerAdded(_nftManager, added);
+  }
+
+  // Removes a whitelisted NFT manager
+  // Returns true if addition was successful, that is if it was not already present
+  function removeNFTManager(address _nftManager) external onlyConfigMaster returns (bool removed) {
+    removed = whitelistedNFTManagers.remove(_nftManager);
+    emit NFTManagerRemoved(_nftManager, removed);
+  }
+
+  /// @inheritdoc IProAMMFactory
   function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
     // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
@@ -124,5 +160,21 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   {
     _feeTo = feeTo;
     _governmentFeeBps = governmentFeeBps;
+  }
+
+  /// @inheritdoc IProAMMFactory
+  function isWhitelistedNFTManager(address sender) external view override returns (bool) {
+    if (whitelistDisabled) return true;
+    return whitelistedNFTManagers.contains(sender);
+  }
+
+  /// @inheritdoc IProAMMFactory
+  function getWhitelistedNFTManagers()
+    external
+    view
+    override
+    returns (address[] memory)
+  {
+    return whitelistedNFTManagers.values();
   }
 }

@@ -36,6 +36,12 @@ interface IProAMMFactory {
   /// to be collected out of the fee charged for a pool swap
   event FeeConfigurationUpdated(address feeTo, uint16 governmentFeeBps);
 
+  /// @notice Emitted when whitelist feature is enabled
+  event WhitelistEnabled();
+
+  /// @notice Emitted when whitelist feature is disabled
+  event WhitelistDisabled();
+
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
   /// @param swapFeeBps The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee
@@ -52,6 +58,23 @@ interface IProAMMFactory {
   /// and current government fee charged in basis points
   function feeConfiguration() external view returns (address _feeTo, uint16 _governmentFeeBps);
 
+  /// @notice Returns the status of whitelisting feature of NFT managers
+  /// If true, anyone can mint liquidity tokens
+  /// Otherwise, only whitelisted NFT manager(s) are allowed to mint liquidity tokens
+  function whitelistDisabled() external view returns (bool);
+
+  //// @notice Returns all whitelisted NFT managers
+  /// If the whitelisting feature is turned on,
+  /// only whitelisted NFT manager(s) are allowed to mint liquidity tokens
+  function getWhitelistedNFTManagers() external view returns (address[] memory);
+
+  /// @notice Checks if sender is a whitelisted NFT manager
+  /// If the whitelisting feature is turned on,
+  /// only whitelisted NFT manager(s) are allowed to mint liquidity tokens
+  /// @param sender address to be checked
+  /// @return true if sender is a whistelisted NFT manager, false otherwise
+  function isWhitelistedNFTManager(address sender) external view returns (bool);
+
   /// @notice Returns the pool address for a given pair of tokens and a swap fee
   /// @dev Token order does not matter
   /// @param tokenA Contract address of either token0 or token1
@@ -63,6 +86,24 @@ interface IProAMMFactory {
     address tokenB,
     uint16 swapFeeBps
   ) external view returns (address pool);
+
+  /// @notice Fetch parameters to be used for pool creation
+  /// @dev Called by the pool constructor to fetch the parameters of the pool
+  /// @return factory The factory address
+  /// @return token0 First pool token by address sort order
+  /// @return token1 Second pool token by address sort order
+  /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
+  /// @return tickSpacing Minimum number of ticks between initialized ticks
+  function parameters()
+    external
+    view
+    returns (
+      address factory,
+      address token0,
+      address token1,
+      uint16 swapFeeBps,
+      int24 tickSpacing
+    );
 
   /// @notice Creates a pool for the given two tokens and fee
   /// @param tokenA One of the two tokens in the desired pool
@@ -97,21 +138,11 @@ interface IProAMMFactory {
   /// to be collected out of the fee charged for a pool swap
   function updateFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
 
-  /// @notice Fetch parameters to be used for pool creation
-  /// @dev Called by the pool constructor to fetch the parameters of the pool
-  /// @return factory The factory address
-  /// @return token0 First pool token by address sort order
-  /// @return token1 Second pool token by address sort order
-  /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @return tickSpacing Minimum number of ticks between initialized ticks
-  function parameters()
-    external
-    view
-    returns (
-      address factory,
-      address token0,
-      address token1,
-      uint16 swapFeeBps,
-      int24 tickSpacing
-    );
+  /// @notice Enables the whitelisting feature
+  /// @dev Only configMaster is able to perform the update
+  function enableWhitelist() external;
+
+  /// @notice Disables the whitelisting feature
+  /// @dev Only configMaster is able to perform the update
+  function disableWhitelist() external;
 }

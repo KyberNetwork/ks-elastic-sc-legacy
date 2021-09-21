@@ -50,6 +50,9 @@ describe('LiquidityHelper', () => {
     )) as MockLiquidityHelper__factory;
     liquidityHelper = await LiquidityHelpeContract.deploy(factory.address, weth.address);
 
+    // whitelist liquidity helper
+    await factory.connect(admin).addNFTManager(liquidityHelper.address);
+
     // add any newly defined tickSpacing apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {

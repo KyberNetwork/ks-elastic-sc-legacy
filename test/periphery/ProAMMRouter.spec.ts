@@ -96,6 +96,8 @@ describe('ProAMMRouter', () => {
   ): Promise<ProAMMPool> {
     await setupCallback(Token.attach(token0), Token.attach(token1));
     await factory.createPool(token0, token1, fee);
+    // whitelist callback
+    await factory.connect(admin).addNFTManager(callback.address);
     let pool = (await ethers.getContractAt('ProAMMPool', await factory.getPool(token0, token1, fee))) as ProAMMPool;
     await callback.connect(user).unlockPool(pool.address, poolSqrtPrice, '0x');
     await callback
