@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.4;
 
-import {TickBitmap} from './libraries/TickBitmap.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
 import {FullMath} from './libraries/FullMath.sol';
 import {TickMath} from './libraries/TickMath.sol';
+import {Linkedlist} from './libraries/Linkedlist.sol';
 
 import {IProAMMPoolTicksState} from './interfaces/pool/IProAMMPoolTicksState.sol';
 
 contract ProAMMPoolTicksState is IProAMMPoolTicksState {
   using SafeCast for int256;
-  using TickBitmap for mapping(int16 => uint256);
+  using Linkedlist for mapping(int24 => Linkedlist.Data);
 
   // data stored for each initialized individual tick
   struct TickData {
@@ -45,6 +45,11 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     // position's lower and upper ticks
     int24 tickLower;
     int24 tickUpper;
+
+    // TODO: Add back later
+    // if minting, need to pass the previous initialized ticks for tickLower and tickUpper
+    // int24 tickLowerPrevious;
+    // int24 tickUpperPrevious;
     // any change in liquidity
     int128 liquidityDelta;
   }
@@ -56,9 +61,16 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
   // uint128 public immutable maxLiquidityPerTick;
 
+  int24 internal nearestCurrentTick; // nearest initialized tick to the poolTick
   mapping(int24 => TickData) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
+  mapping(int24 => Linkedlist.Data) public initializedTicks;
   mapping(bytes32 => Position) internal positions;
+
+  function initTickData() internal {
+    nearestCurrentTick = TickMath.MIN_TICK;
+    initializedTicks.init(TickMath.MIN_TICK, TickMath.MAX_TICK);
+  }
 
   function getPositions(
     address owner,
@@ -77,7 +89,9 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     int24 tickSpacing
   ) internal returns (uint256 feesClaimable, uint256 feeGrowthInside) {
     // update ticks if necessary
-    uint256 feeGrowthOutsideLowerTick = updateTick(
+    bool updateTickList;
+    uint256 feeGrowthOutsideLowerTick;
+    (feeGrowthOutsideLowerTick, updateTickList) = updateTick(
       updateData.tickLower,
       currentTick,
       updateData.liquidityDelta,
@@ -86,7 +100,17 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       maxLiquidityPerTick,
       tickSpacing
     );
-    uint256 feeGrowthOutsideUpperTick = updateTick(
+
+    if (updateTickList) {
+      _updateTickList(
+        updateData.tickLower,
+        // updateData.tickLowerPrevious,
+        updateData.liquidityDelta > 0
+      );
+    }
+
+    uint256 feeGrowthOutsideUpperTick;
+    (feeGrowthOutsideUpperTick, updateTickList) = updateTick(
       updateData.tickUpper,
       currentTick,
       updateData.liquidityDelta,
@@ -95,6 +119,14 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       maxLiquidityPerTick,
       tickSpacing
     );
+
+    if (updateTickList) {
+      _updateTickList(
+        updateData.tickUpper,
+        // updateData.tickUpperPrevious,
+        updateData.liquidityDelta > 0
+      );
+    }
 
     feeGrowthInside = getValueInside(
       feeGrowthOutsideLowerTick,
@@ -110,14 +142,26 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
   function nextInitializedTick(
     int24 currentTick,
-    int24 tickSpacing,
+    int24,// tickSpacing,
     bool willUpTick
   ) internal view returns (int24 nextTick, bool initialized) {
-    (nextTick, initialized) = tickBitmap.nextInitializedTickWithinOneWord(
-      currentTick,
-      tickSpacing,
-      willUpTick
-    );
+    // TODO: Change logic to get the nearest tick to the current tick
+    int24 nearestTick = nearestCurrentTick;
+    if (nearestTick <= currentTick) {
+      while (initializedTicks.goNext(nearestTick) <= currentTick) {
+        nearestTick = initializedTicks.goNext(nearestTick);
+      }
+    } else {
+      while (nearestTick > currentTick && nearestTick != TickMath.MIN_TICK) {
+        nearestTick = initializedTicks.goBack(nearestTick);
+      }
+    }
+    if (nearestTick == currentTick) {
+      nextTick = willUpTick ? initializedTicks.goNext(nearestTick) : initializedTicks.goBack(nearestTick);
+    } else {
+      nextTick = willUpTick ? initializedTicks.goNext(nearestTick) : nearestTick;
+    }
+    initialized = (nextTick != TickMath.MIN_TICK && nextTick != TickMath.MAX_TICK);
   }
 
   function crossToTick(
@@ -202,6 +246,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
   /// @param isLower true | false if updating a position's lower | upper tick
   /// @param maxLiquidity The maximum liquidity allocation for a single tick
   /// @return feeGrowthOutside last value of feeGrowthOutside
+  /// @return updateTickList should add or remove the tick
   function updateTick(
     int24 tick,
     int24 tickCurrent,
@@ -210,7 +255,8 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     bool isLower,
     uint128 maxLiquidity,
     int24 tickSpacing
-  ) private returns (uint256 feeGrowthOutside) {
+  ) private returns (uint256 feeGrowthOutside, bool updateTickList) {
+    require(tick % tickSpacing == 0);
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
       liquidityGrossBefore,
@@ -237,13 +283,37 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     ticks[tick].liquidityNet = liquidityNetAfter;
     feeGrowthOutside = ticks[tick].feeGrowthOutside;
 
-    bool flipped = (liquidityGrossAfter == 0) != (liquidityGrossBefore == 0);
-    if (flipped) {
-      tickBitmap.flipTick(tick, tickSpacing);
-    }
-
-    if (flipped && liquidityDelta < 0) {
+    if (liquidityGrossBefore > 0 && liquidityGrossAfter == 0) {
       delete ticks[tick];
+    }
+    updateTickList = (liquidityGrossBefore > 0) != (liquidityGrossAfter > 0);
+  }
+
+  /**
+   * @dev Update the tick linkedlist
+   * @param tick tick index to update
+  //  *  previousTick the nearest initialized tick that is lower than the tick, in case adding
+   * @param isAdd whether is add or remove the tick
+   */
+  function _updateTickList(
+    int24 tick,
+    // int24 previousTick,
+    bool isAdd
+  ) private {
+    if (isAdd) {
+      // TODO: Get this data from input params
+      int24 previousTick = TickMath.MIN_TICK;
+      while (initializedTicks.goNext(previousTick) <= tick) {
+        previousTick = initializedTicks.goNext(previousTick);
+      }
+      if (tick == previousTick) return;
+      initializedTicks.insert(tick, previousTick);
+    } else {
+      if (tick == nearestCurrentTick) {
+        nearestCurrentTick = initializedTicks.remove(tick);
+      } else {
+        initializedTicks.remove(tick);
+      }
     }
   }
 }

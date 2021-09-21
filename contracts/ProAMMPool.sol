@@ -184,6 +184,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     poolReinvestmentLiquidity = MIN_LIQUIDITY;
     poolReinvestmentLiquidityLast = MIN_LIQUIDITY;
     reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
+
+    initTickData();
+
     emit Initialize(initialSqrtPrice, poolTick);
   }
 
@@ -406,8 +409,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
   struct SwapStep {
     int24 nextTick; // the tick associated with the next price
-    bool initialized; // whether nextTick is initialized
     uint160 nextSqrtP; // the price of nextTick
+    bool initialized;
   }
 
   // see IProAMMPoolActions
