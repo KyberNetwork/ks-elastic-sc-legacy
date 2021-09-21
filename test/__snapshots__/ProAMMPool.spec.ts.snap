@@ -6,20 +6,20 @@ exports[`ProAMMPool #mint after unlockPool successful mints position above curre
 
 exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"245583"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"247898"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"247899"`;
 
 exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"221358"`;
 
 exports[`ProAMMPool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"89482"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"238829"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"238830"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"205782"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"205783"`;
 
 exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"99238"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"249168"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"249169"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"216430"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"216431"`;
 
 exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"109977"`;

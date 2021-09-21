@@ -36,9 +36,11 @@ interface IProAMMFactory {
   /// to be collected out of the fee charged for a pool swap
   event FeeConfigurationUpdated(address feeTo, uint16 governmentFeeBps);
 
-  /// @notice Emitted when whitelist feature is disabled / enabled
-  /// @param whitelistDisabled True if whitelist feature is disabled, false if enabled
-  event WhitelistDisabled(bool whitelistDisabled);
+  /// @notice Emitted when whitelist feature is enabled
+  event WhitelistEnabled();
+
+  /// @notice Emitted when whitelist feature is disabled
+  event WhitelistDisabled();
 
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
@@ -136,8 +138,11 @@ interface IProAMMFactory {
   /// to be collected out of the fee charged for a pool swap
   function updateFeeConfiguration(address feeTo, uint16 governmentFeeBps) external;
 
-  /// @notice Updates the whitelisting feature
+  /// @notice Enables the whitelisting feature
   /// @dev Only configMaster is able to perform the update
-  /// If true, disable the whitelisting feature. Otherwise, enable it
-  function disableWhitelist(bool) external;
+  function enableWhitelist() external;
+
+  /// @notice Disables the whitelisting feature
+  /// @dev Only configMaster is able to perform the update
+  function disableWhitelist() external;
 }

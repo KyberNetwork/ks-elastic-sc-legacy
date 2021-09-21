@@ -119,29 +119,28 @@ describe('ProAMMFactory', () => {
 
   describe('whitelisting feature', async () => {
     it('should revert if msg.sender != configMaster', async () => {
-      await expect(factory.connect(operator).disableWhitelist(true)).to.be.revertedWith('forbidden');
+      await expect(factory.connect(operator).enableWhitelist()).to.be.revertedWith('forbidden');
+      await expect(factory.connect(operator).disableWhitelist()).to.be.revertedWith('forbidden');
       await expect(factory.connect(operator).addNFTManager(nftManager.address)).to.be.revertedWith('forbidden');
       await expect(factory.connect(operator).removeNFTManager(nftManager.address)).to.be.revertedWith('forbidden');
     });
 
     it('should be able to update whitelist feature and emit event', async () => {
-      await expect(factory.connect(admin).disableWhitelist(true))
+      await expect(factory.connect(admin).enableWhitelist())
+        .to.emit(factory, 'WhitelistEnabled')
+      await expect(factory.connect(admin).disableWhitelist())
         .to.emit(factory, 'WhitelistDisabled')
-        .withArgs(true);
-      await expect(factory.connect(admin).disableWhitelist(false))
-        .to.emit(factory, 'WhitelistDisabled')
-        .withArgs(false);
     });
 
     it('should have isWhitelistedNFTManager return true for all addresses if whitelisting feature is disabled', async () => {
-      await factory.connect(admin).disableWhitelist(true);
+      await factory.connect(admin).disableWhitelist();
       expect(await factory.isWhitelistedNFTManager(nftManager.address)).to.be.true;
       expect(await factory.isWhitelistedNFTManager(admin.address)).to.be.true;
       expect(await factory.isWhitelistedNFTManager(operator.address)).to.be.true;
     });
 
     it('should have isWhitelistedNFTManager return true for only whitelisted addresses if whitelisting feature is enabled', async () => {
-      await factory.connect(admin).disableWhitelist(false);
+      await factory.connect(admin).enableWhitelist();
       expect(await factory.isWhitelistedNFTManager(nftManager.address)).to.be.false;
       expect(await factory.isWhitelistedNFTManager(admin.address)).to.be.false;
       expect(await factory.isWhitelistedNFTManager(operator.address)).to.be.false;

@@ -97,9 +97,15 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
-  function disableWhitelist(bool _whitelistDisabled) external override onlyConfigMaster {
-    whitelistDisabled = _whitelistDisabled;
-    emit WhitelistDisabled(_whitelistDisabled);
+  function enableWhitelist() external override onlyConfigMaster {
+    whitelistDisabled = false;
+    emit WhitelistEnabled();
+  }
+
+  /// @inheritdoc IProAMMFactory
+  function disableWhitelist() external override onlyConfigMaster {
+    whitelistDisabled = true;
+    emit WhitelistDisabled();
   }
 
   // Whitelists an NFT manager
