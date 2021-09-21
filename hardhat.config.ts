@@ -66,6 +66,15 @@ const config: HardhatUserConfig = {
             runs: 10000,
           },
         }
+      },
+      'contracts/periphery/NonfungiblePositionManagerSnipAttack.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 2000,
+          },
+        }
       }
     }
   },

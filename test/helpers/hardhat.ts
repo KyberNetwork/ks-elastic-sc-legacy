@@ -42,6 +42,14 @@ export async function setNextBlockTimestamp(timestamp: BigNumberish) {
   });
 }
 
+export async function setNextBlockTimestampFromCurrent(duration: number) {
+  let newTimestamp = (await getLatestBlockTime()) + duration;
+  return await hardhat.network.provider.request({
+    method: 'evm_setNextBlockTimestamp',
+    params: [newTimestamp],
+  });
+}
+
 export async function getCurrentBlock() {
   return await hardhat.network.provider.request({
     method: 'eth_blockNumber'

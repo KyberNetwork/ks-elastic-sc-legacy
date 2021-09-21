@@ -397,8 +397,8 @@ describe('ProAMMRouter', () => {
         let tickLower = -200 * tickSpacingArray[i];
         let tickUpper = 100 * tickSpacingArray[i];
         await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, [tickLower, tickUpper]);
-        let token0 = tokenA.address < tokenB.address ? tokenA : tokenB;
-        let token1 = tokenA.address < tokenB.address ? tokenB : tokenA;
+        let token0 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA : tokenB;
+        let token1 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenB : tokenA;
         // token0 -> token1
         let tx = await swapExactInputSingleAndVerify(
           token0.address,

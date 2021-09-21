@@ -5,6 +5,7 @@ pragma abicoder v2;
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {INonfungiblePositionManager, IERC721Metadata, IRouterTokenHelper} from '../interfaces/periphery/INonfungiblePositionManager.sol';
 import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
+import {IReinvestmentToken} from '../interfaces/IReinvestmentToken.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 import {FullMath} from '../libraries/FullMath.sol';
 import {MathConstants} from '../libraries/MathConstants.sol';
@@ -15,7 +16,7 @@ import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
 
-contract NonfungiblePositionManager is
+contract NonfungiblePositionManagerSnipAttack is
   INonfungiblePositionManager,
   Multicall,
   ERC721Permit,
@@ -112,7 +113,7 @@ contract NonfungiblePositionManager is
       liquidity: liquidity,
       rTokenOwed: 0,
       feeGrowthInsideLast: feeGrowthInsideLast,
-      antiSnipAttackData: AntiSnipAttack.initialize() // unused in this version
+      antiSnipAttackData: AntiSnipAttack.initialize()
     });
   }
 
@@ -149,13 +150,18 @@ contract NonfungiblePositionManager is
     );
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
-      additionalRTokenOwed = FullMath.mulDivFloor(
+      uint256 feesBurnable;
+      (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
+        pos.antiSnipAttackData,
         pos.liquidity,
+        liquidity,
+        true,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
-        MathConstants.TWO_POW_96
+        IProAMMFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
+      if (feesBurnable > 0) IReinvestmentToken(poolInfo.rToken).burn(feesBurnable);
     }
 
     pos.liquidity += liquidity;
@@ -183,13 +189,18 @@ contract NonfungiblePositionManager is
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
-      additionalRTokenOwed = FullMath.mulDivFloor(
+      uint256 feesBurnable;
+      (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
+        pos.antiSnipAttackData,
         pos.liquidity,
+        params.liquidity,
+        false,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
-        MathConstants.TWO_POW_96
+        IProAMMFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
+      if (feesBurnable > 0) IReinvestmentToken(poolInfo.rToken).burn(feesBurnable);
     }
 
     pos.liquidity -= params.liquidity;

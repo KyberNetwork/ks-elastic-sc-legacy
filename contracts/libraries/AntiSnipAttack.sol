@@ -20,7 +20,7 @@ library AntiSnipAttack {
   /// @notice Initializes values for a new position
   /// @return data Initialized snip attack data structure
   function initialize() internal view returns (ISnipAttack.Data memory data) {
-    uint32 currentTime = _blockTimestamp();
+    uint32 currentTime = block.timestamp.toUint32();
     data = ISnipAttack.Data({
       lastActionTime: currentTime,
       lockTime: currentTime,
@@ -50,7 +50,7 @@ library AntiSnipAttack {
     uint256 vestingPeriod
   ) internal returns (uint256 feesClaimable, uint256 feesBurnable) {
     ISnipAttack.Data memory _self = self;
-    uint32 currentTime = _blockTimestamp();
+    uint32 currentTime = block.timestamp.toUint32();
 
     // scoping of fee proportions to avoid stack too deep
     {
@@ -122,11 +122,6 @@ library AntiSnipAttack {
     // update other variables
     self.feesLocked = _self.feesLocked;
     self.lastActionTime = currentTime;
-  }
-
-  // for mocking
-  function _blockTimestamp() internal view returns (uint32) {
-    return block.timestamp.toUint32();
   }
 
   function calcFeeProportions(
