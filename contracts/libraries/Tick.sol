@@ -22,8 +22,8 @@ library Tick {
     // seconds spent on the other side of this tick (relative to current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint160 secondsPerLiquidityOutside;
-    // true iff the tick is initialized, when liquidityGross != 0
-    // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
+    // true if liquidityGross != 0, false otherwise
+    // this prevents fresh sstores when crossing newly initialized ticks
     bool initialized;
   }
 

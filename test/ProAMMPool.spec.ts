@@ -650,7 +650,8 @@ describe('ProAMMPool', () => {
               PRECISION,
               '0x'
             );
-            await swapToUpTick(pool, user, nearestTickToPrice + MAX_TICK_DISTANCE + 1);
+            // swap to initialized tick to increment secondsPerLiquidity
+            await swapToUpTick(pool, user, nearestTickToPrice + 100 * tickSpacing);
             await swapToDownTick(pool, user, nearestTickToPrice);
 
             // mint new position
@@ -890,7 +891,8 @@ describe('ProAMMPool', () => {
               PRECISION,
               '0x'
             );
-            await swapToDownTick(pool, user, nearestTickToPrice - MAX_TICK_DISTANCE - 1);
+            // swap to initialized tick to increment secondsPerLiquidity
+            await swapToDownTick(pool, user, nearestTickToPrice - 100 * tickSpacing - 1);
             await swapToUpTick(pool, user, nearestTickToPrice);
 
             // mint new position

@@ -49,7 +49,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   uint128 internal poolReinvestmentLiquidity;
   uint128 internal poolReinvestmentLiquidityLast;
   uint256 internal poolFeeGrowthGlobal;
-  uint160 public override secondsPerLiquidityGlobal;
+  uint128 public override secondsPerLiquidityGlobal;
   uint32 public override secondsPerLiquidityUpdateTime;
 
   /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
@@ -139,12 +139,12 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     external
     view
     override
-    returns (uint160 secondsPerLiquidityInside)
+    returns (uint128 secondsPerLiquidityInside)
   {
     require(tickLower <= tickUpper, 'bad tick range');
     int24 _poolTick = poolTick;
 
-    secondsPerLiquidityInside = uint160(
+    secondsPerLiquidityInside = uint128(
       getValueInside(
         ticks[tickLower].secondsPerLiquidityOutside,
         ticks[tickUpper].secondsPerLiquidityOutside,
@@ -159,7 +159,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       uint256 secondsElapsed = _blockTimestamp() - secondsPerLiquidityUpdateTime;
       uint128 lp = poolLiquidity;
       if (secondsElapsed > 0 && lp > 0) {
-        secondsPerLiquidityInside += uint160((secondsElapsed << C.RES_96) / lp);
+        secondsPerLiquidityInside += uint128((secondsElapsed << C.RES_96) / lp);
       }
     }
   }
@@ -253,6 +253,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       );
     } else if (_poolTick < posData.tickUpper) {
       // current tick is inside the passed range
+      // update secondsPerLiquidityGlobal because poolLiquidity will be updated
+      updateTimeData(cumulatives.secondsPerLiquidity, lp);
       qty0 = QtyDeltaMath.getQty0Delta(
         _poolSqrtPrice,
         TickMath.getSqrtRatioAtTick(posData.tickUpper),
@@ -412,16 +414,12 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     int24 currentTick; // the tick associated with the current price
     uint128 lp; // the current pool liquidity
     uint128 lf; // the current reinvestment liquidity
+    uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
     // variable only load when crossing a tick
     uint128 lfLast; // collected liquidity
     uint256 rTotalSupply; // cache of total reinvestment token supply
     uint256 rTotalSupplyInitial; // initial value of rTotalSupply
     uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
-  }
-
-  struct TimeData {
-    uint32 secondsPerLiquidityUpdateTime;
-    uint160 secondsPerLiquidityGlobal;
   }
 
   struct SwapStep {
@@ -458,22 +456,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         : (sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO),
       'bad sqrtPriceLimit'
     );
-    TimeData memory timeData = TimeData({
-      secondsPerLiquidityUpdateTime: secondsPerLiquidityUpdateTime,
-      secondsPerLiquidityGlobal: secondsPerLiquidityGlobal
-    });
-
-    {
-      // update secondsPerLiquidityGlobal and secondsPerLiquidityUpdateTime if needed
-      uint256 secondsElapsed = _blockTimestamp() - secondsPerLiquidityUpdateTime;
-      if (secondsElapsed > 0 && swapData.lp > 0) {
-        timeData.secondsPerLiquidityUpdateTime = _blockTimestamp();
-        timeData.secondsPerLiquidityGlobal += uint160((secondsElapsed << C.RES_96) / swapData.lp);
-        // write to storage
-        secondsPerLiquidityUpdateTime = timeData.secondsPerLiquidityUpdateTime;
-        secondsPerLiquidityGlobal = timeData.secondsPerLiquidityGlobal;
-      }
-    }
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
@@ -526,6 +508,10 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
             swapData.feeGrowthGlobal = poolFeeGrowthGlobal;
             swapData.rTotalSupplyInitial = reinvestmentToken.totalSupply();
             swapData.rTotalSupply = swapData.rTotalSupplyInitial;
+            swapData.secondsPerLiquidityGlobal = updateTimeData(
+              secondsPerLiquidityGlobal,
+              swapData.lp
+            );
           }
 
           // update rTotalSupply, feeGrowthGlobal and lf
@@ -544,7 +530,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
           int128 liquidityNet = crossToTick(
             step.nextTick,
             swapData.feeGrowthGlobal,
-            timeData.secondsPerLiquidityGlobal
+            swapData.secondsPerLiquidityGlobal
           );
           // need to switch signs for decreasing tick
           if (!willUpTick) liquidityNet = -liquidityNet;
@@ -612,6 +598,23 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   /// @dev For overriding in tests
   function _blockTimestamp() internal view virtual returns (uint32) {
     return block.timestamp.toUint32();
+  }
+
+  function updateTimeData(uint128 _secondsPerLiquidityGlobal, uint128 lp)
+    internal
+    returns (
+      uint128 //_secondsPerLiquidityGlobal
+    )
+  {
+    uint256 secondsElapsed = _blockTimestamp() - secondsPerLiquidityUpdateTime;
+    // update secondsPerLiquidityGlobal and secondsPerLiquidityUpdateTime if needed
+    if (secondsElapsed > 0 && lp > 0) {
+      secondsPerLiquidityUpdateTime = _blockTimestamp();
+      _secondsPerLiquidityGlobal += uint128((secondsElapsed << C.RES_96) / lp);
+      // write to storage
+      secondsPerLiquidityGlobal = _secondsPerLiquidityGlobal;
+    }
+    return _secondsPerLiquidityGlobal;
   }
 
   function mintRTokens(uint256 rMintQty) internal {

@@ -43,8 +43,8 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents, IProAMMPoolTicks
   function maxLiquidityPerTick() external view returns (uint128);
 
   /// @notice All-time seconds per unit of liquidity of the pool
-  /// @dev The value has been multiplied by RES_96
-  function secondsPerLiquidityGlobal() external view returns (uint160);
+  /// @dev The value has been multiplied by 2^96
+  function secondsPerLiquidityGlobal() external view returns (uint128);
 
   /// @notice The timestamp in which secondsPerLiquidity was last updated
   function secondsPerLiquidityUpdateTime() external view returns (uint32);
@@ -81,10 +81,10 @@ interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents, IProAMMPoolTicks
   /// @notice Calculates and returns the active time per unit of liquidity
   /// @param tickLower The lower tick (of a position)
   /// @param tickUpper The upper tick (of a position)
-  /// @return secondsPerLiquidityInside active time (multiplied by RES_96)
+  /// @return secondsPerLiquidityInside active time (multiplied by 2^96)
   /// between the 2 ticks, per unit of liquidity.
   function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
     external
     view
-    returns (uint160 secondsPerLiquidityInside);
+    returns (uint128 secondsPerLiquidityInside);
 }
