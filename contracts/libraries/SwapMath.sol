@@ -72,7 +72,9 @@ library SwapMath {
         isToken0
       );
     }
-    actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
+    if (delta != 0) {
+      actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
+    }
   }
 
   // calculates the delta qty amount needed to reach sqrtPn (price of next tick)

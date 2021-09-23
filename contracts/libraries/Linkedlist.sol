@@ -54,24 +54,4 @@ library Linkedlist {
     self[nextValue].previous = newValue;
     self[lowerValue].next = newValue;
   }
-
-  /**
-   * @dev Return the next value in the linked list
-   */
-  function goNext(
-    mapping(int24 => Linkedlist.Data) storage self,
-    int24 fromValue
-  ) internal view returns (int24) {
-    return self[fromValue].next;
-  }
-
-  /**
-   * @dev Return the previous value in the linked list
-   */
-  function goBack(
-    mapping(int24 => Linkedlist.Data) storage self,
-    int24 fromValue
-  ) internal view returns (int24) {
-    return self[fromValue].previous;
-  }
 }

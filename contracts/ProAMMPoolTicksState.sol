@@ -61,7 +61,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
   // uint128 public immutable maxLiquidityPerTick;
 
-  int24 internal nearestCurrentTick; // nearest initialized tick to the poolTick
+  int24 internal nearestCurrentTick;
   mapping(int24 => TickData) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
   mapping(int24 => Linkedlist.Data) public initializedTicks;
@@ -105,6 +105,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       _updateTickList(
         updateData.tickLower,
         // updateData.tickLowerPrevious,
+        currentTick,
         updateData.liquidityDelta > 0
       );
     }
@@ -124,6 +125,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       _updateTickList(
         updateData.tickUpper,
         // updateData.tickUpperPrevious,
+        currentTick,
         updateData.liquidityDelta > 0
       );
     }
@@ -140,40 +142,32 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     feesClaimable = updatePositionFee(updateData, feeGrowthInside);
   }
 
-  function nextInitializedTick(
+  function getNextTickToCross(
     int24 currentTick,
-    int24,// tickSpacing,
     bool willUpTick
-  ) internal view returns (int24 nextTick, bool initialized) {
-    // TODO: Change logic to get the nearest tick to the current tick
-    int24 nearestTick = nearestCurrentTick;
-    if (nearestTick <= currentTick) {
-      while (initializedTicks.goNext(nearestTick) <= currentTick) {
-        nearestTick = initializedTicks.goNext(nearestTick);
-      }
-    } else {
-      while (nearestTick > currentTick && nearestTick != TickMath.MIN_TICK) {
-        nearestTick = initializedTicks.goBack(nearestTick);
-      }
-    }
-    if (nearestTick == currentTick) {
-      nextTick = willUpTick ? initializedTicks.goNext(nearestTick) : initializedTicks.goBack(nearestTick);
-    } else {
-      nextTick = willUpTick ? initializedTicks.goNext(nearestTick) : nearestTick;
-    }
-    initialized = (nextTick != TickMath.MIN_TICK && nextTick != TickMath.MAX_TICK);
+  ) internal view returns (int24) {
+    return willUpTick ? initializedTicks[currentTick].next : initializedTicks[currentTick].previous;
   }
 
   function crossToTick(
     int24 nextTick,
     uint256 feeGrowthGlobal,
-    uint160 secondsPerLiquidityGlobal
-  ) internal returns (int128 liquidityNet) {
+    uint128 secondsPerLiquidityGlobal,
+    bool willUpTick
+  )
+    internal
+    returns (int128 liquidityNet, int24 newNextTick)
+  {
     ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
     ticks[nextTick].secondsPerLiquidityOutside =
       secondsPerLiquidityGlobal -
       ticks[nextTick].secondsPerLiquidityOutside;
     liquidityNet = ticks[nextTick].liquidityNet;
+    newNextTick = getNextTickToCross(nextTick, willUpTick);
+  }
+
+  function updateNearestCurrentTick(int24 nextTick, int24 currentTick) internal {
+    nearestCurrentTick = currentTick < nextTick ? initializedTicks[nextTick].previous : nextTick;
   }
 
   function calcMaxLiquidityPerTick(int24 tickSpacing) internal pure returns (uint128) {
@@ -298,16 +292,20 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
   function _updateTickList(
     int24 tick,
     // int24 previousTick,
+    int24 currentTick,
     bool isAdd
   ) private {
     if (isAdd) {
       // TODO: Get this data from input params
       int24 previousTick = TickMath.MIN_TICK;
-      while (initializedTicks.goNext(previousTick) <= tick) {
-        previousTick = initializedTicks.goNext(previousTick);
+      while (initializedTicks[previousTick].next <= tick) {
+        previousTick = initializedTicks[previousTick].next;
       }
       if (tick == previousTick) return;
       initializedTicks.insert(tick, previousTick);
+      if (nearestCurrentTick < tick && tick <= currentTick) {
+        nearestCurrentTick = tick;
+      }
     } else {
       if (tick == nearestCurrentTick) {
         nearestCurrentTick = initializedTicks.remove(tick);
