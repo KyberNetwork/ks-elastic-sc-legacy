@@ -20,7 +20,7 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
       uint128 liquidity,
       uint256 amount0,
       uint256 amount1,
-      uint256 feesClaimable,
+      uint256 feeGrowthInsideLast,
       IProAMMPool pool
     ) {
     return addLiquidity(params);

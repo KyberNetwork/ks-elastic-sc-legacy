@@ -29,9 +29,9 @@ interface IProAMMPoolActions {
   /// @param tickUpper Recipient position's upper tick
   /// @param qty Liquidity quantity to mint
   /// @param data Data (if any) to be passed through to the callback
-  /// @return qty0 token0 quantity sent to the pool in exchange for the minted liquidity.
-  /// @return qty1 token1 quantity sent to the pool in exchange for the minted liquidity.
-  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
+  /// @return qty0 token0 quantity sent to the pool in exchange for the minted liquidity
+  /// @return qty1 token1 quantity sent to the pool in exchange for the minted liquidity
+  /// @return feeGrowthInside position's updated feeGrowthInside value
   function mint(
     address recipient,
     int24 tickLower,
@@ -43,7 +43,7 @@ interface IProAMMPoolActions {
     returns (
       uint256 qty0,
       uint256 qty1,
-      uint256 feesClaimable
+      uint256 feeGrowthInside
     );
 
   /// @notice Remove liquidity from the sender
@@ -55,7 +55,7 @@ interface IProAMMPoolActions {
   /// @param qty Liquidity quantity to burn
   /// @return qty0 token0 quantity sent to the recipient
   /// @return qty1 token1 quantity sent to the recipient
-  /// @return feesClaimable rToken quantity sent to the recipient, representing fees collected by the position
+  /// @return feeGrowthInside position's updated feeGrowthInside value
   function burn(
     int24 tickLower,
     int24 tickUpper,
@@ -65,7 +65,7 @@ interface IProAMMPoolActions {
     returns (
       uint256 qty0,
       uint256 qty1,
-      uint256 feesClaimable
+      uint256 feeGrowthInside
     );
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1
