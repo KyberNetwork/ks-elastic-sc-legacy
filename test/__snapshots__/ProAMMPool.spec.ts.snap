@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ProAMMPool #flash after unlockPool #gas flash [ @skip-on-coverage ] 1`] = `"99922"`;
+
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"224942"`;
+
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"164385"`;
+
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"264109"`;
+
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"167241"`;
+
+exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"243732"`;
+
+exports[`ProAMMPool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"88707"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"261388"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"227194"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"97811"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"271854"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"237966"`;
+
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"108671"`;

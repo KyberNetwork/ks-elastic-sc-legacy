@@ -2,13 +2,14 @@
 pragma solidity 0.8.4;
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
 import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
-import {IERC20, IPoolStorage} from './interfaces/IPoolStorage.sol';
+import {IPoolStorage} from './interfaces/IPoolStorage.sol';
 
 abstract contract PoolStorage is IPoolStorage {
   using Clones for address;
@@ -50,20 +51,6 @@ abstract contract PoolStorage is IPoolStorage {
     uint128 liquidity;
     // fee growth per unit of liquidity as of the last update to liquidity
     uint256 feeGrowthInsideLast;
-  }
-
-  struct UpdatePositionData {
-    // address of owner of the position
-    address owner;
-    // position's lower and upper ticks
-    int24 tickLower;
-    int24 tickUpper;
-    // TODO: Add back later
-    // if minting, need to pass the previous initialized ticks for tickLower and tickUpper
-    // int24 tickLowerPrevious;
-    // int24 tickUpperPrevious;
-    // any change in liquidity
-    int128 liquidityDelta;
   }
 
   struct CumulativesData {
@@ -112,7 +99,7 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.locked = true; // set pool to locked state
   }
 
-  function initPoolStorage(uint160 initialSqrtPrice, int24 initialTick) internal {
+  function _initPoolStorage(uint160 initialSqrtPrice, int24 initialTick) internal {
     poolData.reinvestmentLiquidity = MIN_LIQUIDITY;
     poolData.reinvestmentLiquidityLast = MIN_LIQUIDITY;
 
@@ -127,7 +114,7 @@ abstract contract PoolStorage is IPoolStorage {
     address owner,
     int24 tickLower,
     int24 tickUpper
-  ) public view override returns (uint128 liquidity, uint256 feeGrowthInsideLast) {
+  ) external view override returns (uint128 liquidity, uint256 feeGrowthInsideLast) {
     bytes32 key = positionKey(owner, tickLower, tickUpper);
     return (positions[key].liquidity, positions[key].feeGrowthInsideLast);
   }
