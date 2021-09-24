@@ -1,25 +1,25 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"214948"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"217311"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"164099"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"166507"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"245467"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"251828"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"247487"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"253685"`;
 
-exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"221415"`;
+exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"221516"`;
 
-exports[`ProAMMPool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"89466"`;
+exports[`ProAMMPool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"89632"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"239184"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"253445"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"205992"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"214635"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"99302"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"99791"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"249523"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"263748"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"216640"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"225259"`;
 
-exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"110041"`;
+exports[`ProAMMPool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"110518"`;

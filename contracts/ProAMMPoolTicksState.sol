@@ -23,8 +23,11 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     // fee growth per unit of liquidity on the other side of this tick (relative to current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint256 feeGrowthOutside;
-    // true iff the tick is initialized, when liquidityGross != 0
-    // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
+    // seconds spent on the other side of this tick (relative to current tick)
+    // only has relative meaning, not absolute — the value depends on when the tick is initialized
+    uint160 secondsPerLiquidityOutside;
+    // true if liquidityGross != 0, false otherwise
+    // this prevents fresh sstores when crossing newly initialized ticks
     bool initialized;
   }
 
@@ -46,6 +49,11 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     int128 liquidityDelta;
   }
 
+  struct CumulativesData {
+    uint256 feeGrowth;
+    uint128 secondsPerLiquidity;
+  }
+
   // uint128 public immutable maxLiquidityPerTick;
 
   mapping(int24 => TickData) public override ticks;
@@ -64,7 +72,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
   function _updatePosition(
     UpdatePositionData memory updateData,
     int24 currentTick,
-    uint256 feeGrowthGlobal,
+    CumulativesData memory cumulatives,
     uint128 maxLiquidityPerTick,
     int24 tickSpacing
   ) internal returns (uint256 feesClaimable) {
@@ -73,7 +81,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       updateData.tickLower,
       currentTick,
       updateData.liquidityDelta,
-      feeGrowthGlobal,
+      cumulatives,
       true,
       maxLiquidityPerTick,
       tickSpacing
@@ -82,19 +90,18 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       updateData.tickUpper,
       currentTick,
       updateData.liquidityDelta,
-      feeGrowthGlobal,
+      cumulatives,
       false,
       maxLiquidityPerTick,
       tickSpacing
     );
 
-    uint256 feeGrowthInside = getFeeGrowthInside(
-      updateData.tickLower,
-      updateData.tickUpper,
+    uint256 feeGrowthInside = getValueInside(
       feeGrowthOutsideLowerTick,
       feeGrowthOutsideUpperTick,
-      currentTick,
-      feeGrowthGlobal
+      currentTick < updateData.tickLower,
+      currentTick < updateData.tickUpper,
+      cumulatives.feeGrowth
     );
 
     // calc rTokens to be minted for the position's accumulated fees
@@ -113,11 +120,15 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     );
   }
 
-  function crossToTick(int24 nextTick, uint256 feeGrowthGlobal)
-    internal
-    returns (int128 liquidityNet)
-  {
+  function crossToTick(
+    int24 nextTick,
+    uint256 feeGrowthGlobal,
+    uint160 secondsPerLiquidityGlobal
+  ) internal returns (int128 liquidityNet) {
     ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
+    ticks[nextTick].secondsPerLiquidityOutside =
+      secondsPerLiquidityGlobal -
+      ticks[nextTick].secondsPerLiquidityOutside;
     liquidityNet = ticks[nextTick].liquidityNet;
   }
 
@@ -158,30 +169,36 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }
 
-  function getFeeGrowthInside(
-    int24 tickLower,
-    int24 tickUpper,
-    uint256 feeGrowthInsideTickLower,
-    uint256 feeGrowthInsideTickUpper,
-    int24 tickCurrent,
-    uint256 feeGrowthGlobal
-  ) private pure returns (uint256 feeGrowthInside) {
-    uint256 feeGrowthBelow = (tickCurrent >= tickLower)
-      ? feeGrowthInsideTickLower
-      : feeGrowthGlobal - feeGrowthInsideTickLower;
+  /// @notice Retrieves either fee growth or seconds per liquidity inside
+  /// @param tickLowerGrowthOutside Lower tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickUpperGrowthOutside Upper tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickCurrentBelowLower True if pool tick is below lower tick, false otherwise
+  /// @param tickCurrentBelowUpper True if pool tick is below upper tick, false otherwise
+  /// @param growthGlobal All-time global fee growth or seconds per unit of liquidity
+  /// @return growthInside Value inside per unit of liquidity, inside the position's tick boundaries
+  function getValueInside(
+    uint256 tickLowerGrowthOutside,
+    uint256 tickUpperGrowthOutside,
+    bool tickCurrentBelowLower,
+    bool tickCurrentBelowUpper,
+    uint256 growthGlobal
+  ) internal pure returns (uint256 growthInside) {
+    uint256 growthBelow = tickCurrentBelowLower
+      ? growthGlobal - tickLowerGrowthOutside
+      : tickLowerGrowthOutside;
 
-    uint256 feeGrowthAbove = (tickCurrent < tickUpper)
-      ? feeGrowthInsideTickUpper
-      : feeGrowthGlobal - feeGrowthInsideTickUpper;
+    uint256 growthAbove = tickCurrentBelowUpper
+      ? tickUpperGrowthOutside
+      : growthGlobal - tickUpperGrowthOutside;
 
-    feeGrowthInside = feeGrowthGlobal - feeGrowthBelow - feeGrowthAbove;
+    growthInside = growthGlobal - growthBelow - growthAbove;
   }
 
   /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
   /// @param tick Tick to be updated
   /// @param tickCurrent Current tick
   /// @param liquidityDelta Liquidity quantity to be added | removed when tick is crossed up | down
-  /// @param feeGrowthGlobal All-time global fee growth, per unit of liquidity
+  /// @param cumulatives All-time global fee growth and seconds, per unit of liquidity
   /// @param isLower true | false if updating a position's lower | upper tick
   /// @param maxLiquidity The maximum liquidity allocation for a single tick
   /// @return feeGrowthOutside last value of feeGrowthOutside
@@ -189,7 +206,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     int24 tick,
     int24 tickCurrent,
     int128 liquidityDelta,
-    uint256 feeGrowthGlobal,
+    CumulativesData memory cumulatives,
     bool isLower,
     uint128 maxLiquidity,
     int24 tickSpacing
@@ -208,7 +225,11 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
     if (liquidityGrossBefore == 0) {
       // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
-      if (tick <= tickCurrent) ticks[tick].feeGrowthOutside = feeGrowthGlobal;
+      if (tick <= tickCurrent) {
+        ticks[tick].feeGrowthOutside = cumulatives.feeGrowth;
+        ticks[tick].secondsPerLiquidityOutside = cumulatives.secondsPerLiquidity;
+      }
+
       ticks[tick].initialized = true;
     }
 

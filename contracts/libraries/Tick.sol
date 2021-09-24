@@ -19,8 +19,11 @@ library Tick {
     // fee growth per unit of liquidity on the other side of this tick (relative to current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint256 feeGrowthOutside;
-    // true iff the tick is initialized, when liquidityGross != 0
-    // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
+    // seconds spent on the other side of this tick (relative to current tick)
+    // only has relative meaning, not absolute — the value depends on when the tick is initialized
+    uint160 secondsPerLiquidityOutside;
+    // true if liquidityGross != 0, false otherwise
+    // this prevents fresh sstores when crossing newly initialized ticks
     bool initialized;
   }
 
@@ -38,32 +41,29 @@ library Tick {
     return type(uint128).max / numTicks;
   }
 
-  /// @notice Retrieves fee growth data
-  /// @param self Mapping containing all tick data for initialized ticks
-  /// @param tickLower Lower tick boundary of the position
-  /// @param tickUpper Upper tick boundary of the position
-  /// @param tickCurrent Current tick
-  /// @param feeGrowthGlobal All-time global fee growth, per unit of liquidity
-  /// @return feeGrowthInside All-time fee growth per unit of liquidity, inside the position's tick boundaries
-  function getFeeGrowthInside(
-    mapping(int24 => Tick.Data) storage self,
-    int24 tickLower,
-    int24 tickUpper,
-    int24 tickCurrent,
-    uint256 feeGrowthGlobal
-  ) internal view returns (uint256 feeGrowthInside) {
-    Data storage lower = self[tickLower];
-    Data storage upper = self[tickUpper];
+  /// @notice Retrieves either fee growth or seconds per liquidity inside
+  /// @param tickLowerGrowthOutside Lower tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickUpperGrowthOutside Upper tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickCurrentBelowLower True if pool tick is below lower tick, false otherwise
+  /// @param tickCurrentBelowUpper True if pool tick is below upper tick, false otherwise
+  /// @param growthGlobal All-time global fee growth or seconds per unit of liquidity
+  /// @return growthInside Value inside per unit of liquidity, inside the position's tick boundaries
+  function getValueInside(
+    uint256 tickLowerGrowthOutside,
+    uint256 tickUpperGrowthOutside,
+    bool tickCurrentBelowLower,
+    bool tickCurrentBelowUpper,
+    uint256 growthGlobal
+  ) internal pure returns (uint256 growthInside) {
+    uint256 growthBelow = tickCurrentBelowLower
+      ? growthGlobal - tickLowerGrowthOutside
+      : tickLowerGrowthOutside;
+    
+    uint256 growthAbove = tickCurrentBelowUpper
+      ? tickUpperGrowthOutside
+      : growthGlobal - tickUpperGrowthOutside;
 
-    uint256 feeGrowthBelow = (tickCurrent >= tickLower)
-      ? lower.feeGrowthOutside
-      : feeGrowthGlobal - lower.feeGrowthOutside;
-
-    uint256 feeGrowthAbove = (tickCurrent < tickUpper)
-      ? upper.feeGrowthOutside
-      : feeGrowthGlobal - upper.feeGrowthOutside;
-
-    feeGrowthInside = feeGrowthGlobal - feeGrowthBelow - feeGrowthAbove;
+    growthInside = growthGlobal - growthBelow - growthAbove;
   }
 
   /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
@@ -81,6 +81,7 @@ library Tick {
     int24 tickCurrent,
     int128 liquidityDelta,
     uint256 feeGrowthGlobal,
+    uint160 secondsPerLiquidity,
     bool isLower,
     uint128 maxLiquidity
   ) internal returns (bool flipped) {
@@ -98,7 +99,10 @@ library Tick {
 
     if (liquidityGrossBefore == 0) {
       // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
-      if (tick <= tickCurrent) data.feeGrowthOutside = feeGrowthGlobal;
+      if (tick <= tickCurrent) {
+        data.feeGrowthOutside = feeGrowthGlobal;
+        data.secondsPerLiquidityOutside = secondsPerLiquidity;
+      }
       data.initialized = true;
     }
 
@@ -122,14 +126,17 @@ library Tick {
   /// @param self Mapping containing all tick data for initialized ticks
   /// @param tick Destination tick of the transition
   /// @param feeGrowthGlobal All-time global fee growth, per unit of liquidity
+  /// @param secondsPerLiquidityGlobal All-time seconds per unit of liquidity of the pool
   /// @return liquidityNet liquidity quantity to be added | removed when tick is crossed up | down
   function crossToTick(
     mapping(int24 => Tick.Data) storage self,
     int24 tick,
-    uint256 feeGrowthGlobal
+    uint256 feeGrowthGlobal,
+    uint160 secondsPerLiquidityGlobal
   ) internal returns (int128 liquidityNet) {
     Tick.Data storage data = self[tick];
     data.feeGrowthOutside = feeGrowthGlobal - data.feeGrowthOutside;
+    data.secondsPerLiquidityOutside = secondsPerLiquidityGlobal - data.secondsPerLiquidityOutside;
     liquidityNet = data.liquidityNet;
   }
 }
