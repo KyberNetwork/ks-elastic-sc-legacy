@@ -414,8 +414,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     int24 currentTick; // the tick associated with the current price
     uint128 lp; // the current pool liquidity
     uint128 lf; // the current reinvestment liquidity
+    // variables below are loaded only when crossing a tick
     uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
-    // variable only load when crossing a tick
     uint128 lfLast; // collected liquidity
     uint256 rTotalSupply; // cache of total reinvestment token supply
     uint256 rTotalSupplyInitial; // initial value of rTotalSupply
@@ -609,10 +609,10 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint256 secondsElapsed = _blockTimestamp() - secondsPerLiquidityUpdateTime;
     // update secondsPerLiquidityGlobal and secondsPerLiquidityUpdateTime if needed
     if (secondsElapsed > 0 && lp > 0) {
-      secondsPerLiquidityUpdateTime = _blockTimestamp();
       _secondsPerLiquidityGlobal += uint128((secondsElapsed << C.RES_96) / lp);
       // write to storage
       secondsPerLiquidityGlobal = _secondsPerLiquidityGlobal;
+      secondsPerLiquidityUpdateTime = _blockTimestamp();
     }
     return _secondsPerLiquidityGlobal;
   }
