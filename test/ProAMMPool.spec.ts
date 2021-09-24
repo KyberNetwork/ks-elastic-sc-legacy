@@ -1249,6 +1249,29 @@ describe('ProAMMPool', () => {
         expect((await pool.getPoolState())._poolLiquidity).to.be.lt(poolLiquidityBefore);
       });
     });
+
+    describe('turn on govt fee', async () => {
+      it('should mint any outstanding rTokens and send it to feeTo', async () => {
+        tickLower = -10 * tickSpacing;
+        tickUpper = 10 * tickSpacing;
+        reinvestmentToken = (await ethers.getContractAt(
+          'ReinvestmentTokenMaster',
+          await pool.reinvestmentToken()
+        )) as ReinvestmentTokenMaster;
+  
+        // set non-zero and feeTo in factory
+        await factory.updateFeeConfiguration(configMaster.address, 5);
+        let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+  
+        // do some random swaps to accumulate fees
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+        // do a couple of small swaps so that lf is incremented but not lfLast
+        await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
+        await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
+        // should have minted and sent rTokens to feeTo
+        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
+      });
+    });
   });
 
   describe('limit orders', async () => {
@@ -1348,6 +1371,17 @@ describe('ProAMMPool', () => {
         expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
           reinvestmentState._poolFeeGrowthGlobal
         );
+      });
+
+      it('should send a portion of collected fees to feeTo if rMintQty and govtFee > 0', async () => {
+        // set non-zero and feeTo in factory
+        await factory.updateFeeConfiguration(configMaster.address, 5);
+        let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
+        // do a couple of small swaps so that lf is incremented but not lfLast
+        await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
+        await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
+        // should have minted and sent rTokens to feeTo
+        expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
       });
 
       it('#gas [ @skip-on-coverage ]', async () => {

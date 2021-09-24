@@ -75,7 +75,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     CumulativesData memory cumulatives,
     uint128 maxLiquidityPerTick,
     int24 tickSpacing
-  ) internal returns (uint256 feesClaimable) {
+  ) internal returns (uint256 feesClaimable, uint256 feeGrowthInside) {
     // update ticks if necessary
     uint256 feeGrowthOutsideLowerTick = updateTick(
       updateData.tickLower,
@@ -96,7 +96,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
       tickSpacing
     );
 
-    uint256 feeGrowthInside = getValueInside(
+    feeGrowthInside = getValueInside(
       feeGrowthOutsideLowerTick,
       feeGrowthOutsideUpperTick,
       currentTick < updateData.tickLower,

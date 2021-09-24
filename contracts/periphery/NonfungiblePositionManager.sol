@@ -80,8 +80,9 @@ contract NonfungiblePositionManager is
     )
   {
     IProAMMPool pool;
+    uint256 feeGrowthInsideLast;
 
-    (liquidity, amount0, amount1, , pool) = addLiquidity(
+    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = addLiquidity(
       AddLiquidityParams({
         token0: params.token0,
         token1: params.token1,
@@ -100,8 +101,6 @@ contract NonfungiblePositionManager is
     _mint(params.recipient, tokenId);
 
     uint80 poolId = _storePoolInfo(address(pool), params.token0, params.token1, params.fee);
-
-    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, params.tickLower, params.tickUpper);
 
     _positions[tokenId] = Position({
       nonce: 0,
@@ -130,8 +129,9 @@ contract NonfungiblePositionManager is
     Position storage pos = _positions[params.tokenId];
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool;
+    uint256 feeGrowthInsideLast;
 
-    (liquidity, amount0, amount1, , pool) = addLiquidity(
+    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = addLiquidity(
       AddLiquidityParams({
         token0: poolInfo.token0,
         token1: poolInfo.token1,
@@ -145,8 +145,6 @@ contract NonfungiblePositionManager is
         amount1Min: params.amount1Min
       })
     );
-
-    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
       additionalRTokenOwed = FullMath.mulDivFloor(
@@ -178,10 +176,9 @@ contract NonfungiblePositionManager is
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
-    (amount0, amount1, ) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
+    uint256 feeGrowthInsideLast;
+    (amount0, amount1, feeGrowthInsideLast) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
-
-    uint256 feeGrowthInsideLast = _getFeeGrowthInside(pool, pos.tickLower, pos.tickUpper);
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
       additionalRTokenOwed = FullMath.mulDivFloor(
@@ -281,14 +278,6 @@ contract NonfungiblePositionManager is
       _poolInfoById[poolId] = PoolInfo({token0: token0, fee: fee, token1: token1, rToken: rToken});
       isRToken[rToken] = true;
     }
-  }
-
-  function _getFeeGrowthInside(
-    IProAMMPool pool,
-    int24 tickLower,
-    int24 tickUpper
-  ) internal view returns (uint256 feeGrowthInsideLast) {
-    (, feeGrowthInsideLast) = pool.getPositions(address(this), tickLower, tickUpper);
   }
 
   /// @dev Overrides _approve to use the operator in the position, which is packed with the position permit nonce

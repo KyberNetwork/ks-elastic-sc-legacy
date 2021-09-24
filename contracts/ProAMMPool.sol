@@ -4,7 +4,7 @@ pragma solidity 0.8.4;
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
-import {IERC20, IProAMMPool} from './interfaces/IProAMMPool.sol';
+import {IERC20, IProAMMPool, IProAMMPoolActions} from './interfaces/IProAMMPool.sol';
 import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
@@ -164,7 +164,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     }
   }
 
-  /// see IProAMMPoolActions
+  /// @inheritdoc IProAMMPoolActions
   function unlockPool(uint160 initialSqrtPrice, bytes calldata data)
     external
     override
@@ -196,7 +196,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     returns (
       int256 qty0,
       int256 qty1,
-      uint256 feesClaimable
+      uint256 feeGrowthInsideLast
     )
   {
     require(posData.tickLower < posData.tickUpper, 'invalid ticks');
@@ -208,30 +208,22 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     int24 _poolTick = poolTick;
     uint128 lp = poolLiquidity;
     uint128 lf = poolReinvestmentLiquidity;
+
     CumulativesData memory cumulatives = CumulativesData({
       feeGrowth: poolFeeGrowthGlobal,
       secondsPerLiquidity: secondsPerLiquidityGlobal
     });
 
-    {
-      uint128 lfLast = poolReinvestmentLiquidityLast;
-      uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-        lf,
-        lfLast,
-        lp,
-        reinvestmentToken.totalSupply()
-      );
-      if (rMintQty != 0) {
-        mintRTokens(rMintQty);
-        // lp != 0 because lp = 0 => rMintQty = 0
-        cumulatives.feeGrowth += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-        poolFeeGrowthGlobal = cumulatives.feeGrowth;
-      }
-      // update poolReinvestmentLiquidityLast
-      poolReinvestmentLiquidityLast = lf;
-    }
+    (, cumulatives.feeGrowth) = _syncReinvestments(
+      lp,
+      lf,
+      reinvestmentToken.totalSupply(),
+      cumulatives.feeGrowth,
+      true
+    );
 
-    feesClaimable = _updatePosition(
+    uint256 feesClaimable;
+    (feesClaimable, feeGrowthInsideLast) = _updatePosition(
       posData,
       _poolTick,
       cumulatives,
@@ -283,7 +275,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     }
   }
 
-  /// see IProAMMPoolActions
+  /// @inheritdoc IProAMMPoolActions
   function mint(
     address recipient,
     int24 tickLower,
@@ -297,14 +289,14 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     returns (
       uint256 qty0,
       uint256 qty1,
-      uint256 feesClaimable
+      uint256 feeGrowthInsideLast
     )
   {
     require(qty > 0, '0 qty');
     require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
     int256 qty0Int;
     int256 qty1Int;
-    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
+    (qty0Int, qty1Int, feeGrowthInsideLast) = _tweakPosition(
       UpdatePositionData({
         owner: recipient,
         tickLower: tickLower,
@@ -326,7 +318,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     emit Mint(msg.sender, recipient, tickLower, tickUpper, qty, qty0, qty1);
   }
 
-  /// see IProAMMPoolActions
+  /// @inheritdoc IProAMMPoolActions
   function burn(
     int24 tickLower,
     int24 tickUpper,
@@ -338,13 +330,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     returns (
       uint256 qty0,
       uint256 qty1,
-      uint256 feesClaimable
+      uint256 feeGrowthInsideLast
     )
   {
     require(qty > 0, '0 qty');
     int256 qty0Int;
     int256 qty1Int;
-    (qty0Int, qty1Int, feesClaimable) = _tweakPosition(
+    (qty0Int, qty1Int, feeGrowthInsideLast) = _tweakPosition(
       UpdatePositionData({
         owner: msg.sender,
         tickLower: tickLower,
@@ -365,27 +357,14 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     emit BurnLP(msg.sender, tickLower, tickUpper, qty, qty0, qty1);
   }
 
+  /// @inheritdoc IProAMMPoolActions
   function burnRTokens(uint256 _qty) external override lock returns (uint256 qty0, uint256 qty1) {
     // SLOADs for gas optimizations
     uint128 lp = poolLiquidity;
-    uint256 lf = poolReinvestmentLiquidity;
+    uint128 lf = poolReinvestmentLiquidity;
     uint160 pc = poolSqrtPrice;
     uint256 rTotalSupply = reinvestmentToken.totalSupply();
-    // calculate rMintQty
-    uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-      lf,
-      poolReinvestmentLiquidityLast,
-      lp,
-      rTotalSupply
-    );
-
-    // mint tokens to pool and increment fee growth if needed
-    if (rMintQty != 0) {
-      mintRTokens(rMintQty);
-      rTotalSupply += rMintQty;
-      // lp != 0 because lp = 0 => rMintQty = 0
-      poolFeeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
-    }
+    (rTotalSupply, ) = _syncReinvestments(lp, lf, rTotalSupply, poolFeeGrowthGlobal, false);
 
     // burn _qty of caller
     // position manager should transfer _qty from user to itself, but not send it to the pool
@@ -407,9 +386,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
     int256 deltaRemaining; // the specified amount (could be tokenIn or tokenOut)
-    bool isToken0; // is soureQty token0 or token1?
-    bool isExactInput; // is soureQty input or output?
-    int256 actualDelta; // the opposite amout of soureQty
+    bool isToken0; // is sourceQty token0 or token1?
+    bool isExactInput; // is sourceQty input or output?
+    int256 actualDelta; // the opposite amout of sourceQty
     uint160 sqrtPc; // current sqrt(price), multiplied by 2^96
     int24 currentTick; // the tick associated with the current price
     uint128 lp; // the current pool liquidity
@@ -420,6 +399,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint256 rTotalSupply; // cache of total reinvestment token supply
     uint256 rTotalSupplyInitial; // initial value of rTotalSupply
     uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
+    address feeTo; // recipient of govt fees
+    uint16 governmentFeeBps; // governmentFeeBps to be charged
+    uint256 rGovtQty; // govt fee qty collected to be transferred to feeTo
   }
 
   struct SwapStep {
@@ -504,6 +486,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       if (swapData.sqrtPc == step.nextSqrtP) {
         if (step.initialized) {
           if (swapData.rTotalSupplyInitial == 0) {
+            // initialize reinvestment variables
             swapData.lfLast = poolReinvestmentLiquidityLast;
             swapData.feeGrowthGlobal = poolFeeGrowthGlobal;
             swapData.rTotalSupplyInitial = reinvestmentToken.totalSupply();
@@ -512,6 +495,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
               secondsPerLiquidityGlobal,
               swapData.lp
             );
+            (swapData.feeTo, swapData.governmentFeeBps) = factory.feeConfiguration();
           }
 
           // update rTotalSupply, feeGrowthGlobal and lf
@@ -523,7 +507,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
           );
           if (rMintQty != 0) {
             swapData.rTotalSupply += rMintQty;
-            swapData.feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, swapData.lp);
+            uint256 rGovtQty = (rMintQty * swapData.governmentFeeBps) / C.BPS;
+            swapData.rGovtQty += rGovtQty;
+            swapData.feeGrowthGlobal += FullMath.mulDivFloor(
+              rMintQty - rGovtQty,
+              C.TWO_POW_96,
+              swapData.lp
+            );
           }
           swapData.lfLast = swapData.lf;
 
@@ -546,7 +536,12 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     // also calculate government fee and transfer to feeTo
     if (swapData.rTotalSupplyInitial != 0) {
       if (swapData.rTotalSupply > swapData.rTotalSupplyInitial) {
-        mintRTokens(swapData.rTotalSupply - swapData.rTotalSupplyInitial);
+        reinvestmentToken.mint(
+          address(this),
+          swapData.rTotalSupply - swapData.rTotalSupplyInitial
+        );
+        if (swapData.rGovtQty > 0)
+          reinvestmentToken.safeTransfer(swapData.feeTo, swapData.rGovtQty);
       }
       poolReinvestmentLiquidityLast = swapData.lfLast;
       poolFeeGrowthGlobal = swapData.feeGrowthGlobal;
@@ -617,15 +612,46 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     return _secondsPerLiquidityGlobal;
   }
 
-  function mintRTokens(uint256 rMintQty) internal {
+  function _syncReinvestments(
+    uint128 lp,
+    uint128 lf,
+    uint256 rTotalSupply,
+    uint256 _feeGrowthGlobal,
+    bool updateLfLast
+  )
+    internal
+    returns (
+      uint256, // rTotalSupply
+      uint256 // _feeGrowthGlobal
+    )
+  {
+    uint256 rMintQty = ReinvestmentMath.calcrMintQty(
+      lf,
+      poolReinvestmentLiquidityLast,
+      lp,
+      rTotalSupply
+    );
+    if (rMintQty != 0) {
+      rTotalSupply += rMintQty;
+      rMintQty -= _mintRTokensWithGovtFee(rMintQty);
+      // lp != 0 because lp = 0 => rMintQty = 0
+      _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+      poolFeeGrowthGlobal = _feeGrowthGlobal;
+    }
+    // update poolReinvestmentLiquidityLast if required
+    if (updateLfLast) poolReinvestmentLiquidityLast = lf;
+    return (rTotalSupply, _feeGrowthGlobal);
+  }
+
+  function _mintRTokensWithGovtFee(uint256 rMintQty) internal returns (uint256 rGovtQty) {
     reinvestmentToken.mint(address(this), rMintQty);
     // fetch governmentFeeBps
     (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
     if (governmentFeeBps > 0) {
       // take a cut of fees for government
-      uint256 governmentFeeQty = (rMintQty * governmentFeeBps) / C.BPS;
+      rGovtQty = (rMintQty * governmentFeeBps) / C.BPS;
       // transfer rTokens to feeTo
-      reinvestmentToken.safeTransfer(feeTo, governmentFeeQty);
+      reinvestmentToken.safeTransfer(feeTo, rGovtQty);
     }
   }
 
