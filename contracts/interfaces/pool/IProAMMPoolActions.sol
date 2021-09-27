@@ -92,18 +92,18 @@ interface IProAMMPoolActions {
     bytes calldata data
   ) external returns (int256 qty0, int256 qty1);
 
-  // /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
-  // /// @dev The caller of this method receives a callback in the form of IUniswapV3FlashCallback#uniswapV3FlashCallback
-  // /// @dev Can be used to donate underlying tokens pro-rata to currently in-range liquidity providers by calling
-  // /// with 0 amount{0,1} and sending the donation amount(s) from the callback
-  // /// @param recipient The address which will receive the token0 and token1 amounts
-  // /// @param qty0 The amount of token0 to send
-  // /// @param qty1 The amount of token1 to send
-  // /// @param data Any data to be passed through to the callback
-  // function flash(
-  //     address recipient,
-  //     uint256 qty0,
-  //     uint256 qty1,
-  //     bytes calldata data
-  // ) external;
+  /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
+  /// @dev The caller of this method receives a callback in the form of IProAMMFlashCallback#proAMMFlashCallback
+  /// @dev Fees collected are distributed to all rToken holders
+  /// since no rTokens minted from it
+  /// @param recipient The address which will receive the token0 and token1 amounts
+  /// @param qty0 token0 quantity to be loaned to the recipient
+  /// @param qty1 token1 quantity to be loaned to the recipient
+  /// @param data Any data to be passed through to the callback
+  function flash(
+    address recipient,
+    uint256 qty0,
+    uint256 qty1,
+    bytes calldata data
+  ) external;
 }

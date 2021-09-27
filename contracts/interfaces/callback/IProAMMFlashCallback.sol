@@ -7,12 +7,12 @@ interface IProAMMFlashCallback {
   /// @notice Called to `msg.sender` after flash loaning to the recipient from IProAMMPool#flash.
   /// @dev This function's implementation must send the loaned amounts with computed fee amounts
   /// The caller of this method must be checked to be a ProAMMPool deployed by the canonical ProAMMFactory.
-  /// @param flashFee0 The token0 fee to be sent to the pool.
-  /// @param flashFee1 The token1 fee to be sent to the pool.
+  /// @param feeQty0 The token0 fee to be sent to the pool.
+  /// @param feeQty1 The token1 fee to be sent to the pool.
   /// @param data Data passed through by the caller via the IProAMMPool#flash call
   function proAMMFlashCallback(
-    uint256 flashFee0,
-    uint256 flashFee1,
+    uint256 feeQty0,
+    uint256 feeQty1,
     bytes calldata data
   ) external;
 }

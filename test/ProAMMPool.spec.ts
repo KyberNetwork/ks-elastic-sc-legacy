@@ -1824,6 +1824,145 @@ describe('ProAMMPool', () => {
       expect(await pool.getSecondsPerLiquidityInside(0,10)).to.be.eql(ZERO);
     });
   });
+
+  describe('#flash', async () => {
+    it('should fail if pool is not unlocked', async () => {
+      await expect(callback.flash(pool.address, ZERO, ZERO, '0x')).to.be.revertedWith('locked');
+    });
+
+    it('should fail if pool has no liquidity', async () => {
+      initialPrice = encodePriceSqrt(ONE, ONE);
+      await callback.unlockPool(pool.address, initialPrice, '0x');
+      await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x')).to.be.revertedWith(
+        '0 liquidity'
+      );
+      await expect(callback.flash(pool.address, PRECISION, ZERO, '0x')).to.be.revertedWith(
+        '0 liquidity'
+      );
+    });
+
+    describe('after unlockPool', async () => {
+      beforeEach('unlock pool with initial price of 2:1 & mint 1 position', async () => {
+        initialPrice = encodePriceSqrt(TWO, ONE);
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        tickLower = nearestTickToPrice - 100 * tickSpacing;
+        tickUpper = nearestTickToPrice + 100 * tickSpacing;
+        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await factory.connect(admin).addNFTManager(callback.address);
+        await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(BPS), '0x');
+      });
+
+      it('should emit event', async () => {
+        await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x'))
+          .to.emit(pool, 'Flash')
+          .withArgs(callback.address, callback.address, PRECISION, PRECISION, ZERO, ZERO);
+      });
+
+      it('transfers requested loan to the recipient', async () => {
+        await expect(callback.flash(pool.address, PRECISION, PRECISION.mul(TWO), '0x'))
+          .to.emit(token0, 'Transfer')
+          .withArgs(pool.address, callback.address, PRECISION)
+          .to.emit(token1, 'Transfer')
+          .withArgs(pool.address, callback.address, PRECISION.mul(TWO))
+      });
+
+      it('allows flash loan of only token0', async () => {
+        await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
+          .to.emit(token0, 'Transfer')
+          .withArgs(pool.address, callback.address, PRECISION)
+          .to.not.emit(token1, 'Transfer')
+      });
+
+      it('allows flash loan of only token1', async () => {
+        await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
+        .to.emit(token1, 'Transfer')
+        .withArgs(pool.address, callback.address, PRECISION)
+        .to.not.emit(token0, 'Transfer')
+      });
+
+      it('no-op if both amounts are 0', async () => {
+        await expect(callback.flash(pool.address, ZERO, ZERO, '0x'))
+        .to.not.emit(token0, 'Transfer')
+        .to.not.emit(token1, 'Transfer')
+      });
+
+      it('allows flash loan of pool balance', async () => {
+        let poolBal0 = await token0.balanceOf(pool.address);
+        let poolBal1 = await token0.balanceOf(pool.address);
+        await expect(callback.flash(pool.address, poolBal0, poolBal1, '0x'))
+        .to.emit(token0, 'Transfer')
+        .withArgs(pool.address, callback.address, poolBal0)
+        .to.emit(token1, 'Transfer')
+        .withArgs(pool.address, callback.address, poolBal1)
+      });
+
+      it('should revert if requested loan amount exceeds pool balance', async () => {
+        let poolBal0 = await token0.balanceOf(pool.address);
+        let poolBal1 = await token1.balanceOf(pool.address);
+        await expect(callback.flash(pool.address, poolBal0.add(ONE), poolBal1, '0x')).to.be.reverted;
+        await expect(callback.flash(pool.address, poolBal0, poolBal1.add(ONE), '0x')).to.be.reverted;
+      });
+
+      it('should revert if recipient fails to pay back loan', async () => {
+        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, false)).to.be.revertedWith('lacking feeQty0');
+        await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, false)).to.be.revertedWith('lacking feeQty1');
+      });
+
+      describe('turn on fee', async () => {
+        beforeEach('set feeTo', async () => {
+          // set feeTo in factory
+          await factory.updateFeeConfiguration(configMaster.address, 5);
+        });
+
+        it('should revert if recipient pays insufficient fees', async () => {
+          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, true, false, true)).to.be.revertedWith('lacking feeQty0');
+          await expect(callback.badFlash(pool.address, PRECISION, PRECISION, false, true, true)).to.be.revertedWith('lacking feeQty1');
+        });
+  
+        it('should not revert if recipient overpays', async () => {
+          // send tokens to callback so that it will overpay
+          await token0.transfer(callback.address, PRECISION);
+          await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x')).to.not.be.reverted;
+          await token1.transfer(callback.address, PRECISION);
+          await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x')).to.not.be.reverted;
+        });
+  
+        it('should send collected fees to feeTo if not null', async () => {
+          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x'))
+          .to.emit(token0, 'Transfer')
+          .withArgs(pool.address, configMaster.address, swapFee)
+          .to.emit(token1, 'Transfer')
+          .withArgs(pool.address, configMaster.address, swapFee);
+        });
+  
+        it('should send only token0 fees if loan is taken in only token0', async () => {
+          // set feeTo in factory
+          await factory.updateFeeConfiguration(configMaster.address, 5);
+          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
+          .to.emit(token0, 'Transfer')
+          .withArgs(pool.address, configMaster.address, swapFee)
+          .to.not.emit(token1, 'Transfer');
+        });
+  
+        it('should send only token1 fees if loan is taken in only token1', async () => {
+          // set feeTo in factory
+          await factory.updateFeeConfiguration(configMaster.address, 5);
+          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
+          .to.emit(token1, 'Transfer')
+          .withArgs(pool.address, configMaster.address, swapFee)
+          .to.not.emit(token0, 'Transfer');
+        });
+      });
+
+      it('#gas flash [ @skip-on-coverage ]', async () => {
+        const tx = await callback.connect(user).flash(pool.address, PRECISION, PRECISION, '0x');
+        await snapshotGasCost(tx);
+      });
+    });
+  });
 });
 
 async function isTickCleared (tick: number): Promise<boolean> {
