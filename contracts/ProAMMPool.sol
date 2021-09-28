@@ -21,6 +21,7 @@ import {SafeCast} from './libraries/SafeCast.sol';
 import {TickMath} from './libraries/TickMath.sol';
 import {ProAMMPoolTicksState} from './ProAMMPoolTicksState.sol';
 
+
 contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   using Clones for address;
   using SafeCast for uint256;
@@ -41,6 +42,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   int24 public immutable override tickSpacing;
 
   // see IProAMMPool#getPoolState for explanations of the variables below
+  int24 poolCurrentTick;
   uint160 internal poolSqrtPrice;
   bool private locked;
   // see IProAMMPool#getReinvestmentState for explanations of the variables below
@@ -119,7 +121,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     )
   {
     _poolSqrtPrice = poolSqrtPrice;
-    _poolTick = _poolSqrtPrice == 0 ? int24(0) : TickMath.getTickAtSqrtRatio(_poolSqrtPrice);
+    _poolTick = poolCurrentTick;
     _locked = locked;
     _poolLiquidity = poolLiquidity;
   }
@@ -144,7 +146,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     returns (uint128 secondsPerLiquidityInside)
   {
     require(tickLower <= tickUpper, 'bad tick range');
-    int24 _poolTick = TickMath.getTickAtSqrtRatio(poolSqrtPrice);
+    int24 _poolTick = poolCurrentTick;
 
     secondsPerLiquidityInside = uint128(
       getValueInside(
@@ -184,6 +186,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     poolSqrtPrice = initialSqrtPrice;
     poolReinvestmentLiquidity = MIN_LIQUIDITY;
     poolReinvestmentLiquidityLast = MIN_LIQUIDITY;
+    poolCurrentTick = initialTick;
     reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
 
     initTickData();
@@ -209,7 +212,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
     // SLOADs for gas optimization
     uint160 _poolSqrtPrice = poolSqrtPrice;
-    int24 _poolTick = TickMath.getTickAtSqrtRatio(_poolSqrtPrice);
+    int24 _poolTick = poolCurrentTick;
     uint128 lp = poolLiquidity;
     uint128 lf = poolReinvestmentLiquidity;
 
@@ -235,6 +238,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       tickSpacing
     );
     if (feesClaimable != 0) reinvestmentToken.safeTransfer(posData.owner, feesClaimable);
+
+
 
     if (_poolTick < posData.tickLower) {
       // current tick < position range
@@ -390,11 +395,16 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
     int256 deltaRemaining; // the specified amount (could be tokenIn or tokenOut)
-    bool isToken0; // is sourceQty token0 or token1?
-    bool isExactInput; // is sourceQty input or output?
     int256 actualDelta; // the opposite amout of sourceQty
+
     uint160 sqrtPc; // current sqrt(price), multiplied by 2^96
     int24 currentTick; // the tick associated with the current price
+    int24 nextTick; // the tick associated with the next price
+    uint160 nextSqrtP; // the price of nextTick
+
+    bool isToken0; // is soureQty token0 or token1?
+    bool isExactInput; // is soureQty input or output?
+
     uint128 lp; // the current pool liquidity
     uint128 lf; // the current reinvestment liquidity
     // variables below are loaded only when crossing a tick
@@ -408,11 +418,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint256 rGovtQty; // govt fee qty collected to be transferred to feeTo
   }
 
-  struct SwapStep {
-    int24 nextTick; // the tick associated with the next price
-    uint160 nextSqrtP; // the price of nextTick
-  }
-
   // see IProAMMPoolActions
   // swaps will execute up to sqrtPriceLimit, even if target swapQty is not reached
   function swap(
@@ -422,43 +427,50 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint160 sqrtPriceLimit,
     bytes calldata data
   ) external override lock returns (int256 deltaQty0, int256 deltaQty1) {
+    require(swapQty != 0, '0 swapQty');
+
     SwapData memory swapData;
     swapData.deltaRemaining = swapQty;
     swapData.isToken0 = isToken0;
-    require(swapData.deltaRemaining != 0, '0 swapQty');
     swapData.isExactInput = swapData.deltaRemaining > 0;
-    // tick (token1Amt/token0Amt) will increase for swaping from token1 to token0
-    bool willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
-    // initialize other params of swapData
     swapData.sqrtPc = poolSqrtPrice;
     swapData.lp = poolLiquidity;
     swapData.lf = poolReinvestmentLiquidity;
+    swapData.currentTick = poolCurrentTick;
 
-    require(
-      willUpTick
-        ? (sqrtPriceLimit > swapData.sqrtPc && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO)
-        : (sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO),
-      'bad sqrtPriceLimit'
-    );
+    // tick (token1Amt/token0Amt) will increase for swaping from token1 to token0
+    bool willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
 
-    SwapStep memory step;
-    step.nextTick = willUpTick ? getNextTickToCross(nearestCurrentTick, willUpTick) : nearestCurrentTick;
+    if (willUpTick) {
+      require(
+        sqrtPriceLimit > swapData.sqrtPc && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+      swapData.nextTick = getNextTickToCross(nearestCurrentTick, true);
+    } else {
+      require(
+        sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+      swapData.nextTick = nearestCurrentTick;
+    }
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
-      // get next sqrt price for the new tick
-      step.nextSqrtP = TickMath.getSqrtRatioAtTick(step.nextTick);
+      swapData.nextSqrtP = TickMath.getSqrtRatioAtTick(swapData.nextTick);
       // local scope for targetSqrtP, deltaNext, actualDelta and lc
       {
-        uint160 targetSqrtP = step.nextSqrtP;
+        uint160 targetSqrtP = swapData.nextSqrtP;
         // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-        if (willUpTick ? (step.nextSqrtP > sqrtPriceLimit) : (step.nextSqrtP < sqrtPriceLimit)) {
+        if (willUpTick ? (swapData.nextSqrtP > sqrtPriceLimit) : (swapData.nextSqrtP < sqrtPriceLimit)) {
           targetSqrtP = sqrtPriceLimit;
         }
 
         int256 deltaNext;
         int256 actualDelta;
         uint256 lc;
+
+        uint160 previousSqrtPc = swapData.sqrtPc;
 
         (deltaNext, actualDelta, lc, swapData.sqrtPc) = SwapMath.computeSwapStep(
           swapData.lp + swapData.lf,
@@ -473,10 +485,15 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         swapData.deltaRemaining -= deltaNext;
         swapData.actualDelta += actualDelta;
         swapData.lf += lc.toUint128();
+
+        if (swapData.sqrtPc != previousSqrtPc) {
+          swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
+        }
       }
 
       // swap cross next tick
-      if (swapData.sqrtPc == step.nextSqrtP) {
+      if (swapData.sqrtPc == swapData.nextSqrtP) {
+        swapData.currentTick = willUpTick ? swapData.nextTick : swapData.nextTick - 1;
         if (swapData.rTotalSupplyInitial == 0) {
           // initialize reinvestment variables
           swapData.lfLast = poolReinvestmentLiquidityLast;
@@ -500,24 +517,26 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
           swapData.rTotalSupply += rMintQty;
           uint256 rGovtQty = (rMintQty * swapData.governmentFeeBps) / C.BPS;
           swapData.rGovtQty += rGovtQty;
-          swapData.feeGrowthGlobal += FullMath.mulDivFloor(
-            rMintQty - rGovtQty,
-            C.TWO_POW_96,
-            swapData.lp
-          );
+          unchecked {
+            swapData.feeGrowthGlobal += FullMath.mulDivFloor(
+              rMintQty - rGovtQty,
+              C.TWO_POW_96,
+              swapData.lp
+            );
+          }
         }
         swapData.lfLast = swapData.lf;
 
         int128 liquidityNet;
-        (liquidityNet, step.nextTick) = crossToTick(
-          step.nextTick,
+        bool shouldCross = willUpTick || swapData.deltaRemaining != 0;
+        (liquidityNet, swapData.nextTick) = updateLiquidityAndCrossTick(
+          swapData.nextTick,
           swapData.feeGrowthGlobal,
           swapData.secondsPerLiquidityGlobal,
-          willUpTick
+          willUpTick,
+          shouldCross
         );
-        // need to switch signs for decreasing tick
-        if (!willUpTick) liquidityNet = -liquidityNet;
-        swapData.lp = LiqDeltaMath.addLiquidityDelta(swapData.lp, liquidityNet);
+        swapData.lp = LiqDeltaMath.addLiquidityDelta(swapData.lp, willUpTick ? liquidityNet : -liquidityNet);
       }
     }
 
@@ -539,15 +558,14 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     // update pool variables
     poolLiquidity = swapData.lp;
     poolReinvestmentLiquidity = swapData.lf;
-    // sload optimize
     poolSqrtPrice = swapData.sqrtPc;
+    poolCurrentTick = swapData.currentTick;
 
-    updateNearestCurrentTick(step.nextTick, TickMath.getTickAtSqrtRatio(swapData.sqrtPc));
+    updateNearestCurrentTick(swapData.nextTick, willUpTick);
 
     (deltaQty0, deltaQty1) = isToken0
       ? (swapQty - swapData.deltaRemaining, swapData.actualDelta)
       : (swapData.actualDelta, swapQty - swapData.deltaRemaining);
-
     // handle token transfers, make and callback
     if (willUpTick) {
       // outbound deltaQty0 (negative), inbound deltaQty1 (positive)
@@ -576,7 +594,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       deltaQty1,
       swapData.sqrtPc,
       swapData.lp,
-      swapData.currentTick
+      swapData.nextTick
     );
   }
 
@@ -625,7 +643,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       rTotalSupply += rMintQty;
       rMintQty -= _mintRTokensWithGovtFee(rMintQty);
       // lp != 0 because lp = 0 => rMintQty = 0
-      _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+      unchecked { _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp); }
       poolFeeGrowthGlobal = _feeGrowthGlobal;
     }
     // update poolReinvestmentLiquidityLast if required

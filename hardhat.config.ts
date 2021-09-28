@@ -52,7 +52,7 @@ const config: HardhatUserConfig = {
           },
         }
       },
-      'contracts/ProAMMPool.sol': {
+      'contracts/periphery/NonfungiblePositionManager.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
@@ -64,12 +64,21 @@ const config: HardhatUserConfig = {
           }
         }
       },
-      'contracts/periphery/NonfungiblePositionManager.sol': {
+      'contracts/ProAMMPool.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10000,
+            runs: 200,
+          },
+        }
+      },
+      'contracts/mock/MockProAMMPool.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
           },
           metadata: {
             bytecodeHash: 'none'

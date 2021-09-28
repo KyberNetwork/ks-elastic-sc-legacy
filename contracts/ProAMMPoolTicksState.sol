@@ -59,8 +59,6 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     uint128 secondsPerLiquidity;
   }
 
-  // uint128 public immutable maxLiquidityPerTick;
-
   int24 internal nearestCurrentTick;
   mapping(int24 => TickData) public override ticks;
   mapping(int16 => uint256) public override tickBitmap;
@@ -149,25 +147,29 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     return willUpTick ? initializedTicks[currentTick].next : initializedTicks[currentTick].previous;
   }
 
-  function crossToTick(
+  function updateLiquidityAndCrossTick(
     int24 nextTick,
     uint256 feeGrowthGlobal,
     uint128 secondsPerLiquidityGlobal,
-    bool willUpTick
+    bool willUpTick,
+    bool shouldCross
   )
     internal
     returns (int128 liquidityNet, int24 newNextTick)
   {
-    ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
-    ticks[nextTick].secondsPerLiquidityOutside =
-      secondsPerLiquidityGlobal -
-      ticks[nextTick].secondsPerLiquidityOutside;
+    if (shouldCross) {
+      unchecked {
+        ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
+        ticks[nextTick].secondsPerLiquidityOutside =
+          secondsPerLiquidityGlobal - ticks[nextTick].secondsPerLiquidityOutside;
+      }
+      newNextTick = getNextTickToCross(nextTick, willUpTick);
+    }
     liquidityNet = ticks[nextTick].liquidityNet;
-    newNextTick = getNextTickToCross(nextTick, willUpTick);
   }
 
-  function updateNearestCurrentTick(int24 nextTick, int24 currentTick) internal {
-    nearestCurrentTick = currentTick < nextTick ? initializedTicks[nextTick].previous : nextTick;
+  function updateNearestCurrentTick(int24 nextTick, bool willUpTick) internal {
+    nearestCurrentTick = willUpTick ? initializedTicks[nextTick].previous : nextTick;
   }
 
   function calcMaxLiquidityPerTick(int24 tickSpacing) internal pure returns (uint128) {
@@ -194,8 +196,10 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
     // calculate accumulated fees for current liquidity
     // (ie. does not include liquidityDelta)
+    uint256 feeGrowth;
+    unchecked { feeGrowth = feeGrowthInside - _position.feeGrowthInsideLast; }
     feesClaimable = FullMath.mulDivFloor(
-      feeGrowthInside - _position.feeGrowthInsideLast,
+      feeGrowth,
       _position.liquidity,
       MathConstants.TWO_POW_96
     );
@@ -221,15 +225,17 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     bool tickCurrentBelowUpper,
     uint256 growthGlobal
   ) internal pure returns (uint256 growthInside) {
-    uint256 growthBelow = tickCurrentBelowLower
-      ? growthGlobal - tickLowerGrowthOutside
-      : tickLowerGrowthOutside;
+    unchecked {
+      uint256 growthBelow = tickCurrentBelowLower
+        ? growthGlobal - tickLowerGrowthOutside
+        : tickLowerGrowthOutside;
 
-    uint256 growthAbove = tickCurrentBelowUpper
-      ? tickUpperGrowthOutside
-      : growthGlobal - tickUpperGrowthOutside;
+      uint256 growthAbove = tickCurrentBelowUpper
+        ? tickUpperGrowthOutside
+        : growthGlobal - tickUpperGrowthOutside;
 
-    growthInside = growthGlobal - growthBelow - growthAbove;
+      growthInside = growthGlobal - growthBelow - growthAbove;
+    }
   }
 
   /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
@@ -250,7 +256,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     uint128 maxLiquidity,
     int24 tickSpacing
   ) private returns (uint256 feeGrowthOutside, bool updateTickList) {
-    require(tick % tickSpacing == 0);
+    require(tick % tickSpacing == 0, 'tick not in spacing');
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
       liquidityGrossBefore,
