@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import '../libraries/AntiSnipAttack.sol';
+import '../periphery/libraries/AntiSnipAttack.sol';
 
 contract MockAntiSnipAttack {
   struct Fees {
@@ -9,73 +9,70 @@ contract MockAntiSnipAttack {
     uint256 feesBurnable;
   }
   ISnipAttack.Data public data;
-  uint32 public timestamp;
   Fees public fees;
 
-  function initialize() external {
-    data = AntiSnipAttack.initialize();
-    _updateTimestamp();
+  function initialize(uint32 timestamp) external {
+    data = AntiSnipAttack.initialize(timestamp);
   }
 
   function update(
     uint128 currentLiquidity,
     uint128 liquidityDelta,
+    uint32 currentTime,
     bool isAddLiquidity,
-    uint256 feeGrowthInsideDifference,
+    uint256 feesSinceLastAction,
     uint256 vestingPeriod
   ) external {
     (fees.feesClaimable, fees.feesBurnable) = AntiSnipAttack.update(
       data,
       currentLiquidity,
       liquidityDelta,
+      currentTime,
       isAddLiquidity,
-      feeGrowthInsideDifference,
+      feesSinceLastAction,
       vestingPeriod
     );
-    _updateTimestamp();
   }
 
   function snip(
     uint128 currentLiquidity,
     uint128 liquidityDelta,
-    uint256 feeGrowthInsideDifference,
+    uint32 currentTime,
+    uint256 feesSinceLastAction,
     uint256 vestingPeriod
   ) external {
     AntiSnipAttack.update(
       data,
       currentLiquidity,
       liquidityDelta,
+      currentTime,
       true,
-      feeGrowthInsideDifference,
+      feesSinceLastAction,
       vestingPeriod
     );
     (fees.feesClaimable, fees.feesBurnable) = AntiSnipAttack.update(
       data,
-      currentLiquidity,
+      currentLiquidity + liquidityDelta,
       liquidityDelta,
+      currentTime,
       false,
-      feeGrowthInsideDifference,
+      feesSinceLastAction,
       vestingPeriod
     );
-    _updateTimestamp();
   }
 
   function calcFeeProportions(
-    uint256 feesLockedCurrent,
-    uint256 feesSinceLastAction,
-    uint256 feesClaimableVestedBps,
-    uint256 feesClaimableSinceLastActionBps
+    uint256 currentFees,
+    uint256 nextFees,
+    uint256 currentClaimableBps,
+    uint256 nextClaimableBps
   ) external pure returns (uint256 feesLockedNew, uint256 feesClaimable) {
     return
       AntiSnipAttack.calcFeeProportions(
-        feesLockedCurrent,
-        feesSinceLastAction,
-        feesClaimableVestedBps,
-        feesClaimableSinceLastActionBps
+        currentFees,
+        nextFees,
+        currentClaimableBps,
+        nextClaimableBps
       );
-  }
-
-  function _updateTimestamp() internal {
-    timestamp = uint32(block.timestamp);
   }
 }

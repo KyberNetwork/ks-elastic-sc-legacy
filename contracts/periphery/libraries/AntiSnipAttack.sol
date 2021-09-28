@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {FullMath} from './FullMath.sol';
-import {LiqDeltaMath} from './LiqDeltaMath.sol';
-import {MathConstants as C} from './MathConstants.sol';
+import {FullMath} from '../../libraries/FullMath.sol';
+import {LiqDeltaMath} from '../../libraries/LiqDeltaMath.sol';
+import {MathConstants as C} from '../../libraries/MathConstants.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {SafeCast} from './SafeCast.sol';
-import {ISnipAttack} from '../interfaces/ISnipAttackData.sol';
-
+import {SafeCast} from '../../libraries/SafeCast.sol';
+import {ISnipAttack} from '../../interfaces/ISnipAttackData.sol';
 
 /// @title AntiSnipAttack
 /// @notice Contains the snipping attack mechanism implementation
@@ -19,8 +18,7 @@ library AntiSnipAttack {
 
   /// @notice Initializes values for a new position
   /// @return data Initialized snip attack data structure
-  function initialize() internal view returns (ISnipAttack.Data memory data) {
-    uint32 currentTime = block.timestamp.toUint32();
+  function initialize(uint32 currentTime) internal pure returns (ISnipAttack.Data memory data) {
     data = ISnipAttack.Data({
       lastActionTime: currentTime,
       lockTime: currentTime,
@@ -35,7 +33,7 @@ library AntiSnipAttack {
   /// @param liquidityDelta The change in pool liquidity as a result of the position update
   /// this value should not be zero when called
   /// @param isAddLiquidity true = add liquidity, false = remove liquidity
-  /// @param feeGrowthInsideDifference difference between position manager and an individual position
+  /// @param feesSinceLastAction rTokens collected by position since last action performed
   /// in fee growth inside the tick range
   /// @param vestingPeriod The maximum time duration for which LP fees
   /// are proportionally burnt upon LP removals
@@ -45,32 +43,28 @@ library AntiSnipAttack {
     ISnipAttack.Data storage self,
     uint128 currentLiquidity,
     uint128 liquidityDelta,
+    uint32 currentTime,
     bool isAddLiquidity,
-    uint256 feeGrowthInsideDifference,
+    uint256 feesSinceLastAction,
     uint256 vestingPeriod
   ) internal returns (uint256 feesClaimable, uint256 feesBurnable) {
     ISnipAttack.Data memory _self = self;
-    uint32 currentTime = block.timestamp.toUint32();
+    if (vestingPeriod == 0) return (feesSinceLastAction, 0);
 
     // scoping of fee proportions to avoid stack too deep
     {
-      // claimable proportion (in basis pts) of collected fees between lockTime and now
-      uint256 feesClaimableSinceLastActionBps = vestingPeriod == 0
-        ? C.BPS
-        : Math.min(C.BPS, ((currentTime - _self.lastActionTime) * C.BPS) / vestingPeriod);
+      // claimable proportion (in basis pts) of collected fees between last action and now
+      uint256 feesClaimableSinceLastActionBps = Math.min(
+        C.BPS,
+        ((currentTime - _self.lastActionTime) * C.BPS) / vestingPeriod
+      );
       // claimable proportion (in basis pts) of locked fees
-      uint256 feesClaimableVestedBps = _self.unlockTime == _self.lastActionTime
-        ? 0
+      uint256 feesClaimableVestedBps = _self.unlockTime <= _self.lastActionTime
+        ? C.BPS
         : Math.min(
           C.BPS,
           ((currentTime - _self.lockTime) * C.BPS) / (_self.unlockTime - _self.lastActionTime)
         );
-
-      uint256 feesSinceLastAction = FullMath.mulDivFloor(
-        currentLiquidity,
-        feeGrowthInsideDifference,
-        C.TWO_POW_96
-      );
 
       uint256 feesLockedBeforeUpdate = _self.feesLocked;
       (_self.feesLocked, feesClaimable) = calcFeeProportions(
@@ -90,7 +84,7 @@ library AntiSnipAttack {
       // If (1) and (2) are 0, then update to block.timestamp
       self.unlockTime = (_self.feesLocked == 0)
         ? currentTime
-        : (((currentTime + vestingPeriod) *
+        : (((_self.lockTime + vestingPeriod) *
           feesSinceLastAction *
           (C.BPS - feesClaimableSinceLastActionBps) +
           _self.unlockTime *
@@ -125,17 +119,17 @@ library AntiSnipAttack {
   }
 
   function calcFeeProportions(
-    uint256 feesLockedCurrent,
-    uint256 feesSinceLastAction,
-    uint256 feesClaimableVestedBps,
-    uint256 feesClaimableSinceLastActionBps
+    uint256 currentFees,
+    uint256 nextFees,
+    uint256 currentClaimableBps,
+    uint256 nextClaimableBps
   ) internal pure returns (uint256 feesLockedNew, uint256 feesClaimable) {
-    uint256 totalFees = feesLockedCurrent + feesSinceLastAction;
+    uint256 totalFees = currentFees + nextFees;
     feesClaimable =
-      (feesClaimableVestedBps *
-        feesLockedCurrent +
-        feesClaimableSinceLastActionBps *
-        feesSinceLastAction) /
+      (currentClaimableBps *
+        currentFees +
+        nextClaimableBps *
+        nextFees) /
       C.BPS;
     feesLockedNew = totalFees - feesClaimable;
   }

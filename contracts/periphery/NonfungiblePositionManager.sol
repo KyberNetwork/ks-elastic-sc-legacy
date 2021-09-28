@@ -7,9 +7,8 @@ import {INonfungiblePositionManager, IERC721Metadata, IRouterTokenHelper} from '
 import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 import {FullMath} from '../libraries/FullMath.sol';
-import {MathConstants} from '../libraries/MathConstants.sol';
+import {MathConstants as C} from '../libraries/MathConstants.sol';
 import {LiquidityHelper, ImmutableRouterStorage, RouterTokenHelper} from './base/LiquidityHelper.sol';
-import {AntiSnipAttack} from '../libraries/AntiSnipAttack.sol';
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
@@ -21,13 +20,13 @@ contract NonfungiblePositionManager is
   ERC721Permit,
   LiquidityHelper
 {
-  address private immutable _tokenDescriptor;
+  address internal immutable _tokenDescriptor;
   uint80 public override nextPoolId = 1;
   uint256 public override nextTokenId = 1;
   // pool id => pool info
-  mapping(uint80 => PoolInfo) private _poolInfoById;
+  mapping(uint80 => PoolInfo) internal _poolInfoById;
   // tokenId => position
-  mapping(uint256 => Position) private _positions;
+  mapping(uint256 => Position) internal _positions;
 
   mapping(address => bool) public override isRToken;
   // pool address => pool id
@@ -71,6 +70,7 @@ contract NonfungiblePositionManager is
   function mint(MintParams calldata params)
     external
     payable
+    virtual
     override
     onlyNotExpired(params.deadline)
     returns (
@@ -111,14 +111,14 @@ contract NonfungiblePositionManager is
       tickUpper: params.tickUpper,
       liquidity: liquidity,
       rTokenOwed: 0,
-      feeGrowthInsideLast: feeGrowthInsideLast,
-      antiSnipAttackData: AntiSnipAttack.initialize() // unused in this version
+      feeGrowthInsideLast: feeGrowthInsideLast
     });
   }
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
     external
     payable
+    virtual
     override
     onlyNotExpired(params.deadline)
     returns (
@@ -152,7 +152,7 @@ contract NonfungiblePositionManager is
       additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
-        MathConstants.TWO_POW_96
+        C.TWO_POW_96
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
@@ -163,6 +163,7 @@ contract NonfungiblePositionManager is
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
     external
+    virtual
     override
     isAuthorizedForToken(params.tokenId)
     onlyNotExpired(params.deadline)
@@ -186,7 +187,7 @@ contract NonfungiblePositionManager is
       additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
         feeGrowthInsideLast - pos.feeGrowthInsideLast,
-        MathConstants.TWO_POW_96
+        C.TWO_POW_96
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
@@ -272,7 +273,7 @@ contract NonfungiblePositionManager is
     address token0,
     address token1,
     uint16 fee
-  ) private returns (uint80 poolId) {
+  ) internal returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {
       addressToPoolId[pool] = (poolId = nextPoolId++);
@@ -300,7 +301,7 @@ contract NonfungiblePositionManager is
     address tokenA,
     address tokenB,
     uint16 fee
-  ) private view returns (IProAMMPool) {
+  ) internal view returns (IProAMMPool) {
     return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
   }
 }
