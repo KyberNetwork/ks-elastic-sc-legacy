@@ -33,6 +33,7 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
 
   address private feeTo;
   uint16 private governmentFeeBps;
+  uint32 public override vestingPeriod;
 
   /// @inheritdoc IProAMMFactory
   mapping(uint16 => int24) public override feeAmountTickSpacing;
@@ -51,10 +52,14 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _;
   }
 
-  constructor(address _reinvestmentTokenMaster)
+  constructor(address _reinvestmentTokenMaster, uint32 _vestingPeriod)
     BaseSplitCodeFactory(type(MockProAMMPool).creationCode)
   {
     reinvestmentTokenMaster = _reinvestmentTokenMaster;
+
+    vestingPeriod = _vestingPeriod;
+    emit VestingPeriodUpdated(_vestingPeriod);
+
     configMaster = msg.sender;
     emit ConfigMasterUpdated(address(0), configMaster);
 
@@ -120,6 +125,12 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   function removeNFTManager(address _nftManager) external onlyConfigMaster returns (bool removed) {
     removed = whitelistedNFTManagers.remove(_nftManager);
     emit NFTManagerRemoved(_nftManager, removed);
+  }
+
+  /// @inheritdoc IProAMMFactory
+  function updateVestingPeriod(uint32 _vestingPeriod) external override onlyConfigMaster {
+    vestingPeriod = _vestingPeriod;
+    emit VestingPeriodUpdated(_vestingPeriod);
   }
 
   /// @inheritdoc IProAMMFactory

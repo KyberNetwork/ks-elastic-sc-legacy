@@ -25,6 +25,11 @@ interface IProAMMFactory {
   /// @param tickSpacing Minimum number of ticks between initialized ticks for pools created with the given fee
   event SwapFeeEnabled(uint16 indexed swapFeeBps, int24 indexed tickSpacing);
 
+  /// @notice Emitted when vesting period changes
+  /// @param vestingPeriod The maximum time duration for which LP fees
+  /// are proportionally burnt upon LP removals
+  event VestingPeriodUpdated(uint32 vestingPeriod);
+
   /// @notice Emitted when configMaster changes
   /// @param oldConfigMaster configMaster before the update
   /// @param newConfigMaster configMaster after the update
@@ -41,6 +46,9 @@ interface IProAMMFactory {
 
   /// @notice Emitted when whitelist feature is disabled
   event WhitelistDisabled();
+  /// @notice Returns the maximum time duration for which LP fees
+  /// are proportionally burnt upon LP removals
+  function vestingPeriod() external view returns (uint32);
 
   /// @notice Returns the tick spacing for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
@@ -130,6 +138,10 @@ interface IProAMMFactory {
   /// @notice Updates the address which can update the fee configuration
   /// @dev Must be called by the current configMaster
   function updateConfigMaster(address) external;
+
+  /// @notice Updates the vesting period
+  /// @dev Must be called by the current configMaster
+  function updateVestingPeriod(uint32) external;
 
   /// @notice Updates the address receiving government fees and fee quantity
   /// @dev Only configMaster is able to perform the update

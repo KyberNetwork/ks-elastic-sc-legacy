@@ -29,6 +29,7 @@ let tokenB: MockToken;
 let weth: MockWeth;
 let swapFeeBpsArray = [5, 30];
 let tickSpacingArray = [10, 60];
+let vestingPeriod = 100;
 let initialPrice = encodePriceSqrt(1, 1);
 let snapshotId: any;
 
@@ -39,7 +40,7 @@ describe('LiquidityHelper', () => {
     TokenFactory = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await TokenFactory.deploy('USDC', 'USDC', BN.from(1000000).mul(PRECISION));
     tokenB = await TokenFactory.deploy('DAI', 'DAI', BN.from(1000000).mul(PRECISION));
-    factory = await deployFactory(admin);
+    factory = await deployFactory(admin, vestingPeriod);
 
     const WETHContract = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETHContract.deploy();

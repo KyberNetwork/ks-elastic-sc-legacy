@@ -52,7 +52,7 @@ describe('Position', () => {
     });
   });
 
-  describe('feesClaimable', async () => {
+  describe('test feesClaimable', async () => {
     it('should revert if feeGrowthInside < feeGrowthInsideLast', async () => {
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       await expect(position.update(user.address, tickLower, tickUpper, liquidityDelta, ZERO)).to.be.reverted;
@@ -60,19 +60,28 @@ describe('Position', () => {
         .reverted;
     });
 
-    it('should return 0 fees if feeGrowthInside = feeGrowthInsideLast', async () => {
+    it('should return 0 feesClaimable if current liquidity is zero', async () => {
+      await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthInside);
+      expect(await position.feesClaimable()).to.be.eql(ZERO);
+      // added liquidity, but since current liquidity is 0, feesClaimable should be 0
+      // even if feeGrowthInside increased
+      await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside.mul(2));
+      expect(await position.feesClaimable()).to.be.eql(ZERO);
+    });
+
+    it('should return 0 feesClaimable if feeGrowthInside = feeGrowthInsideLast', async () => {
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       expect(await position.feesClaimable()).to.be.eql(ZERO);
     });
 
-    it('should return non-zero feesClaimable if feeGrowthInside > feeGrowthInsideLast with unchanged liquidity', async () => {
+    it('should return feesClaimable > 0 if feeGrowthInside > feeGrowthInsideLast with unchanged liquidity', async () => {
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside.mul(2));
       expect(await position.feesClaimable()).to.be.gt(ZERO);
     });
 
-    it('should return non-zero feesClaimable if position manager fully removes liquidity', async () => {
+    it('should return feesClaimable > 0 if user fully removes liquidity', async () => {
       await position.update(user.address, tickLower, tickUpper, liquidityDelta, feeGrowthInside);
       await position.update(user.address, tickLower, tickUpper, ZERO, feeGrowthInside.mul(2));
       expect(await position.feesClaimable()).to.be.gt(ZERO);
