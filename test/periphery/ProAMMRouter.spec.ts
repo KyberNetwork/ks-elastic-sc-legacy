@@ -17,7 +17,7 @@ import {
   MockWeth,
   MockWeth__factory,
   MockProAMMCallbacks,
-  MockProAMMCallbacks__factory
+  MockProAMMCallbacks__factory,
 } from '../../typechain';
 
 import {deployFactory} from '../helpers/proAMMSetup';
@@ -126,7 +126,7 @@ describe('ProAMMRouter', () => {
       deadline: BN.from(2).pow(255),
       amountIn: amount,
       amountOutMinimum: BN.from(0),
-      sqrtPriceLimitX96: initialPrice
+      sqrtPriceLimitX96: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -181,7 +181,7 @@ describe('ProAMMRouter', () => {
       recipient: user.address,
       deadline: BN.from(2).pow(255),
       amountIn: amount,
-      amountOutMinimum: BN.from(0)
+      amountOutMinimum: BN.from(0),
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -264,7 +264,7 @@ describe('ProAMMRouter', () => {
       deadline: BN.from(2).pow(255),
       amountOut: amount,
       amountInMaximum: PRECISION,
-      sqrtPriceLimitX96: initialPrice
+      sqrtPriceLimitX96: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -319,7 +319,7 @@ describe('ProAMMRouter', () => {
       recipient: user.address,
       deadline: BN.from(2).pow(255),
       amountOut: amount,
-      amountInMaximum: PRECISION
+      amountInMaximum: PRECISION,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -454,7 +454,7 @@ describe('ProAMMRouter', () => {
           deadline: MAX_UINT,
           amountIn: amount,
           amountOutMinimum: PRECISION,
-          sqrtPriceLimitX96: ZERO
+          sqrtPriceLimitX96: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: insufficient amount out');
     });
@@ -523,7 +523,7 @@ describe('ProAMMRouter', () => {
           deadline: MAX_UINT,
           amountOut: amount,
           amountInMaximum: ZERO,
-          sqrtPriceLimitX96: ZERO
+          sqrtPriceLimitX96: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
     });
@@ -598,7 +598,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountIn: amount,
-          amountOutMinimum: PRECISION
+          amountOutMinimum: PRECISION,
         })
       ).to.be.revertedWith('ProAMMRouter: insufficient amount out');
     });
@@ -673,7 +673,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountOut: amount,
-          amountInMaximum: ZERO
+          amountInMaximum: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
     });
@@ -731,7 +731,7 @@ describe('ProAMMRouter', () => {
           deadline: ZERO,
           amountIn: amount,
           amountOutMinimum: ZERO,
-          sqrtPriceLimitX96: initialPrice
+          sqrtPriceLimitX96: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
       await expect(
@@ -740,7 +740,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountIn: amount,
-          amountOutMinimum: ZERO
+          amountOutMinimum: ZERO,
         })
       ).to.be.revertedWith('ProAMM: Expired');
 
@@ -753,7 +753,7 @@ describe('ProAMMRouter', () => {
           deadline: ZERO,
           amountOut: amount,
           amountInMaximum: PRECISION,
-          sqrtPriceLimitX96: initialPrice
+          sqrtPriceLimitX96: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
       await expect(
@@ -762,7 +762,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountOut: amount,
-          amountInMaximum: PRECISION
+          amountInMaximum: PRECISION,
         })
       ).to.be.revertedWith('ProAMM: Expired');
     });

@@ -4,9 +4,9 @@ node_js:
 
 install:
   - yarn install
+  - ./node_modules/.bin/prettier -c contracts/*
+  - ./node_modules/.bin/prettier -c test/**/*.ts
 
 script:
-  - yarn prettier -c contracts/*
-  - yarn prettier -c test/**/*.ts
   - yarn compile
   - yarn t

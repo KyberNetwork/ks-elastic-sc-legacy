@@ -8,7 +8,7 @@ contract MockAntiSnipAttack {
     uint256 feesClaimable;
     uint256 feesBurnable;
   }
-  ISnipAttack.Data public data;
+  AntiSnipAttack.Data public data;
   Fees public fees;
 
   function initialize(uint32 timestamp) external {

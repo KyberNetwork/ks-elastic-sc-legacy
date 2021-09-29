@@ -21,7 +21,6 @@ library PoolTicksCounter {
     // uint8 bitPosHigher;
     // bool tickBeforeInitialized;
     // bool tickAfterInitialized;
-
     // {
     //   int24 tickDistance = self.tickDistance();
     //   int16 wordPos;
@@ -30,7 +29,6 @@ library PoolTicksCounter {
     //   int16 wordPosAfter;
     //   uint8 bitPosAfter;
     //   (wordPosAfter, bitPosAfter, tickAfterInitialized) = _position(self, tickAfter, tickDistance);
-
     //   if (tickBefore <= tickAfter) {
     //     wordPosLower = wordPos;
     //     bitPosLower = bitPos;
@@ -43,7 +41,6 @@ library PoolTicksCounter {
     //     bitPosHigher = bitPos;
     //   }
     // }
-
     // // Count the number of initialized ticks crossed by iterating through the tick bitmap.
     // // Our first mask should include the lower tick and everything to its left.
     // uint256 mask = type(uint256).max << bitPosLower;
@@ -53,24 +50,20 @@ library PoolTicksCounter {
     //   if (wordPosLower == wordPosHigher) {
     //     mask = mask & (type(uint256).max >> (255 - bitPosHigher));
     //   }
-
     //   uint256 masked = self.tickBitmap(wordPosLower) & mask;
     //   initializedTicksCrossed += countOneBits(masked);
     //   wordPosLower++;
     //   // Reset our mask so we consider all bits on the next iteration.
     //   mask = type(uint256).max;
     // }
-
     // // In the case where tickAfter is initialized, we only want to count it if we are swapping downwards.
     // if (tickAfterInitialized && tickBefore > tickAfter) {
     //   initializedTicksCrossed -= 1;
     // }
-
     // // In the case where tickBefore is initialized, we only want to count it if we are swapping upwards.
     // if (tickBeforeInitialized && tickBefore < tickAfter) {
     //   initializedTicksCrossed -= 1;
     // }
-
     // return initializedTicksCrossed;
   }
 

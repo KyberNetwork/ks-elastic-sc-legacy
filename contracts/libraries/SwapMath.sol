@@ -35,7 +35,9 @@ library SwapMath {
     if (currentSqrtP == targetSqrtP) return (0, 0, 0, currentSqrtP);
     delta = calcDeltaNext(liquidity, currentSqrtP, targetSqrtP, feeInBps, isExactInput, isToken0);
 
-    if ((isExactInput && delta >= amountRemaining) || (!isExactInput && delta <= amountRemaining)) {
+    if (
+      (isExactInput && delta >= amountRemaining) || (!isExactInput && delta <= amountRemaining)
+    ) {
       delta = amountRemaining;
     } else {
       nextSqrtP = targetSqrtP;
@@ -287,7 +289,8 @@ library SwapMath {
         FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPc).revToInt256();
     }
 
-    if (isExactInput && actualDelta == 1) { // rounding make actualDelta == 1
+    if (isExactInput && actualDelta == 1) {
+      // rounding make actualDelta == 1
       actualDelta = 0;
     }
   }

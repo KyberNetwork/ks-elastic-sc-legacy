@@ -7,8 +7,8 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 
 import {IERC721Permit} from '../../interfaces/periphery/IERC721Permit.sol';
-import {DeadlineValidation} from './DeadlineValidation.sol';
 
+import {DeadlineValidation} from './DeadlineValidation.sol';
 
 /// @title Interface for verifying contract-based account signatures
 /// @notice Interface that verifies provided signature for the data
@@ -21,13 +21,15 @@ interface IERC1271 {
   /// @param hash Hash of the data to be signed
   /// @param signature Signature byte array associated with _data
   /// @return magicValue The bytes4 magic value 0x1626ba7e
-  function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
+  function isValidSignature(bytes32 hash, bytes memory signature)
+    external
+    view
+    returns (bytes4 magicValue);
 }
 
 /// @title ERC721 with permit
 /// @notice Nonfungible tokens that support an approve via signature, i.e. permit
 abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, IERC721Permit {
-
   /// @dev Value is equal to keccak256("Permit(address spender,uint256 tokenId,uint256 nonce,uint256 deadline)");
   bytes32 public constant override PERMIT_TYPEHASH =
     0x49ecf333e5b8c95c40fdafc95c1ad136e8914a8fb55e9dc8bb01eaa83a2df9ad;
@@ -39,7 +41,7 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
   bytes32 private immutable versionHash;
 
   /// @return The domain seperator used in encoding of permit signature
-  bytes32 public override immutable DOMAIN_SEPARATOR;
+  bytes32 public immutable override DOMAIN_SEPARATOR;
 
   /// @notice Computes the nameHash and versionHash
   constructor(
@@ -51,16 +53,16 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
     bytes32 _versionHash = keccak256(bytes(version_));
     nameHash = _nameHash;
     versionHash = _versionHash;
-    DOMAIN_SEPARATOR =  keccak256(
-        abi.encode(
-          // keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')
-          0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f,
-          _nameHash,
-          _versionHash,
-          getChainId(),
-          address(this)
-        )
-      );
+    DOMAIN_SEPARATOR = keccak256(
+      abi.encode(
+        // keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')
+        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f,
+        _nameHash,
+        _versionHash,
+        getChainId(),
+        address(this)
+      )
+    );
   }
 
   function permit(
@@ -71,19 +73,23 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
     bytes32 r,
     bytes32 s
   ) external payable override onlyNotExpired(deadline) {
-    bytes32 digest =
-      keccak256(
-        abi.encodePacked(
-          '\x19\x01',
-          DOMAIN_SEPARATOR,
-          keccak256(abi.encode(PERMIT_TYPEHASH, spender, tokenId, _getAndIncrementNonce(tokenId), deadline))
+    bytes32 digest = keccak256(
+      abi.encodePacked(
+        '\x19\x01',
+        DOMAIN_SEPARATOR,
+        keccak256(
+          abi.encode(PERMIT_TYPEHASH, spender, tokenId, _getAndIncrementNonce(tokenId), deadline)
         )
-      );
+      )
+    );
     address owner = ownerOf(tokenId);
     require(spender != owner, 'ERC721Permit: approval to current owner');
 
     if (Address.isContract(owner)) {
-      require(IERC1271(owner).isValidSignature(digest, abi.encodePacked(r, s, v)) == 0x1626ba7e, 'Unauthorized');
+      require(
+        IERC1271(owner).isValidSignature(digest, abi.encodePacked(r, s, v)) == 0x1626ba7e,
+        'Unauthorized'
+      );
     } else {
       address recoveredAddress = ecrecover(digest, v, r, s);
       require(recoveredAddress != address(0), 'Invalid signature');
@@ -93,10 +99,11 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
     _approve(spender, tokenId);
   }
 
-  function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-    internal
-    override(ERC721, ERC721Enumerable)
-  {
+  function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 tokenId
+  ) internal override(ERC721, ERC721Enumerable) {
     super._beforeTokenTransfer(from, to, tokenId);
   }
 

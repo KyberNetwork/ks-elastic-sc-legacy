@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.4;
 
-import {IERC20, IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
+import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 import {IProAMMPoolActions} from '../interfaces/pool/IProAMMPoolActions.sol';
 import {MathConstants} from '../libraries/MathConstants.sol';
 import {BaseSplitCodeFactory} from '../libraries/BaseSplitCodeFactory.sol';
@@ -179,12 +179,7 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
-  function getWhitelistedNFTManagers()
-    external
-    view
-    override
-    returns (address[] memory)
-  {
+  function getWhitelistedNFTManagers() external view override returns (address[] memory) {
     return whitelistedNFTManagers.values();
   }
 }

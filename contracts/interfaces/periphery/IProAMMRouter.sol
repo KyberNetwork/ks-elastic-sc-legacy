@@ -20,7 +20,10 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @notice Swaps `amountIn` of one token for as much as possible of another token
   /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata
   /// @return amountOut The amount of the received token
-  function swapExactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+  function swapExactInputSingle(ExactInputSingleParams calldata params)
+    external
+    payable
+    returns (uint256 amountOut);
 
   struct ExactInputParams {
     bytes path;
@@ -33,7 +36,10 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @notice Swaps `amountIn` of one token for as much as possible of another along the specified path
   /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactInputParams` in calldata
   /// @return amountOut The amount of the received token
-  function swapExactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);
+  function swapExactInput(ExactInputParams calldata params)
+    external
+    payable
+    returns (uint256 amountOut);
 
   struct ExactOutputSingleParams {
     address tokenIn;
@@ -49,7 +55,10 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @notice Swaps as little as possible of one token for `amountOut` of another token
   /// @param params The parameters necessary for the swap, encoded as `ExactOutputSingleParams` in calldata
   /// @return amountIn The amount of the input token
-  function swapExactOutputSingle(ExactOutputSingleParams calldata params) external payable returns (uint256 amountIn);
+  function swapExactOutputSingle(ExactOutputSingleParams calldata params)
+    external
+    payable
+    returns (uint256 amountIn);
 
   struct ExactOutputParams {
     bytes path;
@@ -62,5 +71,8 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @notice Swaps as little as possible of one token for `amountOut` of another along the specified path (reversed)
   /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactOutputParams` in calldata
   /// @return amountIn The amount of the input token
-  function swapExactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);
+  function swapExactOutput(ExactOutputParams calldata params)
+    external
+    payable
+    returns (uint256 amountIn);
 }

@@ -125,10 +125,10 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
       (bool sendLess0, bool sendLess1, bool isFee) = abi.decode(data, (bool, bool, bool));
       if (isFee) {
         if (sendLess0 && feeQty0 > 0) feeQty0 -= 1;
-        if (sendLess1 && feeQty1 > 0) feeQty1 -= 1; 
+        if (sendLess1 && feeQty1 > 0) feeQty1 -= 1;
       } else {
         if (sendLess0 && tokenQty0 > 0) tokenQty0 -= 1;
-        if (sendLess1 && tokenQty1 > 0) tokenQty1 -= 1; 
+        if (sendLess1 && tokenQty1 > 0) tokenQty1 -= 1;
       }
     }
     if (tokenQty0 > 0) token0.transfer(msg.sender, tokenQty0);

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {IERC20, IProAMMFactory} from '../IProAMMFactory.sol';
-
 interface IProAMMPoolActions {
   /// @notice Adds initial liquidity and sets initial price for the pool
   /// @dev Function calls IProAMMMintCallback#proAMMMintCallback to receive

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {MathConstants as C} from './MathConstants.sol';
-import {FullMath} from './FullMath.sol';
-import {SafeCast} from './SafeCast.sol';
-
+import {MathConstants as C} from '../../libraries/MathConstants.sol';
+import {FullMath} from '../../libraries/FullMath.sol';
+import {SafeCast} from '../../libraries/SafeCast.sol';
 
 library LiquidityMath {
   using SafeCast for uint256;

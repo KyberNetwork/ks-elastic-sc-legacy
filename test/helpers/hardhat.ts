@@ -1,4 +1,4 @@
-import { BigNumber as BN, BigNumberish} from 'ethers';
+import {BigNumber as BN, BigNumberish} from 'ethers';
 import hardhat from 'hardhat';
 
 export async function runWithImpersonation(target: string, run: () => Promise<void>): Promise<void> {
@@ -52,15 +52,15 @@ export async function setNextBlockTimestampFromCurrent(duration: number) {
 
 export async function getCurrentBlock() {
   return await hardhat.network.provider.request({
-    method: 'eth_blockNumber'
+    method: 'eth_blockNumber',
   });
-};
+}
 
 export async function getLatestBlockTime() {
   let result: any;
   result = await hardhat.network.provider.request({
     method: 'eth_getBlockByNumber',
-    params: ['latest', false]
+    params: ['latest', false],
   });
   return BN.from(result.timestamp).toNumber();
 }

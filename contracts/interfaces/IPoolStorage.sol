@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {IERC20, IProAMMFactory} from './IProAMMFactory.sol';
-import {IReinvestmentToken} from './IReinvestmentToken.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+import {IProAMMFactory} from './IProAMMFactory.sol';
+import {IReinvestmentToken} from './IReinvestmentToken.sol';
 
 interface IPoolStorage {
   /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
@@ -64,8 +65,7 @@ interface IPoolStorage {
     address owner,
     int24 tickLower,
     int24 tickUpper
-  ) external view
-    returns (uint128 liquidity, uint256 feeGrowthInsideLast);
+  ) external view returns (uint128 liquidity, uint256 feeGrowthInsideLast);
 
   /// @notice All-time seconds per unit of liquidity of the pool
   /// @dev The value has been multiplied by 2^96

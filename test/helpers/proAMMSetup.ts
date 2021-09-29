@@ -7,14 +7,14 @@ import {
   MockProAMMFactory,
   MockToken,
   ProAMMPool__factory,
-  MockProAMMCallbacks2
+  MockProAMMCallbacks2,
 } from '../../typechain';
 import {ethers} from 'hardhat';
 import {BigNumberish, BigNumber as BN} from 'ethers';
 import {getNearestSpacedTickAtPrice} from './utils';
 import {PRECISION} from './helper';
 
-export async function deployMockFactory (admin: any, vestingPeriod: BigNumberish): Promise<MockProAMMFactory> {
+export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockProAMMFactory> {
   const ReinvestmentMaster = (await ethers.getContractFactory(
     'ReinvestmentTokenMaster'
   )) as ReinvestmentTokenMaster__factory;
@@ -24,7 +24,7 @@ export async function deployMockFactory (admin: any, vestingPeriod: BigNumberish
   return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
 }
 
-export async function deployFactory (admin: any, vestingPeriod: BigNumberish): Promise<ProAMMFactory> {
+export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<ProAMMFactory> {
   const ReinvestmentMaster = (await ethers.getContractFactory(
     'ReinvestmentTokenMaster'
   )) as ReinvestmentTokenMaster__factory;
@@ -34,7 +34,7 @@ export async function deployFactory (admin: any, vestingPeriod: BigNumberish): P
   return await ProAMMFactoryContract.connect(admin).deploy(reinvestmentMaster.address, vestingPeriod);
 }
 
-export async function createPool (
+export async function createPool(
   factory: ProAMMFactory,
   tokenA: MockToken,
   tokenB: MockToken,
@@ -49,7 +49,7 @@ export async function createPool (
 /**
  * @returns [pool, nearestTickToPrice]
  */
-export async function setupPoolWithLiquidity (
+export async function setupPoolWithLiquidity(
   factory: ProAMMFactory,
   mockCallback: MockProAMMCallbacks2,
   recipient: string,

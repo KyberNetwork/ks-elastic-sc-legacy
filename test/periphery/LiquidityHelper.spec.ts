@@ -1,25 +1,17 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BigNumber as BN} from 'ethers';
-import {PRECISION, ZERO_ADDRESS, ONE, TWO, ZERO, MAX_UINT} from './helpers/helper';
-import {encodePriceSqrt, getBalances} from './helpers/utils';
+import {PRECISION, ZERO_ADDRESS, ONE, TWO, ZERO, MAX_UINT} from '../helpers/helper';
+import {encodePriceSqrt, getBalances} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {
-  MockToken,
-  MockToken__factory,
-  MockWeth,
-  MockWeth__factory,
-  MockLiquidityHelper,
-  MockLiquidityHelper__factory,
-  ProAMMFactory
-} from '../typechain';
+import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
+import {MockLiquidityHelper, MockLiquidityHelper__factory, ProAMMFactory, ProAMMPool} from '../../typechain';
 
-import {deployFactory} from './helpers/proAMMSetup';
-import {snapshot, revertToSnapshot} from './helpers/hardhat';
-import {ProAMMPool} from '../typechain/ProAMMPool';
+import {deployFactory} from '../helpers/proAMMSetup';
+import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 
 let TokenFactory: MockToken__factory;
 let factory: ProAMMFactory;
@@ -111,7 +103,7 @@ describe('LiquidityHelper', () => {
       let poolBefore = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
       let multicallData = [
-        liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice])
+        liquidityHelper.interface.encodeFunctionData('testUnlockPool', [weth.address, tokenA.address, fee, initPrice]),
       ];
       multicallData.push(liquidityHelper.interface.encodeFunctionData('refundETH')); // refund redundant eth back to user
 
@@ -158,7 +150,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         })
       ).to.be.revertedWith('LiquidityHelper: invalid token order');
     });
@@ -180,7 +172,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: PRECISION.add(ONE),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
       await expect(
@@ -194,7 +186,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: PRECISION.add(ONE)
+          amount1Min: PRECISION.add(ONE),
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
     });
@@ -225,7 +217,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         });
 
         let userAfter = await getBalances(user.address, [firstTokens[i], secondTokens[i]]);
@@ -258,7 +250,7 @@ describe('LiquidityHelper', () => {
         amount0Desired: PRECISION,
         amount1Desired: PRECISION,
         amount0Min: BN.from(0),
-        amount1Min: BN.from(0)
+        amount1Min: BN.from(0),
       };
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testAddLiquidity', [params])];
