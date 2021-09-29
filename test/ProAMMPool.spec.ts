@@ -134,7 +134,7 @@ describe('ProAMMPool', () => {
       expect(await pool.token1()).to.be.eql(token1.address);
       expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
       expect(await pool.tickDistance()).to.be.eql(tickDistance);
-      expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
+      expect(await pool.maxTickLiquidity()).to.be.gt(ZERO);
       expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
       let result = await pool.getReinvestmentState();
       expect(result._poolReinvestmentLiquidity).to.be.eql(ZERO);
@@ -268,14 +268,14 @@ describe('ProAMMPool', () => {
         ).to.be.revertedWith('invalid upper tick');
       });
 
-      it('should fail if liquidity added exceeds maxLiquidityPerTick', async () => {
+      it('should fail if liquidity added exceeds maxTickLiquidity', async () => {
         await expect(
-          callback.mint(pool.address, user.address, 0, 10, (await pool.maxLiquidityPerTick()).add(ONE), '0x')
+          callback.mint(pool.address, user.address, 0, 10, (await pool.maxTickLiquidity()).add(ONE), '0x')
         ).to.be.revertedWith('> max liquidity');
       });
 
-      it('should fail if liquidity gross of a tick exceeds maxLiquidityPerTick', async () => {
-        let maxLiquidityGross = await pool.maxLiquidityPerTick();
+      it('should fail if liquidity gross of a tick exceeds maxTickLiquidity', async () => {
+        let maxLiquidityGross = await pool.maxTickLiquidity();
         // mint new position with MIN_LIQUIDITY
         await callback.mint(
           pool.address,
@@ -295,7 +295,7 @@ describe('ProAMMPool', () => {
           callback.mint(pool.address, user.address, minTick, maxTick - tickDistance, exceedingLiquidity, '0x')
         ).to.be.revertedWith('> max liquidity');
 
-        // should work if liquidityGross = maxLiquidityPerTick
+        // should work if liquidityGross = maxTickLiquidity
         await expect(
           callback.mint(
             pool.address,
@@ -354,7 +354,7 @@ describe('ProAMMPool', () => {
           });
 
           it('should mint for extreme max position', async () => {
-            let maxLiquidityGross = await pool.maxLiquidityPerTick();
+            let maxLiquidityGross = await pool.maxTickLiquidity();
             await callback.mint(
               pool.address,
               user.address,
@@ -562,7 +562,7 @@ describe('ProAMMPool', () => {
           });
 
           it('should mint for extreme position', async () => {
-            let maxLiquidityGross = await pool.maxLiquidityPerTick();
+            let maxLiquidityGross = await pool.maxTickLiquidity();
             await callback.mint(
               pool.address,
               user.address,
@@ -794,7 +794,7 @@ describe('ProAMMPool', () => {
           });
 
           it('should mint for extreme position', async () => {
-            let maxLiquidityGross = await pool.maxLiquidityPerTick();
+            let maxLiquidityGross = await pool.maxTickLiquidity();
             await callback.mint(
               pool.address,
               user.address,
@@ -1352,10 +1352,14 @@ describe('ProAMMPool', () => {
 
       it('should send a portion of collected fees to feeTo if rMintQty and govtFee > 0', async () => {
         // set non-zero and feeTo in factory
-        await factory.updateFeeConfiguration(configMaster.address, 5);
+        await factory.updateFeeConfiguration(configMaster.address, 1000);
         let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
-        // do a couple of small swaps so that lf is incremented but not lfLast
-        await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
+        // swap till lf > lfLast
+        let result = await pool.getReinvestmentState();
+        while (result._poolReinvestmentLiquidity.eq(result._poolReinvestmentLiquidityLast)) {
+          await doRandomSwaps(pool, user, 1, BN.from(10_000_000));
+          result = await pool.getReinvestmentState();
+        }
         await pool.connect(user).burnRTokens(await reinvestmentToken.balanceOf(user.address));
         // should have minted and sent rTokens to feeTo
         expect(await reinvestmentToken.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
@@ -1805,17 +1809,6 @@ describe('ProAMMPool', () => {
   describe('#flash', async () => {
     it('should fail if pool is not unlocked', async () => {
       await expect(callback.flash(pool.address, ZERO, ZERO, '0x')).to.be.revertedWith('locked');
-    });
-
-    it('should fail if pool has no liquidity', async () => {
-      initialPrice = encodePriceSqrt(ONE, ONE);
-      await callback.unlockPool(pool.address, initialPrice, '0x');
-      await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x')).to.be.revertedWith(
-        '0 liquidity'
-      );
-      await expect(callback.flash(pool.address, PRECISION, ZERO, '0x')).to.be.revertedWith(
-        '0 liquidity'
-      );
     });
 
     describe('after unlockPool', async () => {

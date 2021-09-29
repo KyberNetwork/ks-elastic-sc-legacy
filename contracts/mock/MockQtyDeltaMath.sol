@@ -4,20 +4,20 @@ pragma solidity >=0.8.0;
 import '../libraries/QtyDeltaMath.sol';
 
 contract MockQtyDeltaMath {
-  function getQty0Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  function calcRequiredQty0(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     int128 liquidity
   ) external pure returns (int256) {
-    return QtyDeltaMath.getQty0Delta(sqrtPriceA, sqrtPriceB, liquidity);
+    return QtyDeltaMath.calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity);
   }
 
-  function getQty1Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  function calcRequiredQty1(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     int128 liquidity
   ) external pure returns (int256) {
-    return QtyDeltaMath.getQty1Delta(sqrtPriceA, sqrtPriceB, liquidity);
+    return QtyDeltaMath.calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity);
   }
 
   function getQtyFromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)

@@ -17,27 +17,24 @@ describe('QtyDeltaMath', () => {
     qtyDeltaMath = await qtyDeltaMathFactory.deploy();
   });
 
-  describe('#getQty0Delta', async () => {
+  describe('#calcRequiredQty0', async () => {
     it('should revert if price is 0', async () => {
-      await expect(qtyDeltaMath.getQty0Delta(ZERO, TWO_POW_96, ONE)).to.be.reverted;
-      await expect(qtyDeltaMath.getQty0Delta(TWO_POW_96, ZERO, ONE)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(ZERO, TWO_POW_96, ONE)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(TWO_POW_96, ZERO, ONE)).to.be.reverted;
     });
 
     it('should return 0 if liquidity is 0', async () => {
-      expect(await qtyDeltaMath.getQty0Delta(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eql(ZERO);
     });
 
     it('should return 0 if prices are equal', async () => {
-      expect(await qtyDeltaMath.getQty0Delta(TWO_POW_96, TWO_POW_96, PRECISION)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION)).to.be.eql(ZERO);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {
-      const amount0Up = await qtyDeltaMath.getQty0Delta(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
+      const amount0Up = await qtyDeltaMath.calcRequiredQty0(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
       expect(amount0Up).to.eq('90909090909090910');
-      expect(amount0Up).to.eq(
-        await qtyDeltaMath.getQty0Delta(encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), PRECISION)
-      );
-      const amount0Down = await qtyDeltaMath.getQty0Delta(
+      const amount0Down = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
         PRECISION.mul(NEGATIVE_ONE)
@@ -46,12 +43,12 @@ describe('QtyDeltaMath', () => {
     });
 
     it('works for prices that overflow', async () => {
-      const amount0Up = await qtyDeltaMath.getQty0Delta(
+      const amount0Up = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION
       );
-      const amount0Down = await qtyDeltaMath.getQty0Delta(
+      const amount0Down = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
         PRECISION.mul(NEGATIVE_ONE)
@@ -84,23 +81,20 @@ describe('QtyDeltaMath', () => {
 
   describe('#getAmount1Delta', () => {
     it('returns 0 if liquidity is 0', async () => {
-      const amount1 = await qtyDeltaMath.getQty1Delta(ONE, TWO, 0);
+      const amount1 = await qtyDeltaMath.calcRequiredQty1(ONE, TWO, 0);
       expect(amount1).to.eq(0);
     });
 
     it('returns 0 if prices are equal', async () => {
-      const amount1 = await qtyDeltaMath.getQty1Delta(ONE, ONE, 0);
+      const amount1 = await qtyDeltaMath.calcRequiredQty1(ONE, ONE, 0);
       expect(amount1).to.eq(0);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {
-      const amount1Up = await qtyDeltaMath.getQty1Delta(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
+      const amount1Up = await qtyDeltaMath.calcRequiredQty1(encodePriceSqrt(1, 1), encodePriceSqrt(121, 100), PRECISION);
       expect(amount1Up).to.eq('100000000000000000');
-      expect(amount1Up).to.eq(
-        await qtyDeltaMath.getQty1Delta(encodePriceSqrt(121, 100), encodePriceSqrt(1, 1), PRECISION)
-      );
 
-      const amount1Down = await qtyDeltaMath.getQty1Delta(
+      const amount1Down = await qtyDeltaMath.calcRequiredQty1(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
         PRECISION.mul(NEGATIVE_ONE)

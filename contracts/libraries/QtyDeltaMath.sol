@@ -25,83 +25,79 @@ library QtyDeltaMath {
   /// @notice Gets the qty0 delta between two prices
   /// @dev Calculates liquidity / sqrt(lower) - liquidity / sqrt(upper),
   /// i.e. liquidity * (sqrt(upper) - sqrt(lower)) / (sqrt(upper) * sqrt(lower))
-  /// @param sqrtPriceA A sqrt price
-  /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity Usable liquidity quantity
+  /// @param lowerSqrtP The lower sqrt price.
+  /// @param upperSqrtP The upper sqrt price. Should be >= lowerSqrtP
+  /// @param liquidity Liquidity quantity
   /// @param roundUp Whether to round the result up or down
-  /// @return token0 qty needed to cover a position of size liquidity between the 2 sqrt prices
-  function getQty0Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  /// @return token0 qty required for position with liquidity between the 2 sqrt prices
+  function calcRequiredQty0(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint128 liquidity,
     bool roundUp
   ) internal pure returns (uint256) {
-    if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
-
     uint256 numerator1 = uint256(liquidity) << C.RES_96;
     uint256 numerator2;
     unchecked {
-      numerator2 = sqrtPriceB - sqrtPriceA;
+      numerator2 = upperSqrtP - lowerSqrtP;
     }
     return
       roundUp
-        ? divCeiling(FullMath.mulDivCeiling(numerator1, numerator2, sqrtPriceB), sqrtPriceA)
-        : FullMath.mulDivFloor(numerator1, numerator2, sqrtPriceB) / sqrtPriceA;
+        ? divCeiling(FullMath.mulDivCeiling(numerator1, numerator2, upperSqrtP), lowerSqrtP)
+        : FullMath.mulDivFloor(numerator1, numerator2, upperSqrtP) / lowerSqrtP;
   }
 
   /// @notice Gets the token1 delta quantity between two prices
   /// @dev Calculates liquidity * (sqrt(upper) - sqrt(lower))
-  /// @param sqrtPriceA A sqrt price
-  /// @param sqrtPriceB Another sqrt price
-  /// @param liquidity Usable liquidity quantity
+  /// @param lowerSqrtP The lower sqrt price.
+  /// @param upperSqrtP The upper sqrt price. Should be >= lowerSqrtP
+  /// @param liquidity Liquidity quantity
   /// @param roundUp Whether to round the result up or down
-  /// @return token1 qty needed to cover a position of size liquidity between the 2 sqrt prices
-  function getQty1Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  /// @return token1 qty required for position with liquidity between the 2 sqrt prices
+  function calcRequiredQty1(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     uint128 liquidity,
     bool roundUp
   ) internal pure returns (uint256) {
-    if (sqrtPriceA > sqrtPriceB) (sqrtPriceA, sqrtPriceB) = (sqrtPriceB, sqrtPriceA);
-
     unchecked {
       return
         roundUp
-          ? FullMath.mulDivCeiling(liquidity, sqrtPriceB - sqrtPriceA, C.TWO_POW_96)
-          : FullMath.mulDivFloor(liquidity, sqrtPriceB - sqrtPriceA, C.TWO_POW_96);
+          ? FullMath.mulDivCeiling(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96)
+          : FullMath.mulDivFloor(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96);
     }
   }
 
-  /// @notice Helper that gets signed token0 delta
-  /// @param sqrtPriceA A sqrt price
-  /// @param sqrtPriceB Another sqrt price
+  /// @notice Gets token0 qty required for liquidity between the two ticks
+  /// @param lowerSqrtP The lower sqrt price
+  /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
   /// @param liquidity Liquidity delta for which to compute the token0 delta
-  /// @return token0 quantity corresponding to the passed liquidityDelta between the two prices
-  function getQty0Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  /// @return token0 quantity corresponding to the liquidity between the two ticks
+  function calcRequiredQty0(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     int128 liquidity
   ) internal pure returns (int256) {
     return
       (liquidity < 0)
-        ? getQty0Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256()
-        : getQty0Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+        ? calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity.revToUint128(), false).revToInt256()
+        : calcRequiredQty0(lowerSqrtP, upperSqrtP, uint128(liquidity), true).toInt256();
   }
 
-  /// @notice Helper that gets signed token1 delta
-  /// @param sqrtPriceA A sqrt price
-  /// @param sqrtPriceB Another sqrt price
+  /// @notice Gets token0 qty required for liquidity between the two ticks
+  /// @param lowerSqrtP The lower sqrt price
+  /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
   /// @param liquidity Liquidity delta for which to compute the token1 delta
-  /// @return token1 quantity corresponding to the passed liquidityDelta between the two prices
-  function getQty1Delta(
-    uint160 sqrtPriceA,
-    uint160 sqrtPriceB,
+  /// @return token1 quantity corresponding to the liquidity between the two ticks
+  function calcRequiredQty1(
+    uint160 lowerSqrtP,
+    uint160 upperSqrtP,
     int128 liquidity
   ) internal pure returns (int256) {
     return
       liquidity < 0
-        ? getQty1Delta(sqrtPriceA, sqrtPriceB, liquidity.revToUint128(), false).revToInt256()
-        : getQty1Delta(sqrtPriceA, sqrtPriceB, uint128(liquidity), true).toInt256();
+        ? calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity.revToUint128(), false).revToInt256()
+        : calcRequiredQty1(lowerSqrtP, upperSqrtP, uint128(liquidity), true).toInt256();
   }
 
   /// @notice Calculates the token0 quantity proportion to be sent to the user
