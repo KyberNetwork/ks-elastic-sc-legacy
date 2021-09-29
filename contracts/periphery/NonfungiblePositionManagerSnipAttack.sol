@@ -18,7 +18,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
   ) NonfungiblePositionManager(_factory, _WETH, _descriptor) {}
 
   function mint(MintParams calldata params)
-    external
+    public
     payable
     override
     onlyNotExpired(params.deadline)
@@ -29,40 +29,8 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
       uint256 amount1
     )
   {
-    IProAMMPool pool;
-    uint256 feeGrowthInsideLast;
-
-    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = addLiquidity(
-      AddLiquidityParams({
-        token0: params.token0,
-        token1: params.token1,
-        fee: params.fee,
-        recipient: address(this),
-        tickLower: params.tickLower,
-        tickUpper: params.tickUpper,
-        amount0Desired: params.amount0Desired,
-        amount1Desired: params.amount1Desired,
-        amount0Min: params.amount0Min,
-        amount1Min: params.amount1Min
-      })
-    );
-
-    tokenId = nextTokenId++;
-    _mint(params.recipient, tokenId);
-
-    uint80 poolId = _storePoolInfo(address(pool), params.token0, params.token1, params.fee);
-
-    _positions[tokenId] = Position({
-      nonce: 0,
-      operator: address(0),
-      poolId: poolId,
-      tickLower: params.tickLower,
-      tickUpper: params.tickUpper,
-      liquidity: liquidity,
-      rTokenOwed: 0,
-      feeGrowthInsideLast: feeGrowthInsideLast
-    });
     antiSnipAttackData[tokenId] = AntiSnipAttack.initialize(block.timestamp.toUint32());
+    return super.mint(params);
   }
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
@@ -98,8 +66,8 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
     );
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
-      uint256 feesBurnable;
-      (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
+      // zero fees burnable when adding liquidity
+      (additionalRTokenOwed, ) = AntiSnipAttack.update(
         antiSnipAttackData[params.tokenId],
         pos.liquidity,
         liquidity,
@@ -114,7 +82,6 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
-      if (feesBurnable > 0) IReinvestmentToken(poolInfo.rToken).burn(feesBurnable);
     }
 
     pos.liquidity += liquidity;

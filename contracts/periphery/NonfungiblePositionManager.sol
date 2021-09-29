@@ -68,7 +68,7 @@ contract NonfungiblePositionManager is
   }
 
   function mint(MintParams calldata params)
-    external
+    public
     payable
     virtual
     override
