@@ -54,16 +54,20 @@ library AntiSnipAttack {
     // scoping of fee proportions to avoid stack too deep
     {
       // claimable proportion (in basis pts) of collected fees between last action and now
+      // lockTime is used instead of lastActionTime because we prefer to use the entire
+      // duration of the position as the measure, not just the duration after last action performed
       uint256 feesClaimableSinceLastActionBps = Math.min(
         C.BPS,
-        ((currentTime - _self.lastActionTime) * C.BPS) / vestingPeriod
+        ((currentTime - _self.lockTime) * C.BPS) / vestingPeriod
       );
       // claimable proportion (in basis pts) of locked fees
+      // lastActionTime is used instead of lockTime since the vested fees
+      // from lockTime to lastActionTime have already been claimed
       uint256 feesClaimableVestedBps = _self.unlockTime <= _self.lastActionTime
         ? C.BPS
         : Math.min(
           C.BPS,
-          ((currentTime - _self.lockTime) * C.BPS) / (_self.unlockTime - _self.lastActionTime)
+          ((currentTime - _self.lastActionTime) * C.BPS) / (_self.unlockTime - _self.lastActionTime)
         );
 
       uint256 feesLockedBeforeUpdate = _self.feesLocked;

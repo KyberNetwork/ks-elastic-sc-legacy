@@ -183,7 +183,8 @@ describe('AntiSnipAttack', () => {
           incrementTime(timeIncrement.toNumber());
           await antiSnipAttack.update(currentLiquidity, liquidityDelta, currentTime, true, feesSinceLastAction, vestingPeriod);
           let result = await antiSnipAttack.data();
-          expect(result.feesLocked).to.be.gt(ZERO);
+          // gradually becomes zero the longer the position stays
+          expect(result.feesLocked).to.be.gte(ZERO);
           expect(result.lockTime).to.be.gt(lockTimeBefore);
           expect((await antiSnipAttack.fees()).feesClaimable).to.be.gt(ZERO);
         }
