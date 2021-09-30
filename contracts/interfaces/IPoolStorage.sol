@@ -58,7 +58,7 @@ interface IPoolStorage {
     );
 
   /// @notice Returns the information about a position by the position's key
-  /// @return liquidity liquidity quantity of the position
+  /// @return liquidity the liquidity quantity of the position
   /// @return feeGrowthInsideLast fee growth inside the tick range as of the last mint / burn action performed
   function getPositions(
     address owner,
@@ -77,6 +77,7 @@ interface IPoolStorage {
   /// @notice Fetches the pool's current price, tick and liquidity
   /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)
   /// @return poolTick pool's current tick
+  /// @return nearestCurrentTick pool's nearest initialized tick that is <= pool's current tick
   /// @return locked true if pool is locked, false otherwise
   /// @return poolLiquidity pool's current liquidity that is in range
   function getPoolState()
@@ -85,6 +86,7 @@ interface IPoolStorage {
     returns (
       uint160 poolSqrtPrice,
       int24 poolTick,
+      int24 nearestCurrentTick,
       bool locked,
       uint128 poolLiquidity
     );

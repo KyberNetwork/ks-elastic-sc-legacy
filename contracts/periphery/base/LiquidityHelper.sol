@@ -87,7 +87,7 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
 
     // compute the liquidity amount
     {
-      (uint160 currentSqrtP, , , ) = pool.getPoolState();
+      (uint160 currentSqrtP, , , ,) = pool.getPoolState();
       uint160 lowerSqrtP = TickMath.getSqrtRatioAtTick(params.tickLower);
       uint160 upperSqrtP = TickMath.getSqrtRatioAtTick(params.tickUpper);
 

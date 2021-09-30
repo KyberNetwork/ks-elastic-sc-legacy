@@ -137,7 +137,6 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
-    // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
     // 16384 ticks represents a >5x price change with ticks of 1 bips
     require(tickDistance > 0 && tickDistance < 16384, 'invalid tickDistance');
     require(feeAmountTickSpacing[swapFeeBps] == 0, 'existing tickDistance');

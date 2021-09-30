@@ -49,7 +49,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
     IProAMMPool pool = getPool(tokenIn, tokenOut, feeBps);
     require(address(pool) == msg.sender, 'invalid sender');
-    (uint160 afterSqrtPrice, int24 tickAfter, , ) = pool.getPoolState();
+    (uint160 afterSqrtPrice, int24 tickAfter, , ,) = pool.getPoolState();
 
     (bool isExactInput, uint256 amountToPay, uint256 amountReceived) = amount0Delta > 0
       ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
@@ -106,7 +106,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
   ) private view returns (QuoteOutput memory output) {
     int24 tickBefore;
     int24 tickAfter;
-    (, tickBefore, , ) = pool.getPoolState();
+    (, tickBefore, , ,) = pool.getPoolState();
     (
       output.usedAmount,
       output.returnedAmount,

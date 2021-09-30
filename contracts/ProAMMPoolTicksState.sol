@@ -8,6 +8,7 @@ import {FullMath} from './libraries/FullMath.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {PoolStorage, TickMath} from './PoolStorage.sol';
 
+
 contract ProAMMPoolTicksState is PoolStorage {
   using SafeCast for int256;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
@@ -51,7 +52,7 @@ contract ProAMMPoolTicksState is PoolStorage {
     feesClaimable = _updatePositionFee(updateData, feeGrowthInside);
   }
 
-  /// @dev Update liquidity net data and do cross tick if it should
+  /// @dev Update liquidity net data and do cross tick
   function updateLiquidityAndCrossTick(
     int24 nextTick,
     uint128 currentLiquidity,
@@ -197,8 +198,7 @@ contract ProAMMPoolTicksState is PoolStorage {
   ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
-      liquidityGrossBefore,
-      liquidityDelta
+      liquidityGrossBefore, liquidityDelta
     );
     require(liquidityGrossAfter <= maxLiquidity, '> max liquidity');
     // if lower tick, liquidityDelta should be added | removed when crossed up | down

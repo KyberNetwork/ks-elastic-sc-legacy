@@ -93,21 +93,21 @@ library SwapMath {
       if (isToken0) {
         // numerator = 2 * liquidity * absPriceDiff
         // denominator = sqrtPc * (2 * sqrtPn - sqrtPc * feeInBps / BPS)
-        // unchecked {
+        unchecked {
           // overflow should not happen because the absPriceDiff is capped to ~5%
           denominator = C.TWO_BPS * sqrtPn - feeInBps * sqrtPc;
           numerator = FullMath.mulDivFloor(liquidity, C.TWO_BPS * absPriceDiff, denominator);
           deltaNext = FullMath.mulDivFloor(numerator, C.TWO_POW_96, sqrtPc).toInt256();
-        // }
+        }
       } else {
         // numerator = 2 * liquidity * absPriceDiff * sqrtPc
         // denominator = 2 * sqrtPc - sqrtPn * feeInBps / BPS
-        // unchecked {
+        unchecked {
           // overflow should not happen because the absPriceDiff is capped to ~5%
           denominator = C.TWO_BPS * sqrtPc - feeInBps * sqrtPn;
           numerator = FullMath.mulDivFloor(liquidity, C.TWO_BPS * absPriceDiff, denominator);
           deltaNext = FullMath.mulDivFloor(numerator, sqrtPc, C.TWO_POW_96).toInt256();
-        // }
+        }
       }
     } else {
       // we will perform negation as the last step
@@ -115,23 +115,23 @@ library SwapMath {
       if (isToken0) {
         // numerator: (liquidity)(absPriceDiff)(2 * sqrtPc - fee * (sqrtPc + sqrtPn))
         // denominator: (sqrtPc * sqrtPn) * (2 * sqrtPc - fee * sqrtPn)
-        // unchecked {
+        unchecked {
           // overflow should not happen because the absPriceDiff is capped to ~5%
           denominator = C.TWO_BPS * sqrtPc - feeInBps * sqrtPn;
           numerator = denominator - feeInBps * sqrtPc;
           numerator = FullMath.mulDivFloor(liquidity << C.RES_96, numerator, denominator);
           deltaNext = (FullMath.mulDivFloor(numerator, absPriceDiff, sqrtPc) / sqrtPn).toInt256();
-        // }
+        }
       } else {
         // numerator: (liquidity)(absPriceDiff)(2 * sqrtPn - fee * (sqrtPn + sqrtPc))
         // denominator: (2 * sqrtPn - fee * sqrtPc)
-        // unchecked {
+        unchecked {
           // overflow should not happen because the absPriceDiff is capped to ~5%
           denominator = C.TWO_BPS * sqrtPn - feeInBps * sqrtPc;
           numerator = denominator - feeInBps * sqrtPn;
           numerator = FullMath.mulDivFloor(liquidity, numerator, denominator);
           deltaNext = FullMath.mulDivFloor(numerator, absPriceDiff, C.TWO_POW_96).toInt256();
-        // }
+        }
       }
       deltaNext = -deltaNext;
     }

@@ -188,6 +188,7 @@ describe('ProAMMPool', () => {
       result = await pool.getPoolState();
       expect(result._poolSqrtPrice).to.be.eql(initialPrice);
       expect(result._poolTick).to.be.eql(10);
+      expect(result._nearestCurrentTick).to.be.eq(MIN_TICK);
       expect(result._locked).to.be.false;
       expect(result._poolLiquidity).to.be.eql(ZERO);
 

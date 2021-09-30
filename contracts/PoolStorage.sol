@@ -163,12 +163,14 @@ abstract contract PoolStorage is IPoolStorage {
     returns (
       uint160 _poolSqrtPrice,
       int24 _poolTick,
+      int24 _nearestCurrentTick,
       bool _locked,
       uint128 _poolLiquidity
     )
   {
     _poolSqrtPrice = poolData.sqrtPrice;
     _poolTick = poolData.currentTick;
+    _nearestCurrentTick = poolData.nearestCurrentTick;
     _locked = poolData.locked;
     _poolLiquidity = poolData.liquidity;
   }
