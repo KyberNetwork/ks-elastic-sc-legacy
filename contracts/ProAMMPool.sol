@@ -508,13 +508,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     )
   {
     uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-<<<<<<< HEAD
       uint256(lf),
-      uint256(poolReinvestmentLiquidityLast),
-=======
-      lf,
-      poolData.reinvestmentLiquidityLast,
->>>>>>> Move data to PoolStorage, refactor codes
+      uint256(poolData.reinvestmentLiquidityLast),
       lp,
       rTotalSupply
     );
