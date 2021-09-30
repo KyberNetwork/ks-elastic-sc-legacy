@@ -60,7 +60,7 @@ async function quoteToPrice (
   }
 }
 
-describe('QuoterV2', function () {
+describe.skip('QuoterV2', function () {
   let [admin, wallet] = waffle.provider.getWallets();
 
   async function fixture (): Promise<Fixtures> {

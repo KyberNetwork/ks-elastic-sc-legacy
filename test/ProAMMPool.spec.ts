@@ -251,7 +251,7 @@ describe('ProAMMPool', () => {
 
       it('should fail if tickLower > tickUpper', async () => {
         await expect(callback.mint(pool.address, user.address, 9, 8, PRECISION, '0x')).to.be.revertedWith(
-          'invalid ticks'
+          'invalid tick range'
         );
       });
 
@@ -388,9 +388,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
             expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
-            // initialized
-            expect(tickLowerData.initialized).to.be.false;
-            expect(tickUpperData.initialized).to.be.false;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -407,9 +404,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
             expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
-            // initialized
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -427,9 +421,6 @@ describe('ProAMMPool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            // should be unchanged
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
@@ -604,9 +595,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
             expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
-            // initialized
-            expect(tickLowerData.initialized).to.be.false;
-            expect(tickUpperData.initialized).to.be.false;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -623,9 +611,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
             expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
-            // initialized
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -678,9 +663,6 @@ describe('ProAMMPool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            // should be unchanged
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
@@ -845,9 +827,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
             expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
-            // initialized
-            expect(tickLowerData.initialized).to.be.false;
-            expect(tickUpperData.initialized).to.be.false;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -864,9 +843,6 @@ describe('ProAMMPool', () => {
             // liquidityGross
             expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
             expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
-            // initialized
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
@@ -919,9 +895,6 @@ describe('ProAMMPool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            // should be unchanged
-            expect(tickLowerData.initialized).to.be.true;
-            expect(tickUpperData.initialized).to.be.true;
             expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);

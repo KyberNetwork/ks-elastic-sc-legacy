@@ -5,49 +5,10 @@ import {IERC20, IProAMMFactory} from './IProAMMFactory.sol';
 import {IReinvestmentToken} from './IReinvestmentToken.sol';
 import {IProAMMPoolActions} from './pool/IProAMMPoolActions.sol';
 import {IProAMMPoolEvents} from './pool/IProAMMPoolEvents.sol';
-import {IProAMMPoolTicksState} from './pool/IProAMMPoolTicksState.sol';
+import {IPoolStorage} from './IPoolStorage.sol';
 
-interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents, IProAMMPoolTicksState {
-  /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
-  /// @return The contract address
-  function factory() external view returns (IProAMMFactory);
 
-  /// @notice The first of the two tokens of the pool, sorted by address
-  /// @return The token contract address
-  function token0() external view returns (IERC20);
-
-  /// @notice The second of the two tokens of the pool, sorted by address
-  /// @return The token contract address
-  function token1() external view returns (IERC20);
-
-  /// @notice The reinvestment token of the pool
-  /// @dev Used for to handle accounting of reinvestment of swap fees collected
-  /// @return The reinvestment token contract address
-  function reinvestmentToken() external view returns (IReinvestmentToken);
-
-  /// @notice The pool's fee in basis points
-  /// @return The fee in basis points
-  function swapFeeBps() external view returns (uint16);
-
-  /// @notice The pool tick spacing
-  /// @dev Tick can only be initialized and used at multiples of this value
-  /// It remains an int24 to avoid casting even though it is >= 1.
-  /// e.g: a tickSpacing of 5 means ticks can be initialized every 5th tick, i.e., ..., -10, -5, 0, 5, 10, ...
-  /// @return The tick spacing
-  function tickSpacing() external view returns (int24);
-
-  /// @notice The maximum amount of position liquidity that can use any tick in the range
-  /// @dev This parameter is enforced per tick to prevent liquidity from overflowing a uint128 at any point, and
-  /// also prevents out-of-range liquidity from being used to prevent adding in-range liquidity to a pool
-  /// @return The max amount of liquidity per tick
-  function maxLiquidityPerTick() external view returns (uint128);
-
-  /// @notice All-time seconds per unit of liquidity of the pool
-  /// @dev The value has been multiplied by 2^96
-  function secondsPerLiquidityGlobal() external view returns (uint128);
-
-  /// @notice The timestamp in which secondsPerLiquidity was last updated
-  function secondsPerLiquidityUpdateTime() external view returns (uint32);
+interface IProAMMPool is IProAMMPoolActions, IProAMMPoolEvents, IPoolStorage {
 
   /// @notice Fetches the pool's current price, tick and liquidity
   /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)

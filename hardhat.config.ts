@@ -69,7 +69,7 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 2000,
           },
         }
       },
@@ -78,7 +78,7 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 2000,
           },
           metadata: {
             bytecodeHash: 'none'
