@@ -1,5 +1,5 @@
 #format can be "text" or "json" for different output (human or machine readable)
-format: 'text'
+#format: 'text'
 #checkAsserts checks assertions
 checkAsserts: true
 #coverage controls coverage guided testing
@@ -16,9 +16,9 @@ coverage: false
 # #maxGasprice is the maximum gas price
 # maxGasprice: 100000000000
 # #testLimit is the number of test sequences to run
-# testLimit: 50000
+testLimit: 500000
 # #stopOnFail makes echidna terminate as soon as any property fails and has been shrunk
-# stopOnFail: false
+stopOnFail: true
 # #estimateGas makes echidna perform analysis of maximum gas costs for functions (experimental)
 # estimateGas: false
 # #seqLen defines how many transactions are in a test sequence

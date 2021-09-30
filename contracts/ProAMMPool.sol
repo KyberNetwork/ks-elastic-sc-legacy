@@ -372,7 +372,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     reinvestmentToken.burn(msg.sender, _qty);
     // rTotalSupply is the reinvestment token supply after minting, but before burning
     uint256 lfDelta = FullMath.mulDivFloor(_qty, lf, rTotalSupply);
-    uint128 lfNew = (lf - lfDelta).toUint128();
+    uint128 lfNew = (uint256(lf) - lfDelta).toUint128();
     poolReinvestmentLiquidity = lfNew;
     poolReinvestmentLiquidityLast = lfNew;
     // finally, calculate and send token quantities to user
@@ -500,8 +500,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
           // update rTotalSupply, feeGrowthGlobal and lf
           uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-            swapData.lf,
-            swapData.lfLast,
+            uint256(swapData.lf),
+            uint256(swapData.lfLast),
             swapData.lp,
             swapData.rTotalSupply
           );
@@ -626,8 +626,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     )
   {
     uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-      lf,
-      poolReinvestmentLiquidityLast,
+      uint256(lf),
+      uint256(poolReinvestmentLiquidityLast),
       lp,
       rTotalSupply
     );
@@ -669,8 +669,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint256 feeQty0;
     uint256 feeQty1;
     if (feeTo != address(0)) {
-       feeQty0 = qty0 * swapFeeBps / C.BPS;
-       feeQty1 = qty1 * swapFeeBps / C.BPS;
+      feeQty0 = (qty0 * swapFeeBps) / C.BPS;
+      feeQty1 = (qty1 * swapFeeBps) / C.BPS;
     }
     uint256 balance0Before = poolBalToken0();
     uint256 balance1Before = poolBalToken1();
@@ -695,7 +695,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
     if (paid0 > 0) token0.safeTransfer(feeTo, paid0);
     if (paid1 > 0) token1.safeTransfer(feeTo, paid1);
-    
+
     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   }
 }

@@ -4,19 +4,19 @@ import 'solidity-coverage';
 import 'hardhat-typechain';
 import 'hardhat-contract-sizer';
 
-import { HardhatUserConfig } from 'hardhat/types';
+import {HardhatUserConfig} from 'hardhat/types';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-import { accounts } from './test-wallets';
+import {accounts} from './test-wallets';
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
 
   gasReporter: {
     currency: 'USD',
-    gasPrice: 100,
+    gasPrice: 100
   },
 
   networks: {
@@ -24,7 +24,7 @@ const config: HardhatUserConfig = {
       accounts: accounts,
       allowUnlimitedContractSize: true,
       initialBaseFeePerGas: 0
-    },
+    }
   },
 
   solidity: {
@@ -36,8 +36,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 100000,
           },
-        },
-      },
+          metadata: {
+            bytecodeHash: 'none'
+          }
+        }
+      }
     ],
     overrides: {
       'contracts/ProAMMFactory.sol': {
@@ -56,6 +59,9 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 10000,
           },
+          metadata: {
+            bytecodeHash: 'none'
+          }
         }
       },
       'contracts/periphery/NonfungiblePositionManager.sol': {
@@ -65,6 +71,9 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 10000,
           },
+          metadata: {
+            bytecodeHash: 'none'
+          }
         }
       },
       'contracts/periphery/NonfungiblePositionManagerSnipAttack.sol': {
@@ -81,11 +90,11 @@ const config: HardhatUserConfig = {
 
   paths: {
     sources: './contracts',
-    tests: './test',
+    tests: './test'
   },
 
   mocha: {
-    timeout: 0,
+    timeout: 0
   },
 
   typechain: {
@@ -106,25 +115,25 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   config.networks!.kovan = {
     url: `https://kovan.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000,
+    timeout: 20000
   };
 
   config.networks!.rinkeby = {
     url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000,
+    timeout: 20000
   };
 
   config.networks!.ropsten = {
     url: `https://ropsten.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000,
+    timeout: 20000
   };
 
   config.networks!.mainnet = {
     url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000,
+    timeout: 20000
   };
 }
 

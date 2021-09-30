@@ -73,7 +73,7 @@ let positionData: any;
 let result: any;
 
 class Fixtures {
-  constructor(
+  constructor (
     public factory: MockProAMMFactory,
     public poolArray: MockProAMMPool[],
     public token0: MockToken,
@@ -502,7 +502,7 @@ describe('ProAMMPool', () => {
             // do swaps to cross into, but stay in position
             await swapToUpTick(pool, user, tickUpper - 1);
 
-            // secondsPerLiquidityInside 
+            // secondsPerLiquidityInside
             // should have non-zero secondsPerLiquidityInside
             // since price is now in range of position
             await pool.forwardTime(10);
@@ -993,7 +993,7 @@ describe('ProAMMPool', () => {
             // do swaps to cross into position
             await swapToDownTick(pool, user, tickUpper - 1);
 
-            // secondsPerLiquidityInside 
+            // secondsPerLiquidityInside
             // should have non-zero secondsPerLiquidityInside
             // since price is now in range of position
             await pool.forwardTime(10);
@@ -1259,11 +1259,11 @@ describe('ProAMMPool', () => {
           'ReinvestmentTokenMaster',
           await pool.reinvestmentToken()
         )) as ReinvestmentTokenMaster;
-  
+
         // set non-zero and feeTo in factory
         await factory.updateFeeConfiguration(configMaster.address, 5);
         let feeToRTokenBalanceBefore = await reinvestmentToken.balanceOf(configMaster.address);
-  
+
         // do some random swaps to accumulate fees
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
         // do a couple of small swaps so that lf is incremented but not lfLast
@@ -1807,22 +1807,22 @@ describe('ProAMMPool', () => {
 
   describe('secondsPerLiquidity', async () => {
     it('should revert if bad range is given', async () => {
-      await expect(pool.getSecondsPerLiquidityInside(10,8)).to.be.revertedWith('bad tick range');
+      await expect(pool.getSecondsPerLiquidityInside(10, 8)).to.be.revertedWith('bad tick range');
     });
 
     it('should return 0 if pool is locked', async () => {
-      expect(await pool.getSecondsPerLiquidityInside(0,10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
       // forward time, should have no effect
       await pool.forwardTime(10);
-      expect(await pool.getSecondsPerLiquidityInside(0,10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
     });
 
     it('should return 0 for 0 pool liquidity', async () => {
       await callback.connect(user).unlockPool(pool.address, encodePriceSqrt(ONE, ONE), '0x');
-      expect(await pool.getSecondsPerLiquidityInside(0,10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
       // forward time, should have no effect
       await pool.forwardTime(10);
-      expect(await pool.getSecondsPerLiquidityInside(0,10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
     });
   });
 
@@ -1974,11 +1974,12 @@ async function isTickCleared (tick: number): Promise<boolean> {
   return true;
 }
 
-async function doRandomSwaps(pool: MockProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
+async function doRandomSwaps (pool: MockProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
   for (let i = 0; i < iterations; i++) {
     let isToken0 = Math.random() < 0.5;
     let isExactInput = Math.random() < 0.5;
-    let swapQty = genRandomBN(ONE, maxSwapQty ? maxSwapQty : PRECISION);
+    const maxRange = maxSwapQty ? maxSwapQty : PRECISION.mul(BPS);
+    let swapQty = genRandomBN(maxRange.div(2), maxRange);
     if (!isExactInput) {
       let token = isToken0 ? token0 : token1;
       let poolBal = await token.balanceOf(pool.address);
@@ -2000,12 +2001,13 @@ async function doRandomSwaps(pool: MockProAMMPool, user: Wallet, iterations: num
   }
 }
 
-async function swapToUpTick(pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToUpTick (pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick < targetTick) {
     // either specify exactInputToken1 or exactOutputToken0
     let isToken0 = Math.random() < 0.5;
     let isExactInput = !isToken0;
-    let swapQty = genRandomBN(ONE, maxSwapQty ? maxSwapQty : PRECISION.mul(BPS));
+    const maxRange = maxSwapQty ? maxSwapQty : PRECISION.mul(BPS);
+    let swapQty = genRandomBN(maxRange.div(2), maxRange);
     if (!isExactInput) {
       let token = isToken0 ? token0 : token1;
       let poolBal = await token.balanceOf(pool.address);
@@ -2020,12 +2022,13 @@ async function swapToUpTick(pool: MockProAMMPool, user: Wallet, targetTick: numb
   }
 }
 
-async function swapToDownTick(pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToDownTick (pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick > targetTick) {
     // either specify exactInputToken0 or exactOutputToken1
     let isToken0 = Math.random() < 0.5;
     let isExactInput = isToken0;
-    let swapQty = genRandomBN(ONE, maxSwapQty ? maxSwapQty : PRECISION.mul(BPS));
+    const maxRange = maxSwapQty ? maxSwapQty : PRECISION.mul(BPS);
+    let swapQty = genRandomBN(maxRange.div(2), maxRange);
     if (!isExactInput) {
       let token = isToken0 ? token0 : token1;
       let poolBal = await token.balanceOf(pool.address);

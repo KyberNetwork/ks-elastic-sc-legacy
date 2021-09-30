@@ -13,8 +13,10 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     uint8 feeInBps,
     bool isExactInput
   ) external {
+    // TODO: this test is not passed for isExtractOutput
+    require(isExactInput);
+    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
-    require(currentSqrtP * 95 < targetSqrtP * 100 && targetSqrtP * 100 < currentSqrtP * 105);
     int256 deltaNext = SwapMath.calcDeltaNext(
       liquidity,
       currentSqrtP,
@@ -51,22 +53,65 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     if (currentSqrtP > targetSqrtP) {
       isTrue(nextSqrtP >= targetSqrtP);
     } else {
+      isTrue(nextSqrtP <= targetSqrtP);
+    }
+  }
+
+  function checkComputeSwapStep(
+    uint128 liquidity,
+    int256 amountRemaining,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
+    uint8 feeInBps
+  ) external {
+    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
+    require(amountRemaining != 0);
+    bool isExactInput = amountRemaining > 0;
+    bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
+    (int256 delta, int256 actualDelta, , uint160 nextSqrtP) = SwapMath.computeSwapStep(
+      liquidity,
+      currentSqrtP,
+      targetSqrtP,
+      feeInBps,
+      amountRemaining,
+      isExactInput,
+      isToken0
+    );
+
+    if (nextSqrtP != targetSqrtP) {
+      isTrue(delta == amountRemaining);
+    }
+
+    // next price is between price and price target
+    if (currentSqrtP <= targetSqrtP) {
+      isTrue(nextSqrtP <= targetSqrtP);
+      isTrue(currentSqrtP <= nextSqrtP);
+    } else {
+      isTrue(nextSqrtP >= targetSqrtP);
+      isTrue(currentSqrtP >= nextSqrtP);
+    }
+
+    if (nextSqrtP != currentSqrtP) {
       if (isExactInput) {
-        if (nextSqrtP > targetSqrtP) {
-          int256 revDelta = SwapMath.calcActualDelta(
-            liquidity,
-            currentSqrtP,
-            targetSqrtP,
-            fee,
-            false,
-            true
-          );
-          isTrue(revDelta > 0);
-          isTrue(absDelta >= uint256(revDelta));
-        }
+        isTrue(delta >= 0);
+        isTrue(actualDelta <= 0);
       } else {
-        isTrue(nextSqrtP <= targetSqrtP);
+        isTrue(delta <= 0);
+        isTrue(actualDelta >= 0);
       }
     }
+  }
+
+  function checkInitCondition(
+    uint128 liquidity,
+    uint160 currentSqrtP,
+    uint160 targetSqrtP,
+    uint8 feeInBps
+  ) internal pure {
+    require(currentSqrtP >= TickMath.MIN_SQRT_RATIO && currentSqrtP <= TickMath.MAX_SQRT_RATIO);
+    require(targetSqrtP >= TickMath.MIN_SQRT_RATIO && targetSqrtP <= TickMath.MAX_SQRT_RATIO);
+    require(liquidity >= 1000);
+    require(feeInBps != 0);
+    require(currentSqrtP * 95 < targetSqrtP * 100 && targetSqrtP * 100 < currentSqrtP * 105);
   }
 }

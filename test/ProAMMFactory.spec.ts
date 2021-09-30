@@ -110,11 +110,10 @@ describe('ProAMMFactory', () => {
     it('creates the predictable address', async () => {
       await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
       let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
-      const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
+      let bytescode = await factory.getCreationCode();
       expect(poolAddress).to.eql(
-        getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], ProAMMPoolContract.bytecode)
+        getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], bytescode)
       );
-      expect(await factory.getCreationCode()).to.eql(ProAMMPoolContract.bytecode);
     });
   });
 
