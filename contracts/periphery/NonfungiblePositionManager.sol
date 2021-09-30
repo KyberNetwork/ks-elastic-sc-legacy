@@ -4,7 +4,8 @@ pragma abicoder v2;
 
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {INonfungiblePositionManager, IERC721Metadata, IRouterTokenHelper} from '../interfaces/periphery/INonfungiblePositionManager.sol';
-import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
+import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
+import {IERC20, IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 import {FullMath} from '../libraries/FullMath.sol';
 import {MathConstants as C} from '../libraries/MathConstants.sol';
@@ -13,6 +14,7 @@ import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
+
 
 contract NonfungiblePositionManager is
   INonfungiblePositionManager,

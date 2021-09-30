@@ -3,8 +3,8 @@ pragma solidity 0.8.4;
 
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
-import {IERC20, IProAMMPool, IProAMMPoolActions} from './interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IProAMMPool, IProAMMPoolActions} from './interfaces/IProAMMPool.sol';
+import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
 import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
@@ -59,66 +59,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     );
     require(success && data.length >= 32);
     return abi.decode(data, (uint256));
-  }
-
-  // TODO move _poolLiquidity to getReinvestmentState to save 1 slot
-  function getPoolState()
-    external
-    view
-    override
-    returns (
-      uint160 _poolSqrtPrice,
-      int24 _poolTick,
-      bool _locked,
-      uint128 _poolLiquidity
-    )
-  {
-    _poolSqrtPrice = poolData.sqrtPrice;
-    _poolTick = poolData.currentTick;
-    _locked = poolData.locked;
-    _poolLiquidity = poolData.liquidity;
-  }
-
-  function getReinvestmentState()
-    external
-    view
-    override
-    returns (
-      uint256 _poolFeeGrowthGlobal,
-      uint128 _poolReinvestmentLiquidity,
-      uint128 _poolReinvestmentLiquidityLast
-    )
-  {
-    return (poolData.feeGrowthGlobal, poolData.reinvestmentLiquidity, poolData.reinvestmentLiquidityLast);
-  }
-
-  function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
-    external
-    view
-    override
-    returns (uint128 secondsPerLiquidityInside)
-  {
-    require(tickLower <= tickUpper, 'bad tick range');
-    int24 _poolTick = poolData.currentTick;
-
-    secondsPerLiquidityInside = uint128(
-      getValueInside(
-        ticks[tickLower].secondsPerLiquidityOutside,
-        ticks[tickUpper].secondsPerLiquidityOutside,
-        _poolTick < tickLower,
-        _poolTick < tickUpper,
-        poolData.secondsPerLiquidityGlobal
-      )
-    );
-    // in the case where position is in range (tickLower <= _poolTick < tickUpper),
-    // need to add timeElapsed per liquidity
-    if (tickLower <= _poolTick && _poolTick < tickUpper) {
-      uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
-      uint128 lp = poolData.liquidity;
-      if (secondsElapsed > 0 && lp > 0) {
-        secondsPerLiquidityInside += uint128((secondsElapsed << C.RES_96) / lp);
-      }
-    }
   }
 
   /// @inheritdoc IProAMMPoolActions
@@ -524,11 +464,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       swapData.lp,
       swapData.nextTick
     );
-  }
-
-  /// @dev For overriding in tests
-  function _blockTimestamp() internal view virtual returns (uint32) {
-    return block.timestamp.toUint32();
   }
 
   function updateTimeData(uint128 _secondsPerLiquidityGlobal, uint128 lp)

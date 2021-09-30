@@ -5,7 +5,8 @@ pragma abicoder v2;
 import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
 import {RouterTokenHelper} from './RouterTokenHelper.sol';
 import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
-import {IProAMMPool, IProAMMFactory} from '../../interfaces/IProAMMPool.sol';
+import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
+import {IProAMMFactory} from '../../interfaces/IProAMMFactory.sol';
 import {LiquidityMath} from '../../libraries/LiquidityMath.sol';
 import {TickMath} from '../../libraries/TickMath.sol';
 
