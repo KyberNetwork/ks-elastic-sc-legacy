@@ -15,7 +15,7 @@ import {ProAMMPool, MockTickMath, MockTickMath__factory} from '../../typechain';
 import {MockProAMMCallbacks2, MockProAMMCallbacks2__factory} from '../../typechain';
 
 let swapFeeBpsArray = [5, 2];
-let tickSpacingArray = [10, 6];
+let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
 
 class Fixtures {
@@ -65,10 +65,10 @@ describe.skip('QuoterV2', function () {
 
   async function fixture (): Promise<Fixtures> {
     let factory = await deployFactory(admin, vestingPeriod);
-    // add any newly defined tickSpacing apart from default ones
+    // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
+        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
 

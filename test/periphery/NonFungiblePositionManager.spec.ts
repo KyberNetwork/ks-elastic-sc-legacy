@@ -38,7 +38,7 @@ let tokenB: MockToken;
 let weth: MockWeth;
 let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
-let tickSpacingArray = [10, 60];
+let tickDistanceArray = [10, 60];
 let vestingPeriod = 0;
 let initialPrice: BigNumber;
 let snapshotId: any;
@@ -53,8 +53,8 @@ let getBalances: (
 
 describe('NonFungiblePositionManager', () => {
   const [user, admin, other] = waffle.provider.getWallets();
-  const tickLower = -100 * tickSpacingArray[0];
-  const tickUpper = 100 * tickSpacingArray[0];
+  const tickLower = -100 * tickDistanceArray[0];
+  const tickUpper = 100 * tickDistanceArray[0];
 
   before('factory, token and callback setup', async () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
@@ -75,10 +75,10 @@ describe('NonFungiblePositionManager', () => {
     const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
     router = await Router.deploy(factory.address, weth.address);
 
-    // add any newly defined tickSpacing apart from default ones
+    // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
+        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -360,13 +360,13 @@ describe('NonFungiblePositionManager', () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       await expect(positionManager.connect(user).mint({
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
-        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        tickLower: -tickDistanceArray[0], tickUpper: tickDistanceArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
         amount0Min: BN.from(1000001), amount1Min: 0, recipient: user.address, deadline: PRECISION
       })).to.be.revertedWith('LiquidityHelper: price slippage check');
       await expect(positionManager.connect(user).mint({
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
-        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        tickLower: -tickDistanceArray[0], tickUpper: tickDistanceArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
         amount0Min: 0, amount1Min: BN.from(1000001), recipient: user.address, deadline: PRECISION
       })).to.be.revertedWith('LiquidityHelper: price slippage check');
@@ -377,7 +377,7 @@ describe('NonFungiblePositionManager', () => {
       await tokenA.connect(user).approve(positionManager.address, 0);
       await expect(positionManager.connect(user).mint({
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
-        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        tickLower: -tickDistanceArray[0], tickUpper: tickDistanceArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
         amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
       })).to.be.reverted;
@@ -385,7 +385,7 @@ describe('NonFungiblePositionManager', () => {
       await tokenB.connect(user).approve(positionManager.address, 0);
       await expect(positionManager.connect(user).mint({
         token0: token0, token1: token1, fee: swapFeeBpsArray[0],
-        tickLower: -tickSpacingArray[0], tickUpper: tickSpacingArray[0],
+        tickLower: -tickDistanceArray[0], tickUpper: tickDistanceArray[0],
         amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
         amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
       })).to.be.reverted;
@@ -405,8 +405,8 @@ describe('NonFungiblePositionManager', () => {
 
       for (let i = 0; i < recipients.length; i++) {
 
-        let tickLower = tickSpacingArray[0] * (i + 1) * -10;
-        let tickUpper = tickSpacingArray[0] * (i + 1) * 10;
+        let tickLower = tickDistanceArray[0] * (i + 1) * -10;
+        let tickUpper = tickDistanceArray[0] * (i + 1) * 10;
 
         let userBalanceBefore = await getBalances(user.address, [token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
@@ -474,8 +474,8 @@ describe('NonFungiblePositionManager', () => {
 
       for (let i = 0; i < recipients.length; i++) {
 
-        let tickLower = tickSpacingArray[0] * (i + 1) * -10;
-        let tickUpper = tickSpacingArray[0] * (i + 1) * 10;
+        let tickLower = tickDistanceArray[0] * (i + 1) * -10;
+        let tickUpper = tickDistanceArray[0] * (i + 1) * 10;
 
         let userBalanceBefore = await getBalances(user.address, [ZERO_ADDRESS, token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
@@ -549,7 +549,7 @@ describe('NonFungiblePositionManager', () => {
     [token0, token1] = sortTokens(token0, token1);
     await positionManager.connect(user).mint({
       token0: token0, token1: token1, fee: swapFeeBpsArray[0],
-      tickLower: -100 * tickSpacingArray[0], tickUpper: 100 * tickSpacingArray[0],
+      tickLower: -100 * tickDistanceArray[0], tickUpper: 100 * tickDistanceArray[0],
       amount0Desired: BN.from(1000000), amount1Desired: BN.from(1000000),
       amount0Min: 0, amount1Min: 0, recipient: user.address, deadline: PRECISION
     });

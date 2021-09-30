@@ -27,12 +27,12 @@ interface IPoolStorage {
   /// @return The fee in basis points
   function swapFeeBps() external view returns (uint16);
 
-  /// @notice The pool tick spacing
+  /// @notice The pool tick distance
   /// @dev Tick can only be initialized and used at multiples of this value
   /// It remains an int24 to avoid casting even though it is >= 1.
-  /// e.g: a tickSpacing of 5 means ticks can be initialized every 5th tick, i.e., ..., -10, -5, 0, 5, 10, ...
-  /// @return The tick spacing
-  function tickSpacing() external view returns (int24);
+  /// e.g: a tickDistance of 5 means ticks can be initialized every 5th tick, i.e., ..., -10, -5, 0, 5, 10, ...
+  /// @return The tick distance
+  function tickDistance() external view returns (int24);
 
   /// @notice The maximum amount of position liquidity that can use any tick in the range
   /// @dev This parameter is enforced per tick to prevent liquidity from overflowing a uint128 at any point, and
@@ -54,7 +54,7 @@ interface IPoolStorage {
       uint128 liquidityGross,
       int128 liquidityNet,
       uint256 feeGrowthOutside,
-      uint160 secondsPerLiquidityOutside
+      uint128 secondsPerLiquidityOutside
     );
 
   /// @notice Returns the information about a position by the position's key
@@ -111,5 +111,5 @@ interface IPoolStorage {
   function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
     external
     view
-    returns (uint160 secondsPerLiquidityInside);
+    returns (uint128 secondsPerLiquidityInside);
 }

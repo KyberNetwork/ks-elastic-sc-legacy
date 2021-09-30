@@ -42,7 +42,7 @@ abstract contract PoolStorage is IPoolStorage {
     uint256 feeGrowthOutside;
     // seconds spent on the other side of this tick (relative to current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint160 secondsPerLiquidityOutside;
+    uint128 secondsPerLiquidityOutside;
   }
 
   // data stored for each user's position
@@ -80,7 +80,7 @@ abstract contract PoolStorage is IPoolStorage {
   IReinvestmentToken public immutable override reinvestmentToken;
   uint128 public immutable override maxLiquidityPerTick;
   uint16 public immutable override swapFeeBps;
-  int24 public immutable override tickSpacing;
+  int24 public immutable override tickDistance;
 
   mapping(int24 => TickData) public override ticks;
   mapping(int24 => Linkedlist.Data) public initializedTicks;
@@ -96,15 +96,15 @@ abstract contract PoolStorage is IPoolStorage {
       address _token0,
       address _token1,
       uint16 _swapFeeBps,
-      int24 _tickSpacing
+      int24 _tickDistance
     ) = IProAMMFactory(msg.sender).parameters();
     factory = IProAMMFactory(_factory);
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
     swapFeeBps = _swapFeeBps;
-    tickSpacing = _tickSpacing;
+    tickDistance = _tickDistance;
 
-    maxLiquidityPerTick = type(uint128).max / TickMath.getMaxNumberTicks(_tickSpacing);
+    maxLiquidityPerTick = type(uint128).max / TickMath.getMaxNumberTicks(_tickDistance);
     IReinvestmentToken _reinvestmentToken = IReinvestmentToken(
       IProAMMFactory(_factory).reinvestmentTokenMaster().clone()
     );
@@ -190,14 +190,15 @@ abstract contract PoolStorage is IPoolStorage {
     external
     view
     override
-    returns (uint160 secondsPerLiquidityInside)
+    returns (uint128 secondsPerLiquidityInside)
   {
     require(tickLower <= tickUpper, 'bad tick range');
     int24 _poolTick = poolData.currentTick;
 
+    uint128 lowerValue = ticks[tickLower].secondsPerLiquidityOutside;
+    uint128 upperValue = ticks[tickUpper].secondsPerLiquidityOutside;
+
     unchecked {
-      uint160 lowerValue = ticks[tickLower].secondsPerLiquidityOutside;
-      uint160 upperValue = ticks[tickUpper].secondsPerLiquidityOutside;
       if (tickLower < _poolTick) {
         secondsPerLiquidityInside = lowerValue - upperValue;
       } else if (_poolTick >= tickUpper) {
@@ -213,7 +214,7 @@ abstract contract PoolStorage is IPoolStorage {
       uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
       uint128 lp = poolData.liquidity;
       if (secondsElapsed > 0 && lp > 0) {
-        secondsPerLiquidityInside += uint160((secondsElapsed << 96) / lp);
+        unchecked { secondsPerLiquidityInside += uint128((secondsElapsed << 96) / lp); }
       }
     }
   }

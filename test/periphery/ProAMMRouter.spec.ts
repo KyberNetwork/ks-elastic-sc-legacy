@@ -40,7 +40,7 @@ let router: ProAMMRouter;
 let callback: MockProAMMCallbacks;
 let vestingPeriod = 100;
 let swapFeeBpsArray = [5, 30];
-let tickSpacingArray = [10, 60];
+let tickDistanceArray = [10, 60];
 let initialPrice: BN;
 let ticks: number[];
 
@@ -64,15 +64,15 @@ describe('ProAMMRouter', () => {
     // use callback to add liquidity
     CallbackContract = (await ethers.getContractFactory('MockProAMMCallbacks')) as MockProAMMCallbacks__factory;
 
-    // add any newly defined tickSpacing apart from default ones
+    // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
+        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
 
     initialPrice = encodePriceSqrt(1, 1);
-    ticks = [-100 * tickSpacingArray[0], 100 * tickSpacingArray[0]];
+    ticks = [-100 * tickDistanceArray[0], 100 * tickDistanceArray[0]];
 
     await weth.connect(user).deposit({value: PRECISION.mul(BN.from(10))});
     await weth.connect(user).approve(router.address, MAX_UINT);
@@ -394,8 +394,8 @@ describe('ProAMMRouter', () => {
       let gasUsed = BN.from(0);
       let numRuns = swapFeeBpsArray.length;
       for (let i = 0; i < numRuns; i++) {
-        let tickLower = -200 * tickSpacingArray[i];
-        let tickUpper = 100 * tickSpacingArray[i];
+        let tickLower = -200 * tickDistanceArray[i];
+        let tickUpper = 100 * tickDistanceArray[i];
         await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, [tickLower, tickUpper]);
         let token0 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA : tokenB;
         let token1 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenB : tokenA;

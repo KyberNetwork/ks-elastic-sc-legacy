@@ -9,8 +9,8 @@ import {utils} from 'ethers';
 
 bn.config({EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40});
 
-export const getMinTick = (tickSpacing: number) => Math.ceil(MIN_TICK.toNumber() / tickSpacing) * tickSpacing;
-export const getMaxTick = (tickSpacing: number) => Math.floor(MAX_TICK.toNumber() / tickSpacing) * tickSpacing;
+export const getMinTick = (tickDistance: number) => Math.ceil(MIN_TICK.toNumber() / tickDistance) * tickDistance;
+export const getMaxTick = (tickDistance: number) => Math.floor(MAX_TICK.toNumber() / tickDistance) * tickDistance;
 
 export function encodePriceSqrt (reserve1: BigNumberish, reserve0: BigNumberish): BN {
   return BN.from(
@@ -28,8 +28,8 @@ export function sqrtPriceToString (a: BN) {
   return sqrtP.toString();
 }
 
-export async function getNearestSpacedTickAtPrice (sqrtRatio: BN, tickSpacing: number): Promise<BN> {
-  return BN.from(Math.floor((await _getTickAtPrice(sqrtRatio)) / tickSpacing) * tickSpacing);
+export async function getNearestSpacedTickAtPrice (sqrtRatio: BN, tickDistance: number): Promise<BN> {
+  return BN.from(Math.floor((await _getTickAtPrice(sqrtRatio)) / tickDistance) * tickDistance);
 }
 
 export async function getTickAtPrice (sqrtRatio: BN): Promise<BN> {

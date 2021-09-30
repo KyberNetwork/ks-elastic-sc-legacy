@@ -53,29 +53,22 @@ contract ProAMMPoolTicksState is PoolStorage {
 
   /// @dev Update liquidity net data and do cross tick if it should
   function updateLiquidityAndCrossTick(
-    int24 currentTick,
     int24 nextTick,
     uint128 currentLiquidity,
     uint256 feeGrowthGlobal,
     uint128 secondsPerLiquidityGlobal,
-    bool willUpTick,
-    bool shouldCross
+    bool willUpTick
   )
     internal
     returns (uint128 newLiquidity, int24 newCurrentTick, int24 newNextTick)
   {
-    if (shouldCross) {
-      unchecked {
-        ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
-        ticks[nextTick].secondsPerLiquidityOutside =
-          secondsPerLiquidityGlobal - ticks[nextTick].secondsPerLiquidityOutside;
-      }
-      newCurrentTick = willUpTick ? nextTick : nextTick - 1;
-      newNextTick = willUpTick ? initializedTicks[nextTick].next : initializedTicks[nextTick].previous;
-    } else {
-      newCurrentTick = currentTick;
+    unchecked {
+      ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
+      ticks[nextTick].secondsPerLiquidityOutside =
+        secondsPerLiquidityGlobal - ticks[nextTick].secondsPerLiquidityOutside;
     }
-
+    newCurrentTick = willUpTick ? nextTick : nextTick - 1;
+    newNextTick = willUpTick ? initializedTicks[nextTick].next : initializedTicks[nextTick].previous;
     newLiquidity = LiqDeltaMath.addLiquidityDelta(
       currentLiquidity,
       willUpTick ? ticks[nextTick].liquidityNet : -ticks[nextTick].liquidityNet
@@ -86,8 +79,8 @@ contract ProAMMPoolTicksState is PoolStorage {
     uint128 newLiquidity,
     uint128 newRLiquidity,
     uint160 newSqrtPrice,
-    int24 nextTick,
-    int24 newCurrentTick
+    int24 newCurrentTick,
+    int24 nextTick
   ) internal {
     poolData.liquidity = newLiquidity;
     poolData.reinvestmentLiquidity = newRLiquidity;

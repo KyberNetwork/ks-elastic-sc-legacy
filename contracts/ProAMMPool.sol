@@ -100,8 +100,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
     require(posData.tickUpper <= TickMath.MAX_TICK, 'invalid upper tick');
     require(
-      posData.tickLower % tickSpacing == 0 && posData.tickUpper % tickSpacing == 0,
-      'tick not in spacing'
+      posData.tickLower % tickDistance == 0 && posData.tickUpper % tickDistance == 0,
+      'tick not in distance'
     );
 
     // SLOADs for gas optimization
@@ -333,7 +333,18 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
-      swapData.nextSqrtP = TickMath.getSqrtRatioAtTick(swapData.nextTick);
+      int24 tempNextTick = swapData.nextTick;
+
+      // since nextTick is an initalized one, the price movement can be > 5%
+      // use tempNextTick to ensure the price diff is capped at 5%
+      if (willUpTick && tempNextTick > C.MAX_TICK_DISTANCE + swapData.currentTick) {
+        tempNextTick = swapData.currentTick + C.MAX_TICK_DISTANCE;
+      } else if (!willUpTick && tempNextTick < swapData.currentTick - C.MAX_TICK_DISTANCE) {
+        tempNextTick = swapData.currentTick - C.MAX_TICK_DISTANCE;
+      }
+
+      swapData.nextSqrtP = TickMath.getSqrtRatioAtTick(tempNextTick);
+
       // local scope for targetSqrtP, deltaNext, actualDelta and lc
       {
         uint160 targetSqrtP = swapData.nextSqrtP;
@@ -363,11 +374,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         swapData.lf += lc.toUint128();
 
         if (swapData.sqrtPc != previousSqrtPc) {
-          swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
+          swapData.currentTick = swapData.sqrtPc == swapData.nextSqrtP
+            ? tempNextTick // same gas by not re-computing
+            : TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
         }
       }
 
-      if (swapData.sqrtPc != swapData.nextSqrtP) continue;
+      if (swapData.sqrtPc != swapData.nextSqrtP || tempNextTick != swapData.nextTick) continue;
 
       if (swapData.rTotalSupplyInitial == 0) {
         // initialize reinvestment variables
@@ -403,13 +416,11 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       swapData.lfLast = swapData.lf;
 
       (swapData.lp, swapData.currentTick, swapData.nextTick) = updateLiquidityAndCrossTick(
-        swapData.currentTick,
         swapData.nextTick,
         swapData.lp,
         swapData.feeGrowthGlobal,
         swapData.secondsPerLiquidityGlobal,
-        willUpTick,
-        willUpTick || swapData.deltaRemaining != 0 // should cross tick
+        willUpTick
       );
     }
 
@@ -428,7 +439,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       poolData.feeGrowthGlobal = swapData.feeGrowthGlobal;
     }
 
-    updatePoolData(swapData.lp, swapData.lf, swapData.sqrtPc, swapData.nextTick, swapData.currentTick);
+    updatePoolData(swapData.lp, swapData.lf, swapData.sqrtPc, swapData.currentTick, swapData.nextTick);
 
     (deltaQty0, deltaQty1) = isToken0
       ? (swapQty - swapData.deltaRemaining, swapData.actualDelta)

@@ -60,15 +60,15 @@ export async function setupPoolWithLiquidity (
 ): Promise<[ProAMMPool, number]> {
   const pool = await createPool(factory, tokenA, tokenB, feeBps);
   await mockCallback.unlockPool(pool.address, initialPrice);
-  let tickSpacing = await pool.tickSpacing();
+  let tickDistance = await pool.tickDistance();
 
-  const nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+  const nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
 
   await mockCallback.mint(
     pool.address,
     recipient,
-    nearestTickToPrice - 20 * tickSpacing,
-    nearestTickToPrice + 20 * tickSpacing,
+    nearestTickToPrice - 20 * tickDistance,
+    nearestTickToPrice + 20 * tickDistance,
     PRECISION.div(10)
   );
   return [pool, nearestTickToPrice];

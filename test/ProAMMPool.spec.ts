@@ -57,14 +57,14 @@ let pool: MockProAMMPool;
 let callback: MockProAMMCallbacks;
 let swapFeeBpsArray = [5, 30];
 let swapFeeBps = swapFeeBpsArray[0];
-let tickSpacingArray = [10, 60];
-let tickSpacing = tickSpacingArray[0];
+let tickDistanceArray = [10, 60];
+let tickDistance = tickDistanceArray[0];
 let vestingPeriod = 100;
 
-let minTick = getMinTick(tickSpacing);
-let maxTick = getMaxTick(tickSpacing);
+let minTick = getMinTick(tickDistance);
+let maxTick = getMaxTick(tickDistance);
 let initialPrice: BN;
-let nearestTickToPrice: number; // the floor of tick that mod tickSpacing = 0
+let nearestTickToPrice: number; // the floor of tick that mod tickDistance = 0
 let tickLower: number;
 let tickUpper: number;
 let tickLowerData: any;
@@ -89,10 +89,10 @@ describe('ProAMMPool', () => {
   async function fixture (): Promise<Fixtures> {
     let factory = await deployMockFactory(admin, vestingPeriod);
     const ProAMMPoolContract = (await ethers.getContractFactory('MockProAMMPool')) as MockProAMMPool__factory;
-    // add any newly defined tickSpacing apart from default ones
+    // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
+        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -133,7 +133,7 @@ describe('ProAMMPool', () => {
       expect(await pool.token0()).to.be.eql(token0.address);
       expect(await pool.token1()).to.be.eql(token1.address);
       expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
-      expect(await pool.tickSpacing()).to.be.eql(tickSpacing);
+      expect(await pool.tickDistance()).to.be.eql(tickDistance);
       expect(await pool.maxLiquidityPerTick()).to.be.gt(ZERO);
       expect(await pool.reinvestmentToken()).to.not.be.eql(ZERO_ADDRESS);
       let result = await pool.getReinvestmentState();
@@ -243,9 +243,9 @@ describe('ProAMMPool', () => {
         );
       });
 
-      it('should fail if ticks are not in tick spacing', async () => {
+      it('should fail if ticks are not in tick distance', async () => {
         await expect(callback.mint(pool.address, user.address, 4, 8, PRECISION, '0x')).to.be.revertedWith(
-          'tick not in spacing'
+          'tick not in distance'
         );
       });
 
@@ -279,19 +279,19 @@ describe('ProAMMPool', () => {
         await callback.mint(
           pool.address,
           user.address,
-          minTick + tickSpacing,
-          maxTick - tickSpacing,
+          minTick + tickDistance,
+          maxTick - tickDistance,
           MIN_LIQUIDITY,
           '0x'
         );
         let exceedingLiquidity = maxLiquidityGross.sub(MIN_LIQUIDITY).add(ONE);
 
         await expect(
-          callback.mint(pool.address, user.address, minTick + tickSpacing, maxTick, exceedingLiquidity, '0x')
+          callback.mint(pool.address, user.address, minTick + tickDistance, maxTick, exceedingLiquidity, '0x')
         ).to.be.revertedWith('> max liquidity');
 
         await expect(
-          callback.mint(pool.address, user.address, minTick, maxTick - tickSpacing, exceedingLiquidity, '0x')
+          callback.mint(pool.address, user.address, minTick, maxTick - tickDistance, exceedingLiquidity, '0x')
         ).to.be.revertedWith('> max liquidity');
 
         // should work if liquidityGross = maxLiquidityPerTick
@@ -299,8 +299,8 @@ describe('ProAMMPool', () => {
           callback.mint(
             pool.address,
             user.address,
-            minTick + tickSpacing,
-            maxTick - tickSpacing,
+            minTick + tickDistance,
+            maxTick - tickDistance,
             exceedingLiquidity.sub(ONE),
             '0x'
           )
@@ -329,9 +329,9 @@ describe('ProAMMPool', () => {
         });
         describe('position above current tick', async () => {
           beforeEach('reset position data', async () => {
-            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
-            tickLower = nearestTickToPrice + tickSpacing;
-            tickUpper = nearestTickToPrice + 5 * tickSpacing;
+            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+            tickLower = nearestTickToPrice + tickDistance;
+            tickUpper = nearestTickToPrice + 5 * tickDistance;
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
           });
@@ -357,7 +357,7 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              maxTick - tickSpacing,
+              maxTick - tickDistance,
               maxTick,
               maxLiquidityGross.sub(MIN_LIQUIDITY.mul(TWO)),
               '0x'
@@ -446,8 +446,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -482,8 +482,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -516,8 +516,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -534,9 +534,9 @@ describe('ProAMMPool', () => {
 
         describe('position includes current tick', async () => {
           beforeEach('reset position data', async () => {
-            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
-            tickLower = nearestTickToPrice - 2 * tickSpacing;
-            tickUpper = nearestTickToPrice + 2 * tickSpacing;
+            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+            tickLower = nearestTickToPrice - 2 * tickDistance;
+            tickUpper = nearestTickToPrice + 2 * tickDistance;
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
           });
@@ -566,7 +566,7 @@ describe('ProAMMPool', () => {
               pool.address,
               user.address,
               minTick,
-              minTick + tickSpacing,
+              minTick + tickDistance,
               maxLiquidityGross.sub(MIN_LIQUIDITY.mul(TWO)),
               '0x'
             );
@@ -631,13 +631,13 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              nearestTickToPrice - 100 * tickSpacing,
-              nearestTickToPrice + 100 * tickSpacing,
+              nearestTickToPrice - 100 * tickDistance,
+              nearestTickToPrice + 100 * tickDistance,
               PRECISION,
               '0x'
             );
             // swap to initialized tick to increment secondsPerLiquidity
-            await swapToUpTick(pool, user, nearestTickToPrice + 100 * tickSpacing);
+            await swapToUpTick(pool, user, nearestTickToPrice + 100 * tickDistance);
             await swapToDownTick(pool, user, nearestTickToPrice);
 
             // mint new position
@@ -688,8 +688,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -724,8 +724,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -751,8 +751,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -769,9 +769,9 @@ describe('ProAMMPool', () => {
 
         describe('position below current tick', async () => {
           beforeEach('reset position data', async () => {
-            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
-            tickLower = nearestTickToPrice - 5 * tickSpacing;
-            tickUpper = nearestTickToPrice - 2 * tickSpacing;
+            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+            tickLower = nearestTickToPrice - 5 * tickDistance;
+            tickUpper = nearestTickToPrice - 2 * tickDistance;
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
           });
@@ -863,13 +863,13 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              nearestTickToPrice - 100 * tickSpacing,
-              nearestTickToPrice + 100 * tickSpacing,
+              nearestTickToPrice - 100 * tickDistance,
+              nearestTickToPrice + 100 * tickDistance,
               PRECISION,
               '0x'
             );
             // swap to initialized tick to increment secondsPerLiquidity
-            await swapToDownTick(pool, user, nearestTickToPrice - 100 * tickSpacing - 1);
+            await swapToDownTick(pool, user, nearestTickToPrice - 100 * tickDistance - 1);
             await swapToUpTick(pool, user, nearestTickToPrice);
 
             // mint new position
@@ -920,8 +920,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -955,8 +955,8 @@ describe('ProAMMPool', () => {
             await callback.mint(
               pool.address,
               user.address,
-              tickLower - 5 * tickSpacing,
-              tickUpper + 5 * tickSpacing,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
               PRECISION.mul(BPS),
               '0x'
             );
@@ -987,13 +987,13 @@ describe('ProAMMPool', () => {
 
         describe('overlapping positions', async () => {
           it('should have 0 liquidityNet but liquidity gross != 0 if tickUpper of 1 position == tickLower of another', async () => {
-            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
-            tickLower = nearestTickToPrice - tickSpacing;
-            tickUpper = nearestTickToPrice + tickSpacing;
+            nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+            tickLower = nearestTickToPrice - tickDistance;
+            tickUpper = nearestTickToPrice + tickDistance;
             // mint lower position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
             tickLower = tickUpper;
-            tickUpper = tickUpper + tickSpacing;
+            tickUpper = tickUpper + tickDistance;
             // mint upper position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
             // check overlapping tick data
@@ -1014,10 +1014,10 @@ describe('ProAMMPool', () => {
     describe('after unlockPool', async () => {
       beforeEach('unlock pool with initial price of 2:1, mint 1 position, and perform necessary setup', async () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
-        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
         // mint 1 position
-        tickLower = nearestTickToPrice - 100 * tickSpacing;
-        tickUpper = nearestTickToPrice + 100 * tickSpacing;
+        tickLower = nearestTickToPrice - 100 * tickDistance;
+        tickUpper = nearestTickToPrice + 100 * tickDistance;
         await callback.unlockPool(pool.address, initialPrice, '0x');
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
@@ -1061,31 +1061,31 @@ describe('ProAMMPool', () => {
         await callback.mint(
           pool.address,
           user.address,
-          tickLower + tickSpacing,
-          tickUpper - tickSpacing,
+          tickLower + tickDistance,
+          tickUpper - tickDistance,
           PRECISION,
           '0x'
         );
         await doRandomSwaps(pool, user, 3);
-        await pool.connect(user).burn(tickLower + tickSpacing, tickUpper - tickSpacing, PRECISION);
-        expect(await isTickCleared(tickLower + tickSpacing)).to.be.true;
-        expect(await isTickCleared(tickUpper - tickSpacing)).to.be.true;
+        await pool.connect(user).burn(tickLower + tickDistance, tickUpper - tickDistance, PRECISION);
+        expect(await isTickCleared(tickLower + tickDistance)).to.be.true;
+        expect(await isTickCleared(tickUpper - tickDistance)).to.be.true;
       });
 
       it('should clear only lower tick if upper remains used', async () => {
-        await callback.mint(pool.address, user.address, tickLower + tickSpacing, tickUpper, PRECISION, '0x');
+        await callback.mint(pool.address, user.address, tickLower + tickDistance, tickUpper, PRECISION, '0x');
         await doRandomSwaps(pool, user, 3);
-        await pool.connect(user).burn(tickLower + tickSpacing, tickUpper, PRECISION);
-        expect(await isTickCleared(tickLower + tickSpacing)).to.be.true;
+        await pool.connect(user).burn(tickLower + tickDistance, tickUpper, PRECISION);
+        expect(await isTickCleared(tickLower + tickDistance)).to.be.true;
         expect(await isTickCleared(tickUpper)).to.be.false;
       });
 
       it('should clear only upper tick if lower remains used', async () => {
-        await callback.mint(pool.address, user.address, tickLower, tickUpper - tickSpacing, PRECISION, '0x');
+        await callback.mint(pool.address, user.address, tickLower, tickUpper - tickDistance, PRECISION, '0x');
         await doRandomSwaps(pool, user, 3);
-        await pool.connect(user).burn(tickLower, tickUpper - tickSpacing, PRECISION);
+        await pool.connect(user).burn(tickLower, tickUpper - tickDistance, PRECISION);
         expect(await isTickCleared(tickLower)).to.be.false;
-        expect(await isTickCleared(tickUpper - tickSpacing)).to.be.true;
+        expect(await isTickCleared(tickUpper - tickDistance)).to.be.true;
       });
 
       it('will not transfer rTokens to user if position is burnt without any swap', async () => {
@@ -1103,8 +1103,8 @@ describe('ProAMMPool', () => {
       });
 
       it('should not transfer any rTokens if fees collected are outside position', async () => {
-        tickLower = nearestTickToPrice + 10 * tickSpacing;
-        tickUpper = nearestTickToPrice + 20 * tickSpacing;
+        tickLower = nearestTickToPrice + 10 * tickDistance;
+        tickUpper = nearestTickToPrice + 20 * tickDistance;
         // mint position above current tick
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
         // swap to below lower tick
@@ -1149,13 +1149,13 @@ describe('ProAMMPool', () => {
       // whitelist callback for minting position
       await factory.connect(admin).addNFTManager(callback.address);
       await callback.unlockPool(pool.address, initialPrice, '0x');
-      await callback.mint(pool.address, user.address, -100 * tickSpacing, 100 * tickSpacing, PRECISION, '0x');
+      await callback.mint(pool.address, user.address, -100 * tickDistance, 100 * tickDistance, PRECISION, '0x');
     });
 
     describe('position above current price', async () => {
       it('should increase and decrease pool liquidity when entering and exiting range', async () => {
-        tickLower = 10 * tickSpacing;
-        tickUpper = 20 * tickSpacing;
+        tickLower = 10 * tickDistance;
+        tickUpper = 20 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
 
         let poolLiquidityBefore = (await pool.getPoolState())._poolLiquidity;
@@ -1172,8 +1172,8 @@ describe('ProAMMPool', () => {
 
     describe('position within current price', async () => {
       it('should increase and decrease pool liquidity when entering and exiting range', async () => {
-        tickLower = -10 * tickSpacing;
-        tickUpper = 10 * tickSpacing;
+        tickLower = -10 * tickDistance;
+        tickUpper = 10 * tickDistance;
         let poolLiquidityBefore = (await pool.getPoolState())._poolLiquidity;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
         let poolLiquidityAfter = (await pool.getPoolState())._poolLiquidity;
@@ -1208,8 +1208,8 @@ describe('ProAMMPool', () => {
 
     describe('position below current price', async () => {
       it('should increase and decrease pool liquidity when entering and exiting range', async () => {
-        tickLower = -20 * tickSpacing;
-        tickUpper = -10 * tickSpacing;
+        tickLower = -20 * tickDistance;
+        tickUpper = -10 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
 
         let poolLiquidityBefore = (await pool.getPoolState())._poolLiquidity;
@@ -1226,8 +1226,8 @@ describe('ProAMMPool', () => {
 
     describe('turn on govt fee', async () => {
       it('should mint any outstanding rTokens and send it to feeTo', async () => {
-        tickLower = -10 * tickSpacing;
-        tickUpper = 10 * tickSpacing;
+        tickLower = -10 * tickDistance;
+        tickUpper = 10 * tickDistance;
         reinvestmentToken = (await ethers.getContractAt(
           'ReinvestmentTokenMaster',
           await pool.reinvestmentToken()
@@ -1371,7 +1371,7 @@ describe('ProAMMPool', () => {
         await callback.unlockPool(pool.address, initialPrice, '0x');
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
-        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
         tickLower = nearestTickToPrice - 1000;
         tickUpper = nearestTickToPrice + 1000;
 
@@ -1403,7 +1403,7 @@ describe('ProAMMPool', () => {
         await callback.unlockPool(pool.address, initialPrice, '0x');
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
-        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
         tickLower = nearestTickToPrice - 1000;
         tickUpper = nearestTickToPrice + 1000;
 
@@ -1438,30 +1438,30 @@ describe('ProAMMPool', () => {
         await callback.unlockPool(pool.address, initialPrice, '0x');
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
-        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
 
         // mint 3 position to test
         await callback.mint(
           pool.address,
           user.address,
-          nearestTickToPrice - 500 * tickSpacing,
-          nearestTickToPrice + 500 * tickSpacing,
+          nearestTickToPrice - 500 * tickDistance,
+          nearestTickToPrice + 500 * tickDistance,
           PRECISION.mul(10),
           '0x'
         );
         await callback.mint(
           pool.address,
           user.address,
-          nearestTickToPrice - 2 * tickSpacing,
-          nearestTickToPrice + 2 * tickSpacing,
+          nearestTickToPrice - 2 * tickDistance,
+          nearestTickToPrice + 2 * tickDistance,
           PRECISION.mul(100),
           '0x'
         );
         await callback.mint(
           pool.address,
           user.address,
-          nearestTickToPrice - 4 * tickSpacing,
-          nearestTickToPrice + 4 * tickSpacing,
+          nearestTickToPrice - 4 * tickDistance,
+          nearestTickToPrice + 4 * tickDistance,
           PRECISION.mul(100),
           '0x'
         );
@@ -1493,8 +1493,8 @@ describe('ProAMMPool', () => {
       });
 
       it('tests token0 exactInput (move down tick)', async () => {
-        tickLower = nearestTickToPrice - 500 * tickSpacing;
-        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        tickLower = nearestTickToPrice - 500 * tickDistance;
+        tickUpper = nearestTickToPrice + 2 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
         let token0BalanceBefore = await token0.balanceOf(user.address);
         let token1BalanceBefore = await token1.balanceOf(user.address);
@@ -1507,7 +1507,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactInputSingle({
@@ -1523,7 +1523,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactInputSingle({
@@ -1540,7 +1540,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactInputSingle({
@@ -1557,8 +1557,8 @@ describe('ProAMMPool', () => {
       });
 
       it('tests token1 exactOutput (move down tick)', async () => {
-        tickLower = nearestTickToPrice - 500 * tickSpacing;
-        tickUpper = nearestTickToPrice + 2 * tickSpacing;
+        tickLower = nearestTickToPrice - 500 * tickDistance;
+        tickUpper = nearestTickToPrice + 2 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
         let token0BalanceBefore = await token0.balanceOf(user.address);
         let token1BalanceBefore = await token1.balanceOf(user.address);
@@ -1578,7 +1578,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token1 exactOutput - within a tick [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
@@ -1602,7 +1602,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 3 * tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
@@ -1626,7 +1626,7 @@ describe('ProAMMPool', () => {
       });
 
       it('#gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ]', async () => {
-        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickSpacing);
+        let priceLimit = await getPriceFromTick(nearestTickToPrice - 5 * tickDistance);
         priceLimit = priceLimit.add(1);
 
         let quoteResult = await quoter.callStatic.quoteExactOutputSingle({
@@ -1650,8 +1650,8 @@ describe('ProAMMPool', () => {
       });
 
       it('tests token1 exactInput (move up tick)', async () => {
-        tickLower = nearestTickToPrice - 2 * tickSpacing;
-        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        tickLower = nearestTickToPrice - 2 * tickDistance;
+        tickUpper = nearestTickToPrice + 500 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
         let token0BalanceBefore = await token0.balanceOf(user.address);
         let token1BalanceBefore = await token1.balanceOf(user.address);
@@ -1664,8 +1664,8 @@ describe('ProAMMPool', () => {
       });
 
       it('tests token0 exactOutput (move up tick)', async () => {
-        tickLower = nearestTickToPrice - 2 * tickSpacing;
-        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        tickLower = nearestTickToPrice - 2 * tickDistance;
+        tickUpper = nearestTickToPrice + 500 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
         let token0BalanceBefore = await token0.balanceOf(user.address);
         let token1BalanceBefore = await token1.balanceOf(user.address);
@@ -1685,8 +1685,8 @@ describe('ProAMMPool', () => {
       });
 
       it('should fail if callback fails to send sufficient qty back to the pool', async () => {
-        tickLower = nearestTickToPrice - 500 * tickSpacing;
-        tickUpper = nearestTickToPrice + 500 * tickSpacing;
+        tickLower = nearestTickToPrice - 500 * tickDistance;
+        tickUpper = nearestTickToPrice + 500 * tickDistance;
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
 
         // downTick: send insufficient qty0
@@ -1702,8 +1702,8 @@ describe('ProAMMPool', () => {
 
       describe('fees', async () => {
         beforeEach('mint position and init rToken', async () => {
-          tickLower = nearestTickToPrice - 100 * tickSpacing;
-          tickUpper = nearestTickToPrice + 100 * tickSpacing;
+          tickLower = nearestTickToPrice - 100 * tickDistance;
+          tickUpper = nearestTickToPrice + 100 * tickDistance;
           await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(10), '0x');
           reinvestmentToken = (await ethers.getContractAt(
             'ReinvestmentTokenMaster',
@@ -1818,9 +1818,9 @@ describe('ProAMMPool', () => {
     describe('after unlockPool', async () => {
       beforeEach('unlock pool with initial price of 2:1 & mint 1 position', async () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
-        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickSpacing)).toNumber();
-        tickLower = nearestTickToPrice - 100 * tickSpacing;
-        tickUpper = nearestTickToPrice + 100 * tickSpacing;
+        nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+        tickLower = nearestTickToPrice - 100 * tickDistance;
+        tickUpper = nearestTickToPrice + 100 * tickDistance;
         await callback.unlockPool(pool.address, initialPrice, '0x');
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION.mul(BPS), '0x');

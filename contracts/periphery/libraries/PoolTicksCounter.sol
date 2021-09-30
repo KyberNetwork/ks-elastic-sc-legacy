@@ -23,13 +23,13 @@ library PoolTicksCounter {
     // bool tickAfterInitialized;
 
     // {
-    //   int24 tickSpacing = self.tickSpacing();
+    //   int24 tickDistance = self.tickDistance();
     //   int16 wordPos;
     //   uint8 bitPos;
-    //   (wordPos, bitPos, tickBeforeInitialized) = position(self, tickBefore, tickSpacing);
+    //   (wordPos, bitPos, tickBeforeInitialized) = position(self, tickBefore, tickDistance);
     //   int16 wordPosAfter;
     //   uint8 bitPosAfter;
-    //   (wordPosAfter, bitPosAfter, tickAfterInitialized) = position(self, tickAfter, tickSpacing);
+    //   (wordPosAfter, bitPosAfter, tickAfterInitialized) = position(self, tickAfter, tickDistance);
 
     //   if (tickBefore <= tickAfter) {
     //     wordPosLower = wordPos;
@@ -77,7 +77,7 @@ library PoolTicksCounter {
   function position(
     IProAMMPool self,
     int24 tick,
-    int24 tickSpacing
+    int24 tickDistance
   )
     private
     view
@@ -87,10 +87,10 @@ library PoolTicksCounter {
       bool isInitialized
     )
   {
-    // int24 compressed = tick / tickSpacing;
+    // int24 compressed = tick / tickDistance;
     // // in case tick is negative, we must round down
     // // -5 / 4 = -1 (we expected compress = -2)
-    // if (tick < 0 && tick % tickSpacing != 0) compressed--;
+    // if (tick < 0 && tick % tickDistance != 0) compressed--;
     // wordPos = int16(compressed >> 8);
     // bitPos = uint8(int8(compressed % 256));
     // isInitialized = self.tickBitmap(wordPos) & (1 << bitPos) > 0;
