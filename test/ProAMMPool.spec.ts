@@ -1136,7 +1136,6 @@ describe('ProAMMPool', () => {
       it('should only transfer token1 if position burnt is below current tick', async () => {
         // push current tick to above tickUpper
         await swapToUpTick(pool, user, tickUpper);
-        // await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION))
           .to.emit(token1, 'Transfer')
           .to.not.emit(token0, 'Transfer');

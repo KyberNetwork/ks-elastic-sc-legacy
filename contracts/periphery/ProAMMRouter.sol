@@ -64,7 +64,7 @@ contract ProAMMRouter is
     } else {
       if (swapData.path.hasMultiplePools()) {
         swapData.path = swapData.path.skipToken();
-        swapExactOutputInternal(amountToTransfer, msg.sender, 0, swapData);
+        _swapExactOutputInternal(amountToTransfer, msg.sender, 0, swapData);
       } else {
         amountInCached = amountToTransfer;
         // transfer tokenOut to the pool (it's the original tokenIn)
@@ -75,7 +75,7 @@ contract ProAMMRouter is
   }
 
   /// @dev Performs a single exact input swap
-  function swapExactInputInternal(
+  function _swapExactInputInternal(
     uint256 amountIn,
     address recipient,
     uint160 sqrtPriceLimitX96,
@@ -107,7 +107,7 @@ contract ProAMMRouter is
     onlyNotExpired(params.deadline)
     returns (uint256 amountOut)
   {
-    amountOut = swapExactInputInternal(
+    amountOut = _swapExactInputInternal(
       params.amountIn,
       params.recipient,
       params.sqrtPriceLimitX96,
@@ -131,7 +131,7 @@ contract ProAMMRouter is
     while (true) {
       bool hasMultiplePools = params.path.hasMultiplePools();
 
-      params.amountIn = swapExactInputInternal(
+      params.amountIn = _swapExactInputInternal(
         params.amountIn,
         hasMultiplePools ? address(this) : params.recipient, // for intermediate swaps, this contract custodies
         0,
@@ -151,7 +151,7 @@ contract ProAMMRouter is
   }
 
   /// @dev Perform a swap exact amount out using callback
-  function swapExactOutputInternal(
+  function _swapExactOutputInternal(
     uint256 amountOut,
     address recipient,
     uint160 sqrtPriceLimitX96,
@@ -190,7 +190,7 @@ contract ProAMMRouter is
     onlyNotExpired(params.deadline)
     returns (uint256 amountIn)
   {
-    amountIn = swapExactOutputInternal(
+    amountIn = _swapExactOutputInternal(
       params.amountOut,
       params.recipient,
       params.sqrtPriceLimitX96,
@@ -211,7 +211,7 @@ contract ProAMMRouter is
     onlyNotExpired(params.deadline)
     returns (uint256 amountIn)
   {
-    swapExactOutputInternal(
+    _swapExactOutputInternal(
       params.amountOut,
       params.recipient,
       0,

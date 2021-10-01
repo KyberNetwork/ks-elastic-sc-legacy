@@ -28,7 +28,7 @@ abstract contract PoolStorage is IPoolStorage {
     uint160 sqrtPrice;
     int24 nearestCurrentTick;
     int24 currentTick;
-    uint8 locked;
+    bool locked;
   }
 
   // data stored for each initialized individual tick
@@ -111,7 +111,7 @@ abstract contract PoolStorage is IPoolStorage {
 
     _reinvestmentToken.initialize();
     reinvestmentToken = _reinvestmentToken;
-    poolData.locked = 2; // set pool to locked state
+    poolData.locked = true; // set pool to locked state
   }
 
   function initPoolStorage(
@@ -171,7 +171,7 @@ abstract contract PoolStorage is IPoolStorage {
     _poolSqrtPrice = poolData.sqrtPrice;
     _poolTick = poolData.currentTick;
     _nearestCurrentTick = poolData.nearestCurrentTick;
-    _locked = poolData.locked == 2;
+    _locked = poolData.locked;
     _poolLiquidity = poolData.liquidity;
   }
 
