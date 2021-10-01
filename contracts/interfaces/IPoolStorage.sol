@@ -38,7 +38,7 @@ interface IPoolStorage {
   /// @dev This parameter is enforced per tick to prevent liquidity from overflowing a uint128 at any point, and
   /// also prevents out-of-range liquidity from being used to prevent adding in-range liquidity to a pool
   /// @return The max amount of liquidity per tick
-  function maxLiquidityPerTick() external view returns (uint128);
+  function maxTickLiquidity() external view returns (uint128);
 
   /// @notice Look up information about a specific tick in the pool
   /// @param tick The tick to look up

@@ -26,10 +26,10 @@ library PoolTicksCounter {
     //   int24 tickDistance = self.tickDistance();
     //   int16 wordPos;
     //   uint8 bitPos;
-    //   (wordPos, bitPos, tickBeforeInitialized) = position(self, tickBefore, tickDistance);
+    //   (wordPos, bitPos, tickBeforeInitialized) = _position(self, tickBefore, tickDistance);
     //   int16 wordPosAfter;
     //   uint8 bitPosAfter;
-    //   (wordPosAfter, bitPosAfter, tickAfterInitialized) = position(self, tickAfter, tickDistance);
+    //   (wordPosAfter, bitPosAfter, tickAfterInitialized) = _position(self, tickAfter, tickDistance);
 
     //   if (tickBefore <= tickAfter) {
     //     wordPosLower = wordPos;
@@ -74,7 +74,7 @@ library PoolTicksCounter {
     // return initializedTicksCrossed;
   }
 
-  function position(
+  function _position(
     IProAMMPool self,
     int24 tick,
     int24 tickDistance

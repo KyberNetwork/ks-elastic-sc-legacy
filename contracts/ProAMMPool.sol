@@ -42,7 +42,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   /// @dev Get pool's balance of token0
   /// Gas saving to avoid a redundant extcodesize check
   /// in addition to the returndatasize check
-  function poolBalToken0() private view returns (uint256) {
+  function _poolBalToken0() private view returns (uint256) {
     (bool success, bytes memory data) = address(token0).staticcall(
       abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
     );
@@ -53,7 +53,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   /// @dev Get pool's balance of token1
   /// Gas saving to avoid a redundant extcodesize check
   /// in addition to the returndatasize check
-  function poolBalToken1() private view returns (uint256) {
+  function _poolBalToken1() private view returns (uint256) {
     (bool success, bytes memory data) = address(token1).staticcall(
       abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
     );
@@ -74,9 +74,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtPrice, MIN_LIQUIDITY);
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
     // because of price bounds, qty0 and qty1 >= 1
-    require(qty0 <= poolBalToken0(), 'lacking qty0');
-    require(qty1 <= poolBalToken1(), 'lacking qty1');
-
+    require(qty0 <= _poolBalToken0(), 'lacking qty0');
+    require(qty1 <= _poolBalToken1(), 'lacking qty1');
     reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
 
     initPoolStorage(initialSqrtPrice, initialTick);
@@ -97,19 +96,18 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     )
   {
     require(posData.tickLower < posData.tickUpper, 'invalid tick range');
-    require(posData.tickLower >= TickMath.MIN_TICK, 'invalid lower tick');
+    require(TickMath.MIN_TICK <= posData.tickLower, 'invalid lower tick');
     require(posData.tickUpper <= TickMath.MAX_TICK, 'invalid upper tick');
     require(
       posData.tickLower % tickDistance == 0 && posData.tickUpper % tickDistance == 0,
       'tick not in distance'
     );
 
-    // SLOADs for gas optimization
+    // SLOAD variables into memory
     uint160 _poolSqrtPrice = poolData.sqrtPrice;
     int24 _poolTick = poolData.currentTick;
     uint128 lp = poolData.liquidity;
     uint128 lf = poolData.reinvestmentLiquidity;
-
     CumulativesData memory cumulatives = CumulativesData({
       feeGrowth: poolData.feeGrowthGlobal,
       secondsPerLiquidity: poolData.secondsPerLiquidityGlobal
@@ -128,7 +126,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       posData,
       _poolTick,
       cumulatives,
-      maxLiquidityPerTick
+      maxTickLiquidity
     );
     if (feesClaimable != 0) reinvestmentToken.safeTransfer(posData.owner, feesClaimable);
 
@@ -138,41 +136,50 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       // which occurs when pool increases in token1, decreases in token0
       // means token0 is appreciating more against token1
       // hence user should provide token0
-      qty0 = QtyDeltaMath.getQty0Delta(
-        TickMath.getSqrtRatioAtTick(posData.tickLower),
-        TickMath.getSqrtRatioAtTick(posData.tickUpper),
-        posData.liquidityDelta
+      return (
+        QtyDeltaMath.calcRequiredQty0(
+          TickMath.getSqrtRatioAtTick(posData.tickLower),
+          TickMath.getSqrtRatioAtTick(posData.tickUpper),
+          posData.liquidityDelta
+        ),
+        0,
+        feeGrowthInsideLast
       );
-    } else if (_poolTick < posData.tickUpper) {
-      // current tick is inside the passed range
-      // update secondsPerLiquidityGlobal because poolData.liquidity will be updated
-      updateTimeData(cumulatives.secondsPerLiquidity, lp);
-      qty0 = QtyDeltaMath.getQty0Delta(
-        _poolSqrtPrice,
-        TickMath.getSqrtRatioAtTick(posData.tickUpper),
-        posData.liquidityDelta
-      );
-      qty1 = QtyDeltaMath.getQty1Delta(
-        TickMath.getSqrtRatioAtTick(posData.tickLower),
-        _poolSqrtPrice,
-        posData.liquidityDelta
-      );
-
-      // in addition, add liquidityDelta to current poolData.liquidity
-      // since liquidity is in range
-      poolData.liquidity = LiqDeltaMath.addLiquidityDelta(lp, posData.liquidityDelta);
-    } else {
-      // current tick >= position range
+    } 
+    if (_poolTick >= posData.tickUpper) {
+      // current tick > position range
       // liquidity only comes in range when tick decreases
       // which occurs when pool decreases in token1, increases in token0
       // means token1 is appreciating more against token0
       // hence user should provide token1
-      qty1 = QtyDeltaMath.getQty1Delta(
-        TickMath.getSqrtRatioAtTick(posData.tickLower),
-        TickMath.getSqrtRatioAtTick(posData.tickUpper),
-        posData.liquidityDelta
+      return (
+        0,
+        QtyDeltaMath.calcRequiredQty1(
+          TickMath.getSqrtRatioAtTick(posData.tickLower),
+          TickMath.getSqrtRatioAtTick(posData.tickUpper),
+          posData.liquidityDelta
+        ),
+        feeGrowthInsideLast
       );
     }
+    // current tick is inside the passed range
+    // update secondsPerLiquidityGlobal because poolLiquidity will be updated
+    _updateTimeData(cumulatives.secondsPerLiquidity, lp);
+
+    qty0 = QtyDeltaMath.calcRequiredQty0(
+      _poolSqrtPrice,
+      TickMath.getSqrtRatioAtTick(posData.tickUpper),
+      posData.liquidityDelta
+    );
+    qty1 = QtyDeltaMath.calcRequiredQty1(
+      TickMath.getSqrtRatioAtTick(posData.tickLower),
+      _poolSqrtPrice,
+      posData.liquidityDelta
+    );
+
+    // in addition, add liquidityDelta to current poolData.liquidity
+    // since liquidity is in range
+    poolData.liquidity = LiqDeltaMath.addLiquidityDelta(lp, posData.liquidityDelta);
   }
 
   /// @inheritdoc IProAMMPoolActions
@@ -192,7 +199,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       uint256 feeGrowthInsideLast
     )
   {
-    require(qty > 0, '0 qty');
+    require(qty != 0, '0 qty');
     require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
     int256 qty0Int;
     int256 qty1Int;
@@ -209,11 +216,11 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
     uint256 balance0Before;
     uint256 balance1Before;
-    if (qty0 > 0) balance0Before = poolBalToken0();
-    if (qty1 > 0) balance1Before = poolBalToken1();
+    if (qty0 > 0) balance0Before = _poolBalToken0();
+    if (qty1 > 0) balance1Before = _poolBalToken1();
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
-    if (qty0 > 0) require(balance0Before + qty0 <= poolBalToken0(), 'lacking qty0');
-    if (qty1 > 0) require(balance1Before + qty1 <= poolBalToken1(), 'lacking qty1');
+    if (qty0 > 0) require(balance0Before + qty0 <= _poolBalToken0(), 'lacking qty0');
+    if (qty1 > 0) require(balance1Before + qty1 <= _poolBalToken1(), 'lacking qty1');
 
     emit Mint(msg.sender, recipient, tickLower, tickUpper, qty, qty0, qty1);
   }
@@ -233,7 +240,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       uint256 feeGrowthInsideLast
     )
   {
-    require(qty > 0, '0 qty');
+    require(qty != 0, '0 qty');
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feeGrowthInsideLast) = _tweakPosition(
@@ -259,11 +266,17 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
   /// @inheritdoc IProAMMPoolActions
   function burnRTokens(uint256 _qty) external override lock returns (uint256 qty0, uint256 qty1) {
-    // SLOADs for gas optimizations
+    // SLOAD variables into memory
     uint128 lf = poolData.reinvestmentLiquidity;
     uint160 pc = poolData.sqrtPrice;
     uint256 rTotalSupply = reinvestmentToken.totalSupply();
-    (rTotalSupply, ) = _syncReinvestments(poolData.liquidity, lf, rTotalSupply, poolData.feeGrowthGlobal, false);
+    (rTotalSupply, ) = _syncReinvestments(
+      poolData.liquidity,
+      lf,
+      rTotalSupply,
+      poolData.feeGrowthGlobal,
+      false
+    );
 
     // burn _qty of caller
     // position manager should transfer _qty from user to itself, but not send it to the pool
@@ -324,8 +337,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     swapData.deltaRemaining = swapQty;
     swapData.isToken0 = isToken0;
     swapData.isExactInput = swapData.deltaRemaining > 0;
-
-    // tick (token1Amt/token0Amt) will increase for swaping from token1 to token0
+    // tick (token1Qty/token0Qty) will increase for swapping from token1 to token0
     bool willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
 
     (swapData.lp, swapData.lf, swapData.sqrtPc, swapData.currentTick, swapData.nextTick) =
@@ -335,8 +347,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
       int24 tempNextTick = swapData.nextTick;
 
-      // since nextTick is an initalized one, the price movement can be > 5%
-      // use tempNextTick to ensure the price diff is capped at 5% to sastify our assumption
+      // math calculations work with the assumption that the price diff is capped to 5%
+      // since tick distance is uncapped between currentTick and nextTick
+      // we use tempNextTick to satisfy our assumption
       if (willUpTick && tempNextTick > C.MAX_TICK_DISTANCE + swapData.currentTick) {
         tempNextTick = swapData.currentTick + C.MAX_TICK_DISTANCE;
       } else if (!willUpTick && tempNextTick < swapData.currentTick - C.MAX_TICK_DISTANCE) {
@@ -349,15 +362,17 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       {
         uint160 targetSqrtP = swapData.nextSqrtP;
         // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-        if (willUpTick ? (swapData.nextSqrtP > sqrtPriceLimit) : (swapData.nextSqrtP < sqrtPriceLimit)) {
+        if (
+          willUpTick
+            ? (swapData.nextSqrtP > sqrtPriceLimit)
+            : (swapData.nextSqrtP < sqrtPriceLimit)
+        ) {
           targetSqrtP = sqrtPriceLimit;
         }
 
         int256 deltaNext;
         int256 actualDelta;
         uint256 lc;
-
-        uint160 previousSqrtPc = swapData.sqrtPc;
 
         (deltaNext, actualDelta, lc, swapData.sqrtPc) = SwapMath.computeSwapStep(
           swapData.lp + swapData.lf,
@@ -378,16 +393,16 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
           : TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
       }
 
-      // if price is not reached the next sqrt price or it is not reached the next tick
+      // if price has not reached the next sqrt price or the next initialized tick
       if (swapData.sqrtPc != swapData.nextSqrtP || tempNextTick != swapData.nextTick) continue;
 
       if (swapData.rTotalSupplyInitial == 0) {
-        // initialize reinvestment variables
+        // load variables that are only initialized when crossing a tick
         swapData.lfLast = poolData.reinvestmentLiquidityLast;
         swapData.feeGrowthGlobal = poolData.feeGrowthGlobal;
         swapData.rTotalSupplyInitial = reinvestmentToken.totalSupply();
         swapData.rTotalSupply = swapData.rTotalSupplyInitial;
-        swapData.secondsPerLiquidityGlobal = updateTimeData(
+        swapData.secondsPerLiquidityGlobal = _updateTimeData(
           poolData.secondsPerLiquidityGlobal,
           swapData.lp
         );
@@ -438,31 +453,37 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       poolData.feeGrowthGlobal = swapData.feeGrowthGlobal;
     }
 
-    updatePoolData(swapData.lp, swapData.lf, swapData.sqrtPc, swapData.currentTick, swapData.nextTick);
+    updatePoolData(
+      swapData.lp,
+      swapData.lf,
+      swapData.sqrtPc,
+      swapData.currentTick,
+      swapData.nextTick
+    );
 
     (deltaQty0, deltaQty1) = isToken0
       ? (swapQty - swapData.deltaRemaining, swapData.actualDelta)
       : (swapData.actualDelta, swapQty - swapData.deltaRemaining);
 
-    // handle token transfers, make and callback
+    // handle token transfers and perform callback
     if (willUpTick) {
       // outbound deltaQty0 (negative), inbound deltaQty1 (positive)
       // transfer deltaQty0 to recipient
       if (deltaQty0 < 0) token0.safeTransfer(recipient, deltaQty0.revToUint256());
 
       // collect deltaQty1
-      uint256 balance1Before = poolBalToken1();
+      uint256 balance1Before = _poolBalToken1();
       IProAMMSwapCallback(msg.sender).proAMMSwapCallback(deltaQty0, deltaQty1, data);
-      require(poolBalToken1() >= balance1Before + uint256(deltaQty1), 'lacking deltaQty1');
+      require(_poolBalToken1() >= balance1Before + uint256(deltaQty1), 'lacking deltaQty1');
     } else {
       // inbound deltaQty0 (positive), outbound deltaQty1 (negative)
       // transfer deltaQty1 to recipient
       if (deltaQty1 < 0) token1.safeTransfer(recipient, deltaQty1.revToUint256());
 
       // collect deltaQty0
-      uint256 balance0Before = poolBalToken0();
+      uint256 balance0Before = _poolBalToken0();
       IProAMMSwapCallback(msg.sender).proAMMSwapCallback(deltaQty0, deltaQty1, data);
-      require(poolBalToken0() >= balance0Before + uint256(deltaQty0), 'lacking deltaQty0');
+      require(_poolBalToken0() >= balance0Before + uint256(deltaQty0), 'lacking deltaQty0');
     }
 
     emit Swap(
@@ -476,7 +497,49 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     );
   }
 
-  function updateTimeData(uint128 _secondsPerLiquidityGlobal, uint128 lp)
+  /// @inheritdoc IProAMMPoolActions
+  function flash(
+    address recipient,
+    uint256 qty0,
+    uint256 qty1,
+    bytes calldata data
+  ) external override lock {
+    // send all collected fees to feeTo
+    (address feeTo, ) = factory.feeConfiguration();
+    uint256 feeQty0;
+    uint256 feeQty1;
+    if (feeTo != address(0)) {
+      feeQty0 = (qty0 * swapFeeBps) / C.BPS;
+      feeQty1 = (qty1 * swapFeeBps) / C.BPS;
+    }
+    uint256 balance0Before = _poolBalToken0();
+    uint256 balance1Before = _poolBalToken1();
+
+    if (qty0 > 0) token0.safeTransfer(recipient, qty0);
+    if (qty1 > 0) token1.safeTransfer(recipient, qty1);
+
+    IProAMMFlashCallback(msg.sender).proAMMFlashCallback(feeQty0, feeQty1, data);
+
+    uint256 balance0After = _poolBalToken0();
+    uint256 balance1After = _poolBalToken1();
+
+    require(balance0Before + feeQty0 <= balance0After, 'lacking feeQty0');
+    require(balance1Before + feeQty1 <= balance1After, 'lacking feeQty1');
+
+    uint256 paid0;
+    uint256 paid1;
+    unchecked {
+      paid0 = balance0After - balance0Before;
+      paid1 = balance1After - balance1Before;
+    }
+
+    if (paid0 > 0) token0.safeTransfer(feeTo, paid0);
+    if (paid1 > 0) token1.safeTransfer(feeTo, paid1);
+
+    emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
+  }
+
+  function _updateTimeData(uint128 _secondsPerLiquidityGlobal, uint128 lp)
     internal
     returns (
       uint128 //_secondsPerLiquidityGlobal
@@ -514,69 +577,29 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     );
     if (rMintQty != 0) {
       rTotalSupply += rMintQty;
-      rMintQty -= _mintRTokensWithGovtFee(rMintQty);
+      // scoping for government fees
+      {
+        // mintRTokens
+        reinvestmentToken.mint(address(this), rMintQty);
+        // fetch governmentFeeBps
+        (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
+        if (governmentFeeBps > 0) {
+          // take a cut of fees for government
+          uint256 rGovtQty = (rMintQty * governmentFeeBps) / C.BPS;
+          // transfer rTokens to feeTo
+          reinvestmentToken.safeTransfer(feeTo, rGovtQty);
+          // exclude rGovtQty from feeGrowthGlobal increment
+          rMintQty -= rGovtQty;
+        }
+      }
       // lp != 0 because lp = 0 => rMintQty = 0
-      unchecked { _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp); }
+      unchecked {
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+      }
       poolData.feeGrowthGlobal = _feeGrowthGlobal;
     }
     // update poolData.reinvestmentLiquidityLast if required
     if (updateLfLast) poolData.reinvestmentLiquidityLast = lf;
     return (rTotalSupply, _feeGrowthGlobal);
-  }
-
-  function _mintRTokensWithGovtFee(uint256 rMintQty) internal returns (uint256 rGovtQty) {
-    reinvestmentToken.mint(address(this), rMintQty);
-    // fetch governmentFeeBps
-    (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
-    if (governmentFeeBps > 0) {
-      // take a cut of fees for government
-      rGovtQty = (rMintQty * governmentFeeBps) / C.BPS;
-      // transfer rTokens to feeTo
-      reinvestmentToken.safeTransfer(feeTo, rGovtQty);
-    }
-  }
-
-  /// @inheritdoc IProAMMPoolActions
-  function flash(
-    address recipient,
-    uint256 qty0,
-    uint256 qty1,
-    bytes calldata data
-  ) external override lock {
-    require(poolData.liquidity > 0, '0 liquidity');
-
-    // send all collected fees to feeTo
-    (address feeTo, ) = factory.feeConfiguration();
-    uint256 feeQty0;
-    uint256 feeQty1;
-    if (feeTo != address(0)) {
-      feeQty0 = (qty0 * swapFeeBps) / C.BPS;
-      feeQty1 = (qty1 * swapFeeBps) / C.BPS;
-    }
-    uint256 balance0Before = poolBalToken0();
-    uint256 balance1Before = poolBalToken1();
-
-    if (qty0 > 0) token0.safeTransfer(recipient, qty0);
-    if (qty1 > 0) token1.safeTransfer(recipient, qty1);
-
-    IProAMMFlashCallback(msg.sender).proAMMFlashCallback(feeQty0, feeQty1, data);
-
-    uint256 balance0After = poolBalToken0();
-    uint256 balance1After = poolBalToken1();
-
-    require(balance0Before + feeQty0 <= balance0After, 'lacking feeQty0');
-    require(balance1Before + feeQty1 <= balance1After, 'lacking feeQty1');
-
-    uint256 paid0;
-    uint256 paid1;
-    unchecked {
-      paid0 = balance0After - balance0Before;
-      paid1 = balance1After - balance1Before;
-    }
-
-    if (paid0 > 0) token0.safeTransfer(feeTo, paid0);
-    if (paid1 > 0) token1.safeTransfer(feeTo, paid1);
-
-    emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   }
 }

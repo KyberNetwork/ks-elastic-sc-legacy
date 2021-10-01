@@ -78,7 +78,7 @@ abstract contract PoolStorage is IPoolStorage {
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
   IReinvestmentToken public immutable override reinvestmentToken;
-  uint128 public immutable override maxLiquidityPerTick;
+  uint128 public immutable override maxTickLiquidity;
   uint16 public immutable override swapFeeBps;
   int24 public immutable override tickDistance;
 
@@ -104,14 +104,14 @@ abstract contract PoolStorage is IPoolStorage {
     swapFeeBps = _swapFeeBps;
     tickDistance = _tickDistance;
 
-    maxLiquidityPerTick = type(uint128).max / TickMath.getMaxNumberTicks(_tickDistance);
+    maxTickLiquidity = type(uint128).max / TickMath.getMaxNumberTicks(_tickDistance);
     IReinvestmentToken _reinvestmentToken = IReinvestmentToken(
       IProAMMFactory(_factory).reinvestmentTokenMaster().clone()
     );
 
     _reinvestmentToken.initialize();
     reinvestmentToken = _reinvestmentToken;
-    poolData.locked = true;
+    poolData.locked = true; // set pool to locked state
   }
 
   function initPoolStorage(
