@@ -1271,6 +1271,7 @@ describe('ProAMMPool', () => {
         .to.emit(token1, 'Transfer')
         .to.not.emit(token0, 'Transfer');
       expect((await pool.getPoolState())._poolTick).to.be.gte(100);
+      expect((await pool.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
 
     it('should execute a position converting token1 to token0', async () => {
@@ -1287,6 +1288,7 @@ describe('ProAMMPool', () => {
         .to.emit(token0, 'Transfer')
         .to.not.emit(token1, 'Transfer');
       expect((await pool.getPoolState())._poolTick).to.be.lte(-100);
+      expect((await pool.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
   });
 

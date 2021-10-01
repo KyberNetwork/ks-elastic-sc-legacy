@@ -373,12 +373,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         swapData.actualDelta += actualDelta;
         swapData.lf += lc.toUint128();
 
-        if (swapData.sqrtPc != previousSqrtPc) {
-          // need to update the current tick to match with new sqrt price
-          swapData.currentTick = swapData.sqrtPc == swapData.nextSqrtP
-            ? tempNextTick // save gas by not re-computing
-            : TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
-        }
+        swapData.currentTick = swapData.sqrtPc == swapData.nextSqrtP
+          ? tempNextTick // save gas by not re-computing
+          : TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
       }
 
       // if price is not reached the next sqrt price or it is not reached the next tick

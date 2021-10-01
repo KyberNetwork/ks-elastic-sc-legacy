@@ -5,8 +5,9 @@ import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
 import {FullMath} from './libraries/FullMath.sol';
+import {TickMath} from './libraries/TickMath.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
-import {PoolStorage, TickMath} from './PoolStorage.sol';
+import {PoolStorage} from './PoolStorage.sol';
 
 
 contract ProAMMPoolTicksState is PoolStorage {
@@ -163,7 +164,7 @@ contract ProAMMPoolTicksState is PoolStorage {
 
     // calculate accumulated fees for current liquidity
     // (ie. does not include liquidityDelta)
-    // it could grow from negative value to a positive value, thus, need to use unchecked here
+    // feeGrowthInside is relative value, hence underflow is acceptable
     uint256 feeGrowth;
     unchecked { feeGrowth = feeGrowthInside - _position.feeGrowthInsideLast; }
     feesClaimable = FullMath.mulDivFloor(
