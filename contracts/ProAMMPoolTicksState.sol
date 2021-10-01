@@ -1,99 +1,44 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.4;
 
-import {TickBitmap} from './libraries/TickBitmap.sol';
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {MathConstants} from './libraries/MathConstants.sol';
 import {FullMath} from './libraries/FullMath.sol';
 import {TickMath} from './libraries/TickMath.sol';
+import {Linkedlist} from './libraries/Linkedlist.sol';
+import {PoolStorage} from './PoolStorage.sol';
 
-import {IProAMMPoolTicksState} from './interfaces/pool/IProAMMPoolTicksState.sol';
 
-contract ProAMMPoolTicksState is IProAMMPoolTicksState {
+contract ProAMMPoolTicksState is PoolStorage {
   using SafeCast for int256;
-  using TickBitmap for mapping(int16 => uint256);
+  using Linkedlist for mapping(int24 => Linkedlist.Data);
 
-  // data stored for each initialized individual tick
-  struct TickData {
-    // gross liquidity of all positions in tick
-    uint128 liquidityGross;
-    // liquidity quantity to be added | removed when tick is crossed up | down
-    int128 liquidityNet;
-    // fee growth per unit of liquidity on the other side of this tick (relative to current tick)
-    // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint256 feeGrowthOutside;
-    // seconds spent on the other side of this tick (relative to current tick)
-    // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint160 secondsPerLiquidityOutside;
-    // true if liquidityGross != 0, false otherwise
-    // this prevents fresh sstores when crossing newly initialized ticks
-    bool initialized;
-  }
-
-  // data stored for each user's position
-  struct Position {
-    // the amount of liquidity owned by this position
-    uint128 liquidity;
-    // fee growth per unit of liquidity as of the last update to liquidity
-    uint256 feeGrowthInsideLast;
-  }
-
-  struct UpdatePositionData {
-    // address of owner of the position
-    address owner;
-    // position's lower and upper ticks
-    int24 tickLower;
-    int24 tickUpper;
-    // any change in liquidity
-    int128 liquidityDelta;
-  }
-
-  struct CumulativesData {
-    uint256 feeGrowth;
-    uint128 secondsPerLiquidity;
-  }
-
-  // uint128 public immutable maxLiquidityPerTick;
-
-  mapping(int24 => TickData) public override ticks;
-  mapping(int16 => uint256) public override tickBitmap;
-  mapping(bytes32 => Position) internal positions;
-
-  function getPositions(
-    address owner,
-    int24 tickLower,
-    int24 tickUpper
-  ) public view override returns (uint128 liquidity, uint256 feeGrowthInsideLast) {
-    bytes32 key = positionKey(owner, tickLower, tickUpper);
-    return (positions[key].liquidity, positions[key].feeGrowthInsideLast);
-  }
-
-  function _updatePosition(
+  function updatePosition(
     UpdatePositionData memory updateData,
     int24 currentTick,
     CumulativesData memory cumulatives,
-    uint128 maxLiquidityPerTick,
-    int24 tickSpacing
+    uint128 maxLiquidityPerTick
   ) internal returns (uint256 feesClaimable, uint256 feeGrowthInside) {
     // update ticks if necessary
-    uint256 feeGrowthOutsideLowerTick = updateTick(
+    uint256 feeGrowthOutsideLowerTick = _updateTick(
       updateData.tickLower,
       currentTick,
       updateData.liquidityDelta,
       cumulatives,
       true,
-      maxLiquidityPerTick,
-      tickSpacing
+      maxLiquidityPerTick
+      // updateData.tickLowerPrevious,
     );
-    uint256 feeGrowthOutsideUpperTick = updateTick(
+
+    uint256 feeGrowthOutsideUpperTick = _updateTick(
       updateData.tickUpper,
       currentTick,
       updateData.liquidityDelta,
       cumulatives,
       false,
-      maxLiquidityPerTick,
-      tickSpacing
+      maxLiquidityPerTick
+      // updateData.tickUpperPrevious,
     );
 
     feeGrowthInside = getValueInside(
@@ -105,49 +50,112 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     );
 
     // calc rTokens to be minted for the position's accumulated fees
-    feesClaimable = updatePositionFee(updateData, feeGrowthInside);
+    feesClaimable = _updatePositionFee(updateData, feeGrowthInside);
   }
 
-  function nextInitializedTick(
-    int24 currentTick,
-    int24 tickSpacing,
+  /// @dev Update liquidity net data and do cross tick
+  function updateLiquidityAndCrossTick(
+    int24 nextTick,
+    uint128 currentLiquidity,
+    uint256 feeGrowthGlobal,
+    uint128 secondsPerLiquidityGlobal,
     bool willUpTick
-  ) internal view returns (int24 nextTick, bool initialized) {
-    (nextTick, initialized) = tickBitmap.nextInitializedTickWithinOneWord(
-      currentTick,
-      tickSpacing,
-      willUpTick
+  )
+    internal
+    returns (uint128 newLiquidity, int24 newCurrentTick, int24 newNextTick)
+  {
+    unchecked {
+      ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
+      ticks[nextTick].secondsPerLiquidityOutside =
+        secondsPerLiquidityGlobal - ticks[nextTick].secondsPerLiquidityOutside;
+    }
+    newCurrentTick = willUpTick ? nextTick : nextTick - 1;
+    newNextTick = willUpTick ? initializedTicks[nextTick].next : initializedTicks[nextTick].previous;
+    newLiquidity = LiqDeltaMath.addLiquidityDelta(
+      currentLiquidity,
+      willUpTick ? ticks[nextTick].liquidityNet : -ticks[nextTick].liquidityNet
     );
   }
 
-  function crossToTick(
-    int24 nextTick,
-    uint256 feeGrowthGlobal,
-    uint160 secondsPerLiquidityGlobal
-  ) internal returns (int128 liquidityNet) {
-    ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
-    ticks[nextTick].secondsPerLiquidityOutside =
-      secondsPerLiquidityGlobal -
-      ticks[nextTick].secondsPerLiquidityOutside;
-    liquidityNet = ticks[nextTick].liquidityNet;
+  function updatePoolData(
+    uint128 newLiquidity,
+    uint128 newRLiquidity,
+    uint160 newSqrtPrice,
+    int24 newCurrentTick,
+    int24 nextTick
+  ) internal {
+    poolData.liquidity = newLiquidity;
+    poolData.reinvestmentLiquidity = newRLiquidity;
+    poolData.sqrtPrice = newSqrtPrice;
+    poolData.currentTick = newCurrentTick;
+    poolData.nearestCurrentTick = nextTick > newCurrentTick
+      ? initializedTicks[nextTick].previous
+      : nextTick;
   }
 
-  function calcMaxLiquidityPerTick(int24 tickSpacing) internal pure returns (uint128) {
-    int24 minTick = (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
-    int24 maxTick = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
-    uint24 numTicks = uint24((maxTick - minTick) / tickSpacing) + 1;
-    return type(uint128).max / numTicks;
+  /// @notice Retrieves either fee growth or seconds per liquidity inside
+  ///   the value could be negative, thus, use unchecked here
+  /// @param tickLowerGrowthOutside Lower tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickUpperGrowthOutside Upper tick's feeGrowthOutside or secondsPerLiquidityOutside
+  /// @param tickCurrentBelowLower True if pool tick is below lower tick, false otherwise
+  /// @param tickCurrentBelowUpper True if pool tick is below upper tick, false otherwise
+  /// @param growthGlobal All-time global fee growth or seconds per unit of liquidity
+  /// Return the value inside per unit of liquidity, inside the position's tick boundaries
+  function getValueInside(
+    uint256 tickLowerGrowthOutside,
+    uint256 tickUpperGrowthOutside,
+    bool tickCurrentBelowLower,
+    bool tickCurrentBelowUpper,
+    uint256 growthGlobal
+  ) internal pure returns (uint256) {
+    unchecked {
+      if (tickCurrentBelowLower) return tickLowerGrowthOutside - tickUpperGrowthOutside;
+      if (!tickCurrentBelowUpper) return tickUpperGrowthOutside - tickLowerGrowthOutside;
+      return growthGlobal - tickLowerGrowthOutside - tickUpperGrowthOutside;
+    }
   }
 
-  function positionKey(
-    address owner,
-    int24 tickLower,
-    int24 tickUpper
-  ) private pure returns (bytes32) {
-    return keccak256(abi.encodePacked(owner, tickLower, tickUpper));
+  /**
+   * @dev Return initial data before swapping
+   * @param willUpTick whether is up/down tick
+   * @param sqrtPriceLimit price limit for the swap to check
+   * @return poolLiquidity current pool liquidity
+   * @return poolReinvestmentLiquidity current pool reinvestment liquidity
+   * @return poolSqrtPrice current pool sqrt price
+   * @return poolCurrentTick current pool tick
+   * @return poolNextTick next tick to calculate data
+   */
+  function getInitialSwapData(bool willUpTick, uint160 sqrtPriceLimit)
+    internal view
+    returns(
+      uint128 poolLiquidity,
+      uint128 poolReinvestmentLiquidity,
+      uint160 poolSqrtPrice,
+      int24 poolCurrentTick,
+      int24 poolNextTick
+    )
+  {
+    poolLiquidity = poolData.liquidity;
+    poolReinvestmentLiquidity = poolData.reinvestmentLiquidity;
+    poolSqrtPrice = poolData.sqrtPrice;
+    poolCurrentTick = poolData.currentTick;
+
+    if (willUpTick) {
+      require(
+        sqrtPriceLimit > poolSqrtPrice && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+      poolNextTick = initializedTicks[poolData.nearestCurrentTick].next;
+    } else {
+      require(
+        sqrtPriceLimit < poolSqrtPrice && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+      poolNextTick = poolData.nearestCurrentTick;
+    }
   }
 
-  function updatePositionFee(UpdatePositionData memory _data, uint256 feeGrowthInside)
+  function _updatePositionFee(UpdatePositionData memory _data, uint256 feeGrowthInside)
     private
     returns (uint256 feesClaimable)
   {
@@ -156,8 +164,11 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
 
     // calculate accumulated fees for current liquidity
     // (ie. does not include liquidityDelta)
+    // feeGrowthInside is relative value, hence underflow is acceptable
+    uint256 feeGrowth;
+    unchecked { feeGrowth = feeGrowthInside - _position.feeGrowthInsideLast; }
     feesClaimable = FullMath.mulDivFloor(
-      feeGrowthInside - _position.feeGrowthInsideLast,
+      feeGrowth,
       _position.liquidity,
       MathConstants.TWO_POW_96
     );
@@ -169,32 +180,7 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }
 
-  /// @notice Retrieves either fee growth or seconds per liquidity inside
-  /// @param tickLowerGrowthOutside Lower tick's feeGrowthOutside or secondsPerLiquidityOutside
-  /// @param tickUpperGrowthOutside Upper tick's feeGrowthOutside or secondsPerLiquidityOutside
-  /// @param tickCurrentBelowLower True if pool tick is below lower tick, false otherwise
-  /// @param tickCurrentBelowUpper True if pool tick is below upper tick, false otherwise
-  /// @param growthGlobal All-time global fee growth or seconds per unit of liquidity
-  /// @return growthInside Value inside per unit of liquidity, inside the position's tick boundaries
-  function getValueInside(
-    uint256 tickLowerGrowthOutside,
-    uint256 tickUpperGrowthOutside,
-    bool tickCurrentBelowLower,
-    bool tickCurrentBelowUpper,
-    uint256 growthGlobal
-  ) internal pure returns (uint256 growthInside) {
-    uint256 growthBelow = tickCurrentBelowLower
-      ? growthGlobal - tickLowerGrowthOutside
-      : tickLowerGrowthOutside;
-
-    uint256 growthAbove = tickCurrentBelowUpper
-      ? tickUpperGrowthOutside
-      : growthGlobal - tickUpperGrowthOutside;
-
-    growthInside = growthGlobal - growthBelow - growthAbove;
-  }
-
-  /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
+  /// @notice Updates a tick and returns the fee growth outside of that tick
   /// @param tick Tick to be updated
   /// @param tickCurrent Current tick
   /// @param liquidityDelta Liquidity quantity to be added | removed when tick is crossed up | down
@@ -202,19 +188,18 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
   /// @param isLower true | false if updating a position's lower | upper tick
   /// @param maxLiquidity The maximum liquidity allocation for a single tick
   /// @return feeGrowthOutside last value of feeGrowthOutside
-  function updateTick(
+  function _updateTick(
     int24 tick,
     int24 tickCurrent,
     int128 liquidityDelta,
     CumulativesData memory cumulatives,
     bool isLower,
-    uint128 maxLiquidity,
-    int24 tickSpacing
+    uint128 maxLiquidity
+    // tickPrevious,
   ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
-      liquidityGrossBefore,
-      liquidityDelta
+      liquidityGrossBefore, liquidityDelta
     );
     require(liquidityGrossAfter <= maxLiquidity, '> max liquidity');
     // if lower tick, liquidityDelta should be added | removed when crossed up | down
@@ -229,21 +214,51 @@ contract ProAMMPoolTicksState is IProAMMPoolTicksState {
         ticks[tick].feeGrowthOutside = cumulatives.feeGrowth;
         ticks[tick].secondsPerLiquidityOutside = cumulatives.secondsPerLiquidity;
       }
-
-      ticks[tick].initialized = true;
     }
 
     ticks[tick].liquidityGross = liquidityGrossAfter;
     ticks[tick].liquidityNet = liquidityNetAfter;
     feeGrowthOutside = ticks[tick].feeGrowthOutside;
 
-    bool flipped = (liquidityGrossAfter == 0) != (liquidityGrossBefore == 0);
-    if (flipped) {
-      tickBitmap.flipTick(tick, tickSpacing);
+    if (liquidityGrossBefore > 0 && liquidityGrossAfter == 0) {
+      delete ticks[tick];
     }
 
-    if (flipped && liquidityDelta < 0) {
-      delete ticks[tick];
+    if ((liquidityGrossBefore > 0) != (liquidityGrossAfter > 0)) {
+      _updateTickList(tick, tickCurrent, liquidityDelta > 0);
+    }
+  }
+
+  /**
+   * @dev Update the tick linkedlist
+   * @param tick tick index to update
+   * @param currentTick the pool currentt tick
+  //  *  previousTick the nearest initialized tick that is lower than the tick, in case adding
+   * @param isAdd whether is add or remove the tick
+   */
+  function _updateTickList(
+    int24 tick,
+    // int24 previousTick,
+    int24 currentTick,
+    bool isAdd
+  ) private {
+    if (isAdd) {
+      // TODO: Get this data from input params
+      int24 previousTick = TickMath.MIN_TICK;
+      while (initializedTicks[previousTick].next <= tick) {
+        previousTick = initializedTicks[previousTick].next;
+      }
+      if (tick == previousTick) return;
+      initializedTicks.insert(tick, previousTick);
+      if (poolData.nearestCurrentTick < tick && tick <= currentTick) {
+        poolData.nearestCurrentTick = tick;
+      }
+    } else {
+      if (tick == poolData.nearestCurrentTick) {
+        poolData.nearestCurrentTick = initializedTicks.remove(tick);
+      } else {
+        initializedTicks.remove(tick);
+      }
     }
   }
 }

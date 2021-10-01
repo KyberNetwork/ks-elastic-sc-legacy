@@ -28,7 +28,7 @@ let tokenA: MockToken;
 let tokenB: MockToken;
 let weth: MockWeth;
 let swapFeeBpsArray = [5, 30];
-let tickSpacingArray = [10, 60];
+let tickDistanceArray = [10, 60];
 let vestingPeriod = 100;
 let initialPrice = encodePriceSqrt(1, 1);
 let snapshotId: any;
@@ -54,10 +54,10 @@ describe('LiquidityHelper', () => {
     // whitelist liquidity helper
     await factory.connect(admin).addNFTManager(liquidityHelper.address);
 
-    // add any newly defined tickSpacing apart from default ones
+    // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickSpacingArray[i]);
+        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -153,8 +153,8 @@ describe('LiquidityHelper', () => {
           token1: token1,
           fee: swapFeeBpsArray[0],
           recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0],
-          tickUpper: 100 * tickSpacingArray[0],
+          tickLower: -100 * tickDistanceArray[0],
+          tickUpper: 100 * tickDistanceArray[0],
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
@@ -175,8 +175,8 @@ describe('LiquidityHelper', () => {
           token1: token1,
           fee: swapFeeBpsArray[0],
           recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0],
-          tickUpper: 100 * tickSpacingArray[0],
+          tickLower: -100 * tickDistanceArray[0],
+          tickUpper: 100 * tickDistanceArray[0],
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: PRECISION.add(ONE),
@@ -189,8 +189,8 @@ describe('LiquidityHelper', () => {
           token1: token1,
           fee: swapFeeBpsArray[0],
           recipient: user.address,
-          tickLower: -100 * tickSpacingArray[0],
-          tickUpper: 100 * tickSpacingArray[0],
+          tickLower: -100 * tickDistanceArray[0],
+          tickUpper: 100 * tickDistanceArray[0],
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
@@ -220,8 +220,8 @@ describe('LiquidityHelper', () => {
           token1: token1,
           fee: fee,
           recipient: user.address,
-          tickLower: -100 * tickSpacingArray[index],
-          tickUpper: 100 * tickSpacingArray[index],
+          tickLower: -100 * tickDistanceArray[index],
+          tickUpper: 100 * tickDistanceArray[index],
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
@@ -253,8 +253,8 @@ describe('LiquidityHelper', () => {
         token1: token1,
         fee: fee,
         recipient: user.address,
-        tickLower: -100 * tickSpacingArray[0],
-        tickUpper: 100 * tickSpacingArray[0],
+        tickLower: -100 * tickDistanceArray[0],
+        tickUpper: 100 * tickDistanceArray[0],
         amount0Desired: PRECISION,
         amount1Desired: PRECISION,
         amount0Min: BN.from(0),

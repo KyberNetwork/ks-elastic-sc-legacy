@@ -43,13 +43,25 @@ const config: HardhatUserConfig = {
       }
     ],
     overrides: {
-      'contracts/ProAMMFactory.sol': {
+      'contracts/periphery/NonfungiblePositionManager.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
             enabled: true,
             runs: 10000,
           },
+        }
+      },
+      'contracts/ProAMMFactory.sol': {
+        version: '0.8.4',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 5000,
+          },
+          metadata: {
+            bytecodeHash: 'none'
+          }
         }
       },
       'contracts/ProAMMPool.sol': {
@@ -57,19 +69,16 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10000,
+            runs: 5000,
           },
-          metadata: {
-            bytecodeHash: 'none'
-          }
         }
       },
-      'contracts/periphery/NonfungiblePositionManager.sol': {
+      'contracts/mock/MockProAMMPool.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10000,
+            runs: 5000,
           },
           metadata: {
             bytecodeHash: 'none'

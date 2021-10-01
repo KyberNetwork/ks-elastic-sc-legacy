@@ -2,7 +2,8 @@
 pragma solidity 0.8.4;
 pragma abicoder v2;
 
-import {IERC20, IProAMMPool, IProAMMFactory} from '../interfaces/IProAMMPool.sol';
+import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
+import {IERC20, IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 

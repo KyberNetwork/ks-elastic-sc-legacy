@@ -214,4 +214,10 @@ library TickMath {
         : tickLow;
     }
   }
+
+  function getMaxNumberTicks(int24 _tickDistance) internal pure returns (uint24 numTicks) {
+    int24 minTick = (TickMath.MIN_TICK / _tickDistance) * _tickDistance;
+    int24 maxTick = (TickMath.MAX_TICK / _tickDistance) * _tickDistance;
+    return uint24((maxTick - minTick) / _tickDistance) + 1;
+  }
 }

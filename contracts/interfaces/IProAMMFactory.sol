@@ -10,20 +10,20 @@ interface IProAMMFactory {
   /// @param token0 First pool token by address sort order
   /// @param token1 Second pool token by address sort order
   /// @param swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @param tickSpacing Minimum number of ticks between initialized ticks
+  /// @param tickDistance Minimum number of ticks between initialized ticks
   /// @param pool The address of the created pool
   event PoolCreated(
     address indexed token0,
     address indexed token1,
     uint16 indexed swapFeeBps,
-    int24 tickSpacing,
+    int24 tickDistance,
     address pool
   );
 
   /// @notice Emitted when a new fee is enabled for pool creation via the factory
   /// @param swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @param tickSpacing Minimum number of ticks between initialized ticks for pools created with the given fee
-  event SwapFeeEnabled(uint16 indexed swapFeeBps, int24 indexed tickSpacing);
+  /// @param tickDistance Minimum number of ticks between initialized ticks for pools created with the given fee
+  event SwapFeeEnabled(uint16 indexed swapFeeBps, int24 indexed tickDistance);
 
   /// @notice Emitted when vesting period changes
   /// @param vestingPeriod The maximum time duration for which LP fees
@@ -50,10 +50,10 @@ interface IProAMMFactory {
   /// are proportionally burnt upon LP removals
   function vestingPeriod() external view returns (uint32);
 
-  /// @notice Returns the tick spacing for a specified fee.
+  /// @notice Returns the tick distance for a specified fee.
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
   /// @param swapFeeBps The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee
-  /// @return The tick spacing
+  /// @return The tick distance
   function feeAmountTickSpacing(uint16 swapFeeBps) external view returns (int24);
 
   /// @notice Returns the address which can update the fee configuration
@@ -101,7 +101,7 @@ interface IProAMMFactory {
   /// @return token0 First pool token by address sort order
   /// @return token1 Second pool token by address sort order
   /// @return swapFeeBps Fee to be collected upon every swap in the pool, in basis points
-  /// @return tickSpacing Minimum number of ticks between initialized ticks
+  /// @return tickDistance Minimum number of ticks between initialized ticks
   function parameters()
     external
     view
@@ -110,14 +110,14 @@ interface IProAMMFactory {
       address token0,
       address token1,
       uint16 swapFeeBps,
-      int24 tickSpacing
+      int24 tickDistance
     );
 
   /// @notice Creates a pool for the given two tokens and fee
   /// @param tokenA One of the two tokens in the desired pool
   /// @param tokenB The other of the two tokens in the desired pool
   /// @param swapFeeBps Desired swap fee for the pool, in basis points
-  /// @dev Token order does not matter. tickSpacing is determined from the fee.
+  /// @dev Token order does not matter. tickDistance is determined from the fee.
   /// Call will revert under any of these conditions:
   ///     1) pool already exists
   ///     2) invalid swap fee
@@ -129,11 +129,11 @@ interface IProAMMFactory {
     uint16 swapFeeBps
   ) external returns (address pool);
 
-  /// @notice Enables a fee amount with the given tickSpacing
+  /// @notice Enables a fee amount with the given tickDistance
   /// @dev Fee amounts may never be removed once enabled
   /// @param swapFeeBps The fee amount to enable, in basis points
-  /// @param tickSpacing The spacing between ticks to be enforced for all pools created with the given fee amount
-  function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) external;
+  /// @param tickDistance The distance between ticks to be enforced for all pools created with the given fee amount
+  function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) external;
 
   /// @notice Updates the address which can update the fee configuration
   /// @dev Must be called by the current configMaster

@@ -35,19 +35,12 @@ library SwapMath {
     if (currentSqrtP == targetSqrtP) return (0, 0, 0, currentSqrtP);
     delta = calcDeltaNext(liquidity, currentSqrtP, targetSqrtP, feeInBps, isExactInput, isToken0);
 
-    if (isExactInput) {
-      if (delta >= amountRemaining) {
-        delta = amountRemaining;
-      } else {
-        nextSqrtP = targetSqrtP;
-      }
+    if ((isExactInput && delta >= amountRemaining) || (!isExactInput && delta <= amountRemaining)) {
+      delta = amountRemaining;
     } else {
-      if (delta <= amountRemaining) {
-        delta = amountRemaining;
-      } else {
-        nextSqrtP = targetSqrtP;
-      }
+      nextSqrtP = targetSqrtP;
     }
+
     uint256 absDelta = delta >= 0 ? uint256(delta) : delta.revToUint256();
     if (nextSqrtP == 0) {
       fee = calcFinalSwapFeeAmount(

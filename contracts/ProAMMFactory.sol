@@ -20,7 +20,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     address token0;
     address token1;
     uint16 swapFeeBps;
-    int24 tickSpacing;
+    int24 tickDistance;
   }
 
   /// @inheritdoc IProAMMFactory
@@ -78,21 +78,21 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     require(tokenA != tokenB, 'identical tokens');
     (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     require(token0 != address(0), 'null address');
-    int24 tickSpacing = feeAmountTickSpacing[swapFeeBps];
-    require(tickSpacing != 0, 'invalid fee');
+    int24 tickDistance = feeAmountTickSpacing[swapFeeBps];
+    require(tickDistance != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
 
     parameters.factory = address(this);
     parameters.token0 = token0;
     parameters.token1 = token1;
     parameters.swapFeeBps = swapFeeBps;
-    parameters.tickSpacing = tickSpacing;
+    parameters.tickDistance = tickDistance;
 
     pool = _create(bytes(''), keccak256(abi.encode(token0, token1, swapFeeBps)));
     getPool[token0][token1][swapFeeBps] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
     getPool[token1][token0][swapFeeBps] = pool;
-    emit PoolCreated(token0, token1, swapFeeBps, tickSpacing, pool);
+    emit PoolCreated(token0, token1, swapFeeBps, tickDistance, pool);
   }
 
   /// @inheritdoc IProAMMFactory
@@ -134,15 +134,14 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   }
 
   /// @inheritdoc IProAMMFactory
-  function enableSwapFee(uint16 swapFeeBps, int24 tickSpacing) public override onlyConfigMaster {
+  function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
-    // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
-    // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
+    // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
     // 16384 ticks represents a >5x price change with ticks of 1 bips
-    require(tickSpacing > 0 && tickSpacing < 16384, 'invalid tickSpacing');
-    require(feeAmountTickSpacing[swapFeeBps] == 0, 'existing tickSpacing');
-    feeAmountTickSpacing[swapFeeBps] = tickSpacing;
-    emit SwapFeeEnabled(swapFeeBps, tickSpacing);
+    require(tickDistance > 0 && tickDistance < 16384, 'invalid tickDistance');
+    require(feeAmountTickSpacing[swapFeeBps] == 0, 'existing tickDistance');
+    feeAmountTickSpacing[swapFeeBps] = tickDistance;
+    emit SwapFeeEnabled(swapFeeBps, tickDistance);
   }
 
   /// @inheritdoc IProAMMFactory

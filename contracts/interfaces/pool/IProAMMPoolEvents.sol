@@ -58,7 +58,7 @@ interface IProAMMPoolEvents {
   /// @param deltaQty1 Change in pool's token1 balance
   /// @param poolSqrtPrice Pool's sqrt price after the swap
   /// @param liquidity Pool's liquidity after the swap
-  /// @param tick Log base 1.0001 of pool's price after the swap
+  /// @param currentTick Log base 1.0001 of pool's price after the swap
   event Swap(
     address indexed sender,
     address indexed recipient,
@@ -66,7 +66,7 @@ interface IProAMMPoolEvents {
     int256 deltaQty1,
     uint160 poolSqrtPrice,
     uint128 liquidity,
-    int24 tick
+    int24 currentTick
   );
 
   /// @notice Emitted by the pool for any flash loans of token0/token1

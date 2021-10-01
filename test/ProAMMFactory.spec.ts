@@ -22,7 +22,7 @@ let reinvestmentMaster: ReinvestmentTokenMaster;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let swapFeeBps: number;
-let tickSpacing: number;
+let tickDistance: number;
 let vestingPeriod = 100;
 
 describe('ProAMMFactory', () => {
@@ -44,7 +44,7 @@ describe('ProAMMFactory', () => {
   beforeEach('load fixture', async () => {
     factory = await loadFixture(fixture);
     swapFeeBps = 5;
-    tickSpacing = 10;
+    tickDistance = 10;
   });
 
   it('should have initialized with the expected settings', async () => {
@@ -231,14 +231,14 @@ describe('ProAMMFactory', () => {
       expect(await factory.configMaster()).to.eql(configMaster.address);
       // admin should not be able to update configurations
       await expect(factory.connect(admin).updateConfigMaster(configMaster.address)).to.be.revertedWith('forbidden');
-      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing)).to.be.revertedWith('forbidden');
+      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickDistance)).to.be.revertedWith('forbidden');
       await expect(factory.connect(admin).updateFeeConfiguration(admin.address, swapFeeBps)).to.be.revertedWith(
         'forbidden'
       );
       // configMaster should be able to update
       swapFeeBps = 20;
-      tickSpacing = 100;
-      await factory.connect(configMaster).enableSwapFee(swapFeeBps, tickSpacing);
+      tickDistance = 100;
+      await factory.connect(configMaster).enableSwapFee(swapFeeBps, tickDistance);
       await factory.connect(configMaster).updateFeeConfiguration(admin.address, swapFeeBps);
     });
   });
@@ -252,38 +252,38 @@ describe('ProAMMFactory', () => {
       await expect(factory.connect(admin).enableSwapFee(BPS_PLUS_ONE, 20)).to.be.revertedWith('invalid fee');
     });
 
-    it('should revert for invalid tickSpacing', async () => {
-      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, ZERO)).to.be.revertedWith('invalid tickSpacing');
+    it('should revert for invalid tickDistance', async () => {
+      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, ZERO)).to.be.revertedWith('invalid tickDistance');
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, 16385)).to.be.revertedWith(
-        'invalid tickSpacing'
+        'invalid tickDistance'
       );
-      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, -1)).to.be.revertedWith('invalid tickSpacing');
+      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, -1)).to.be.revertedWith('invalid tickDistance');
     });
 
-    it('should revert for existing tickSpacing', async () => {
+    it('should revert for existing tickDistance', async () => {
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, BPS_PLUS_ONE)).to.be.revertedWith(
-        'existing tickSpacing'
+        'existing tickDistance'
       );
       await expect(factory.connect(admin).enableSwapFee(30, BPS_PLUS_ONE)).to.be.revertedWith(
-        'existing tickSpacing'
+        'existing tickDistance'
       );
     });
 
-    it('should set new tickSpacing and emit event', async () => {
+    it('should set new tickDistance and emit event', async () => {
       swapFeeBps = 10;
-      tickSpacing = 30;
-      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing))
+      tickDistance = 30;
+      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickDistance))
         .to.emit(factory, 'SwapFeeEnabled')
-        .withArgs(swapFeeBps, tickSpacing);
-      expect(await factory.feeAmountTickSpacing(swapFeeBps)).to.be.eql(tickSpacing);
+        .withArgs(swapFeeBps, tickDistance);
+      expect(await factory.feeAmountTickSpacing(swapFeeBps)).to.be.eql(tickDistance);
     });
 
-    it('should be able to utilise new tickSpacing for pool creation', async () => {
+    it('should be able to utilise new tickDistance for pool creation', async () => {
       swapFeeBps = 10;
-      tickSpacing = 30;
-      await factory.connect(admin).enableSwapFee(swapFeeBps, tickSpacing);
+      tickDistance = 30;
+      await factory.connect(admin).enableSwapFee(swapFeeBps, tickDistance);
       await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
-      expect(await factory.getPool(tokenA.address, tokenB.address, swapFeeBps)).to.not.be.eql(tickSpacing);
+      expect(await factory.getPool(tokenA.address, tokenB.address, swapFeeBps)).to.not.be.eql(tickDistance);
     });
   });
 

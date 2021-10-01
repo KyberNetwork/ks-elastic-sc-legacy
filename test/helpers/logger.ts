@@ -13,7 +13,8 @@ export async function logSwapState(title: SwapTitle, pool: ProAMMPool) {
   console.log(`=== ${titleMap[title]} ===`);
   let poolState = await pool.getPoolState();
   let reinvestmentState = await pool.getReinvestmentState();
-  console.log(`tick: ${poolState._poolTick.toString()}`);
+  console.log(`current tick: ${poolState._poolTick.toString()}`);
+  console.log(`nearest current tick: ${poolState._nearestCurrentTick.toString()}`);
   console.log(`price: ${poolState._poolSqrtPrice.toString()}`);
   console.log(`reinvestment: ${reinvestmentState._poolReinvestmentLiquidity.toString()}`);
 }
