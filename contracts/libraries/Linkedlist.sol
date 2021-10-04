@@ -29,6 +29,7 @@ library Linkedlist {
     returns (int24 lowerValue)
   {
     Data memory removedValueData = self[removedValue];
+    require(removedValueData.next != removedValueData.previous, 'remove non-existent value');
     if (removedValueData.previous == removedValue) return removedValue; // remove the lowest value, nothing is done
     lowerValue = removedValueData.previous;
     if (removedValueData.next == removedValue) return lowerValue; // remove the highest value, nothing is done
@@ -46,7 +47,8 @@ library Linkedlist {
     int24 lowerValue
   ) internal {
     int24 nextValue = self[lowerValue].next;
-    require(lowerValue < newValue && nextValue > newValue);
+    require(nextValue != self[lowerValue].previous, 'lower value is not initialized');
+    require(lowerValue < newValue && nextValue > newValue, 'invalid lower value');
     self[newValue].next = nextValue;
     self[newValue].previous = lowerValue;
     self[nextValue].previous = newValue;
