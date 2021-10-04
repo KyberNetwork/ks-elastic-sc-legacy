@@ -9,6 +9,7 @@ import {PoolAddress} from './libraries/PoolAddress.sol';
 import {PoolTicksCounter} from './libraries/PoolTicksCounter.sol';
 
 import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
+import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
 import {IProAMMSwapCallback} from '../interfaces/callback/IProAMMSwapCallback.sol';
 import {IQuoterV2} from '../interfaces/periphery/IQuoterV2.sol';
 
@@ -21,22 +22,27 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
   using SafeCast for uint256;
 
   address public immutable factory;
+  bytes32 internal immutable poolInitHash;
 
   /// @dev Transient storage variable used to check a safety condition in exact output swaps.
   uint256 private amountOutCached;
 
   constructor(address _factory) {
     factory = _factory;
+    poolInitHash = IProAMMFactory(_factory).poolInitHash();
   }
 
+  /**
+   * @dev Returns the pool address for the requested token pair swap fee
+   * Because the function calculates it instead of fetching the address from the factory,
+   * the returned pool address may not be in existence yet
+   */
   function _getPool(
     address tokenA,
     address tokenB,
     uint16 feeBps
   ) private view returns (IProAMMPool) {
-    (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-    address pool = PoolAddress.computeAddress(factory, token0, token1, feeBps);
-    return IProAMMPool(pool);
+    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, feeBps, poolInitHash));
   }
 
   /// @inheritdoc IProAMMSwapCallback

@@ -1,35 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import {IProAMMFactory} from '../../interfaces/IProAMMFactory.sol';
-
-/// @title Provides functions for deriving a pool address from the factory, tokens, and the fee
+/// @title Provides a function for deriving a pool address from the factory, tokens, and swap fee
 library PoolAddress {
-  //   bytes32 internal constant POOL_INIT_CODE_HASH =
-  //     0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
-
-  /// @notice Deterministically computes the pool address given the factory and params
-  /// @param factory The Uniswap V3 factory contract address
-  /// @return pool The contract address of the V3 pool
+  /// @notice Deterministically computes the pool address from the given data
+  /// @param factory ProAMM factory address
+  /// @param token0 One of the tokens constituting the token pair, regardless of order
+  /// @param token1 The other token constituting the token pair, regardless of order
+  /// @param swapFee Fee to be collected upon every swap in the pool, in basis points
+  /// @param poolInitHash The keccak256 hash of the ProAMMPool creation code
+  /// @return pool The ProAMM pool address
   function computeAddress(
     address factory,
     address token0,
     address token1,
-    uint16 feeBps
-  ) internal view returns (address pool) {
-    return IProAMMFactory(factory).getPool(token0, token1, feeBps);
-    // TODO use calulating create2 address
-    // pool = address(
-    //   uint256(
-    //     keccak256(
-    //       abi.encodePacked(
-    //         hex'ff',
-    //         factory,
-    //         keccak256(abi.encode(token0, token1, feeBps)),
-    //         POOL_INIT_CODE_HASH
-    //       )
-    //     )
-    //   )
-    // );
+    uint16 swapFee,
+    bytes32 poolInitHash
+  ) internal pure returns (address pool) {
+    (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);
+    pool = address(
+      uint160(
+        uint256(
+          keccak256(
+            abi.encodePacked(
+              hex'ff',
+              factory,
+              keccak256(abi.encode(token0, token1, swapFee)),
+              poolInitHash
+            )
+          )
+        )
+      )
+    );
   }
 }

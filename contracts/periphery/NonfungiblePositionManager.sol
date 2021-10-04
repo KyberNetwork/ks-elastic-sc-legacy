@@ -308,14 +308,15 @@ contract NonfungiblePositionManager is
   }
 
   /**
-   * @dev Return the pool for the given token pair and fee. The pool contract may or may not exist.
-   *  Use determine function to save gas, instead of reading from factory
+   * @dev Returns the pool address for the requested token pair swap fee
+   * Because the function calculates it instead of fetching the address from the factory,
+   * the returned pool address may not be in existence yet
    */
   function _getPool(
     address tokenA,
     address tokenB,
     uint16 fee
   ) internal view returns (IProAMMPool) {
-    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
+    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }
 }
