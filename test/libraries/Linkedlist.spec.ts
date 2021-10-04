@@ -1,7 +1,5 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {BN, ONE, TWO, MIN_SQRT_RATIO, MAX_SQRT_RATIO} from '../helpers/helper';
-import {encodePriceSqrt} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -9,8 +7,6 @@ chai.use(solidity);
 import {genRandomSeed} from '../helpers/genRandomBN';
 
 import {MockLinkedlist, MockLinkedlist__factory} from '../../typechain';
-import {link} from 'fs';
-import {min} from 'bn.js';
 
 const MIN_VALUE = -887272;
 const MAX_VALUE = 887272;
