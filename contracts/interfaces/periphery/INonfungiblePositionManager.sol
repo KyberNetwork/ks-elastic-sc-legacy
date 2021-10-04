@@ -5,9 +5,7 @@ import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/I
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
 
-
 interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IERC721Permit {
-
   struct Position {
     // the nonce for permits
     uint96 nonce;
@@ -130,14 +128,15 @@ interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IE
   function burn(uint256 tokenId) external payable;
 
   function positions(uint256 tokenId)
-    external view
-    returns (
-      Position memory pos,
-      PoolInfo memory info
-    );
+    external
+    view
+    returns (Position memory pos, PoolInfo memory info);
 
   function addressToPoolId(address pool) external view returns (uint80);
+
   function isRToken(address token) external view returns (bool);
+
   function nextPoolId() external view returns (uint80);
+
   function nextTokenId() external view returns (uint256);
 }

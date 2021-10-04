@@ -2,13 +2,7 @@
 pragma solidity 0.8.4;
 
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-
-import {IProAMMPool, IProAMMPoolActions} from './interfaces/IProAMMPool.sol';
-import {IERC20, IProAMMFactory} from './interfaces/IProAMMFactory.sol';
-import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
-import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
-import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
-import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {QtyDeltaMath} from './libraries/QtyDeltaMath.sol';
@@ -19,8 +13,15 @@ import {FullMath} from './libraries/FullMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
-import {ProAMMPoolTicksState, PoolStorage} from './ProAMMPoolTicksState.sol';
+import {IProAMMPool} from './interfaces/IProAMMPool.sol';
+import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
+import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
+import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
+import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
+import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.sol';
 
+import {ProAMMPoolTicksState} from './ProAMMPoolTicksState.sol';
 
 contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
   using SafeCast for uint256;
@@ -145,7 +146,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         0,
         feeGrowthInsideLast
       );
-    } 
+    }
     if (_poolTick >= posData.tickUpper) {
       // current tick > position range
       // liquidity only comes in range when tick decreases
@@ -297,29 +298,25 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
 
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
-    int256 deltaRemaining;              // the specified amount (could be tokenIn or tokenOut)
-    int256 actualDelta;                 // the opposite amout of sourceQty
-
-    uint160 sqrtPc;                     // current sqrt(price), multiplied by 2^96
-    int24 currentTick;                  // the tick associated with the current price
-    int24 nextTick;                     // the tick associated with the next price
-    uint160 nextSqrtP;                  // the price of nextTick
-
-    bool isToken0;                      // is soureQty token0 or token1?
-    bool isExactInput;                  // is soureQty input or output?
-
-    uint128 lp;                         // the current pool liquidity
-    uint128 lf;                         // the current reinvestment liquidity
-
+    int256 deltaRemaining; // the specified amount (could be tokenIn or tokenOut)
+    int256 actualDelta; // the opposite amout of sourceQty
+    uint160 sqrtPc; // current sqrt(price), multiplied by 2^96
+    int24 currentTick; // the tick associated with the current price
+    int24 nextTick; // the tick associated with the next price
+    uint160 nextSqrtP; // the price of nextTick
+    bool isToken0; // is soureQty token0 or token1?
+    bool isExactInput; // is soureQty input or output?
+    uint128 lp; // the current pool liquidity
+    uint128 lf; // the current reinvestment liquidity
     // variables below are loaded only when crossing a tick
-    uint128 secondsPerLiquidityGlobal;  // all-time seconds per liquidity, multiplied by 2^96
-    uint128 lfLast;                     // collected liquidity
-    uint256 rTotalSupply;               // cache of total reinvestment token supply
-    uint256 rTotalSupplyInitial;        // initial value of rTotalSupply
-    uint256 feeGrowthGlobal;            // cache of fee growth of the reinvestment token, multiplied by 2^96
-    address feeTo;                      // recipient of govt fees
-    uint16 governmentFeeBps;            // governmentFeeBps to be charged
-    uint256 rGovtQty;                   // govt fee qty collected to be transferred to feeTo
+    uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
+    uint128 lfLast; // collected liquidity
+    uint256 rTotalSupply; // cache of total reinvestment token supply
+    uint256 rTotalSupplyInitial; // initial value of rTotalSupply
+    uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
+    address feeTo; // recipient of govt fees
+    uint16 governmentFeeBps; // governmentFeeBps to be charged
+    uint256 rGovtQty; // govt fee qty collected to be transferred to feeTo
   }
 
   // see IProAMMPoolActions
@@ -340,8 +337,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     // tick (token1Qty/token0Qty) will increase for swapping from token1 to token0
     bool willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
 
-    (swapData.lp, swapData.lf, swapData.sqrtPc, swapData.currentTick, swapData.nextTick) =
-      getInitialSwapData(willUpTick, sqrtPriceLimit);
+    (
+      swapData.lp,
+      swapData.lf,
+      swapData.sqrtPc,
+      swapData.currentTick,
+      swapData.nextTick
+    ) = getInitialSwapData(willUpTick, sqrtPriceLimit);
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
@@ -373,7 +375,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         int256 deltaNext;
         int256 actualDelta;
         uint256 lc;
-
         (deltaNext, actualDelta, lc, swapData.sqrtPc) = SwapMath.computeSwapStep(
           swapData.lp + swapData.lf,
           swapData.sqrtPc,

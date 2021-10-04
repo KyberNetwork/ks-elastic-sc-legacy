@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.0;
 
-
 library Linkedlist {
-
   struct Data {
     int24 previous;
     int24 next;
@@ -26,10 +24,10 @@ library Linkedlist {
    *  Return the lower value after removing, in case removedValue is the lowest/highest,
    *  no removing is done
    */
-  function remove(
-    mapping(int24 => Linkedlist.Data) storage self,
-    int24 removedValue
-  ) internal returns (int24 lowerValue) {
+  function remove(mapping(int24 => Linkedlist.Data) storage self, int24 removedValue)
+    internal
+    returns (int24 lowerValue)
+  {
     Data memory removedValueData = self[removedValue];
     if (removedValueData.previous == removedValue) return removedValue; // remove the lowest value, nothing is done
     lowerValue = removedValueData.previous;

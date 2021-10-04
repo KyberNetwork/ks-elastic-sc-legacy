@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
 /// @title The interface for the ProAMMFactory
 /// @notice The ProAMMFactory facilitates creation of ProAMM pools and control over government fees
 interface IProAMMFactory {
@@ -46,6 +44,7 @@ interface IProAMMFactory {
 
   /// @notice Emitted when whitelist feature is disabled
   event WhitelistDisabled();
+
   /// @notice Returns the maximum time duration for which LP fees
   /// are proportionally burnt upon LP removals
   function vestingPeriod() external view returns (uint32);

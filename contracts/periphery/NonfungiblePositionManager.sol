@@ -2,19 +2,27 @@
 pragma solidity 0.8.4;
 pragma abicoder v2;
 
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {INonfungiblePositionManager, IERC721Metadata, IRouterTokenHelper} from '../interfaces/periphery/INonfungiblePositionManager.sol';
-import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
-import {IERC20, IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
-import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
-import {FullMath} from '../libraries/FullMath.sol';
+import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
+
+import {PoolAddress} from './libraries/PoolAddress.sol';
 import {MathConstants as C} from '../libraries/MathConstants.sol';
-import {LiquidityHelper, ImmutableRouterStorage, RouterTokenHelper} from './base/LiquidityHelper.sol';
+import {FullMath} from '../libraries/FullMath.sol';
+
+import {INonfungiblePositionManager} from '../interfaces/periphery/INonfungiblePositionManager.sol';
+import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
+import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
+import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
+import {IRouterTokenHelper} from '../interfaces/periphery/IRouterTokenHelper.sol';
+
+import {LiquidityHelper} from './base/LiquidityHelper.sol';
+import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
+import {RouterTokenHelper} from './base/RouterTokenHelper.sol';
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
-import {ERC721Permit, ERC721} from './base/ERC721Permit.sol';
-import {PoolAddress} from './libraries/PoolAddress.sol';
-
+import {ERC721Permit} from './base/ERC721Permit.sol';
 
 contract NonfungiblePositionManager is
   INonfungiblePositionManager,
@@ -63,7 +71,7 @@ contract NonfungiblePositionManager is
       pool = IProAMMFactory(factory).createPool(token0, token1, fee);
     }
 
-    (uint160 poolSqrtPriceX96, , , ,) = IProAMMPool(pool).getPoolState();
+    (uint160 poolSqrtPriceX96, , , , ) = IProAMMPool(pool).getPoolState();
     if (poolSqrtPriceX96 == 0) {
       IProAMMPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
     }
@@ -182,7 +190,11 @@ contract NonfungiblePositionManager is
     IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     uint256 feeGrowthInsideLast;
-    (amount0, amount1, feeGrowthInsideLast) = pool.burn(pos.tickLower, pos.tickUpper, params.liquidity);
+    (amount0, amount1, feeGrowthInsideLast) = pool.burn(
+      pos.tickLower,
+      pos.tickUpper,
+      params.liquidity
+    );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
     if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {

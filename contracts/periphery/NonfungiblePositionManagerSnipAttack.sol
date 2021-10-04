@@ -2,14 +2,16 @@
 pragma solidity 0.8.4;
 pragma abicoder v2;
 
-import './NonfungiblePositionManager.sol';
-import {ISnipAttack} from '../interfaces/ISnipAttackData.sol';
-import {AntiSnipAttack, SafeCast} from '../periphery/libraries/AntiSnipAttack.sol';
+import {AntiSnipAttack} from '../periphery/libraries/AntiSnipAttack.sol';
+import {SafeCast} from '../libraries/SafeCast.sol';
+
 import {IReinvestmentToken} from '../interfaces/IReinvestmentToken.sol';
+
+import './NonfungiblePositionManager.sol';
 
 contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
   using SafeCast for uint256;
-  mapping(uint256 => ISnipAttack.Data) public antiSnipAttackData;
+  mapping(uint256 => AntiSnipAttack.Data) public antiSnipAttackData;
 
   constructor(
     address _factory,

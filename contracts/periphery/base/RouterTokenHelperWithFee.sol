@@ -2,12 +2,13 @@
 pragma solidity 0.8.4;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
+import {TokenHelper} from '../libraries/TokenHelper.sol';
+
 import {IRouterTokenHelperWithFee} from '../../interfaces/periphery/IRouterTokenHelperWithFee.sol';
 import {IWETH} from '../../interfaces/IWETH.sol';
-import {TokenHelper} from '../libraries/TokenHelper.sol';
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
-import {RouterTokenHelper} from './RouterTokenHelper.sol';
 
+import {RouterTokenHelper} from './RouterTokenHelper.sol';
 
 abstract contract RouterTokenHelperWithFee is RouterTokenHelper, IRouterTokenHelperWithFee {
   uint256 constant FEE_BPS = 10000;
@@ -25,7 +26,7 @@ abstract contract RouterTokenHelperWithFee is RouterTokenHelper, IRouterTokenHel
 
     if (balanceWETH > 0) {
       IWETH(WETH).withdraw(balanceWETH);
-      uint256 feeAmount = balanceWETH * feeBps / FEE_BPS;
+      uint256 feeAmount = (balanceWETH * feeBps) / FEE_BPS;
       if (feeAmount > 0) TokenHelper.transferEth(feeRecipient, feeAmount);
       TokenHelper.transferEth(recipient, balanceWETH - feeAmount);
     }
@@ -44,8 +45,9 @@ abstract contract RouterTokenHelperWithFee is RouterTokenHelper, IRouterTokenHel
     require(balanceToken >= minAmount, 'Insufficient token');
 
     if (balanceToken > 0) {
-      uint256 feeAmount = balanceToken * feeBps / FEE_BPS;
-      if (feeAmount > 0) TokenHelper.transferToken(IERC20(token), feeAmount, address(this), feeRecipient);
+      uint256 feeAmount = (balanceToken * feeBps) / FEE_BPS;
+      if (feeAmount > 0)
+        TokenHelper.transferToken(IERC20(token), feeAmount, address(this), feeRecipient);
       TokenHelper.transferToken(IERC20(token), balanceToken - feeAmount, address(this), recipient);
     }
   }

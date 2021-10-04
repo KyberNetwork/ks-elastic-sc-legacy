@@ -3,7 +3,6 @@ pragma solidity >=0.8.0;
 
 import '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 
-
 contract MockTokenPositionDescriptor is INonfungibleTokenPositionDescriptor {
   string private tokenUri;
 
@@ -11,10 +10,7 @@ contract MockTokenPositionDescriptor is INonfungibleTokenPositionDescriptor {
     tokenUri = _tokenUri;
   }
 
-  function tokenURI(
-    INonfungiblePositionManager,
-    uint256
-  )
+  function tokenURI(INonfungiblePositionManager, uint256)
     external
     view
     override

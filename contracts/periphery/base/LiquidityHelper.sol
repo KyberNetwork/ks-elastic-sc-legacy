@@ -2,17 +2,21 @@
 pragma solidity 0.8.4;
 pragma abicoder v2;
 
-import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
-import {RouterTokenHelper} from './RouterTokenHelper.sol';
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
-import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from '../../interfaces/IProAMMFactory.sol';
-import {LiquidityMath} from '../../libraries/LiquidityMath.sol';
+import {LiquidityMath} from '../libraries/LiquidityMath.sol';
 import {TickMath} from '../../libraries/TickMath.sol';
 
+import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
+import {IProAMMFactory} from '../../interfaces/IProAMMFactory.sol';
+import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
 
-abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage, RouterTokenHelper {
+import {RouterTokenHelper} from './RouterTokenHelper.sol';
+import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
+abstract contract LiquidityHelper is
+  IProAMMMintCallback,
+  ImmutableRouterStorage,
+  RouterTokenHelper
+{
   struct AddLiquidityParams {
     address token0;
     address token1;
@@ -40,10 +44,16 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
   ) external override {
     CallbackData memory callbackData = abi.decode(data, (CallbackData));
     require(callbackData.token0 < callbackData.token1, 'LiquidityHelper: wrong token order');
-    address pool = IProAMMFactory(factory).getPool(callbackData.token0, callbackData.token1, callbackData.fee);
+    address pool = IProAMMFactory(factory).getPool(
+      callbackData.token0,
+      callbackData.token1,
+      callbackData.fee
+    );
     require(msg.sender == pool, 'LiquidityHelper: invalid callback sender');
-    if (deltaQty0 > 0) transferTokens(callbackData.token0, callbackData.source, msg.sender, deltaQty0);
-    if (deltaQty1 > 0) transferTokens(callbackData.token1, callbackData.source, msg.sender, deltaQty1);
+    if (deltaQty0 > 0)
+      transferTokens(callbackData.token0, callbackData.source, msg.sender, deltaQty0);
+    if (deltaQty1 > 0)
+      transferTokens(callbackData.token1, callbackData.source, msg.sender, deltaQty1);
   }
 
   /// @dev Unlock pool with initial liquidity
@@ -81,13 +91,14 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
       uint256 amount1,
       uint256 feeGrowthInsideLast,
       IProAMMPool pool
-    ) {
+    )
+  {
     require(params.token0 < params.token1, 'LiquidityHelper: invalid token order');
     pool = IProAMMPool(IProAMMFactory(factory).getPool(params.token0, params.token1, params.fee));
 
     // compute the liquidity amount
     {
-      (uint160 currentSqrtP, , , ,) = pool.getPoolState();
+      (uint160 currentSqrtP, , , , ) = pool.getPoolState();
       uint160 lowerSqrtP = TickMath.getSqrtRatioAtTick(params.tickLower);
       uint160 upperSqrtP = TickMath.getSqrtRatioAtTick(params.tickUpper);
 
@@ -108,10 +119,18 @@ abstract contract LiquidityHelper is IProAMMMintCallback, ImmutableRouterStorage
       _callbackData(params.token0, params.token1, params.fee)
     );
 
-    require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'LiquidityHelper: price slippage check');
+    require(
+      amount0 >= params.amount0Min && amount1 >= params.amount1Min,
+      'LiquidityHelper: price slippage check'
+    );
   }
 
-  function _callbackData(address token0, address token1, uint16 fee) internal view returns (bytes memory) {
-    return abi.encode(CallbackData({token0: token0, token1: token1, fee: fee, source: msg.sender}));
+  function _callbackData(
+    address token0,
+    address token1,
+    uint16 fee
+  ) internal view returns (bytes memory) {
+    return
+      abi.encode(CallbackData({token0: token0, token1: token1, fee: fee, source: msg.sender}));
   }
 }

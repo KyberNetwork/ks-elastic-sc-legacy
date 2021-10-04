@@ -7,8 +7,8 @@ import {MathConstants} from './libraries/MathConstants.sol';
 import {FullMath} from './libraries/FullMath.sol';
 import {TickMath} from './libraries/TickMath.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
-import {PoolStorage} from './PoolStorage.sol';
 
+import {PoolStorage} from './PoolStorage.sol';
 
 contract ProAMMPoolTicksState is PoolStorage {
   using SafeCast for int256;
@@ -48,7 +48,10 @@ contract ProAMMPoolTicksState is PoolStorage {
       } else if (currentTick >= updateData.tickUpper) {
         feeGrowthInside = feeGrowthOutsideUpperTick - feeGrowthOutsideLowerTick;
       } else {
-        feeGrowthInside = cumulatives.feeGrowth - feeGrowthOutsideLowerTick - feeGrowthOutsideUpperTick;
+        feeGrowthInside =
+          cumulatives.feeGrowth -
+          feeGrowthOutsideLowerTick -
+          feeGrowthOutsideUpperTick;
       }
     }
 
@@ -65,15 +68,22 @@ contract ProAMMPoolTicksState is PoolStorage {
     bool willUpTick
   )
     internal
-    returns (uint128 newLiquidity, int24 newCurrentTick, int24 newNextTick)
+    returns (
+      uint128 newLiquidity,
+      int24 newCurrentTick,
+      int24 newNextTick
+    )
   {
     unchecked {
       ticks[nextTick].feeGrowthOutside = feeGrowthGlobal - ticks[nextTick].feeGrowthOutside;
       ticks[nextTick].secondsPerLiquidityOutside =
-        secondsPerLiquidityGlobal - ticks[nextTick].secondsPerLiquidityOutside;
+        secondsPerLiquidityGlobal -
+        ticks[nextTick].secondsPerLiquidityOutside;
     }
     newCurrentTick = willUpTick ? nextTick : nextTick - 1;
-    newNextTick = willUpTick ? initializedTicks[nextTick].next : initializedTicks[nextTick].previous;
+    newNextTick = willUpTick
+      ? initializedTicks[nextTick].next
+      : initializedTicks[nextTick].previous;
     newLiquidity = LiqDeltaMath.addLiquidityDelta(
       currentLiquidity,
       willUpTick ? ticks[nextTick].liquidityNet : -ticks[nextTick].liquidityNet
@@ -107,8 +117,9 @@ contract ProAMMPoolTicksState is PoolStorage {
    * @return poolNextTick next tick to calculate data
    */
   function getInitialSwapData(bool willUpTick, uint160 sqrtPriceLimit)
-    internal view
-    returns(
+    internal
+    view
+    returns (
       uint128 poolLiquidity,
       uint128 poolReinvestmentLiquidity,
       uint160 poolSqrtPrice,
@@ -147,12 +158,10 @@ contract ProAMMPoolTicksState is PoolStorage {
     // (ie. does not include liquidityDelta)
     // feeGrowthInside is relative value, hence underflow is acceptable
     uint256 feeGrowth;
-    unchecked { feeGrowth = feeGrowthInside - _position.feeGrowthInsideLast; }
-    feesClaimable = FullMath.mulDivFloor(
-      feeGrowth,
-      _position.liquidity,
-      MathConstants.TWO_POW_96
-    );
+    unchecked {
+      feeGrowth = feeGrowthInside - _position.feeGrowthInsideLast;
+    }
+    feesClaimable = FullMath.mulDivFloor(feeGrowth, _position.liquidity, MathConstants.TWO_POW_96);
     // update the position
     positions[key].liquidity = LiqDeltaMath.addLiquidityDelta(
       _position.liquidity,
@@ -176,11 +185,17 @@ contract ProAMMPoolTicksState is PoolStorage {
     CumulativesData memory cumulatives,
     bool isLower,
     uint128 maxLiquidity
-    // tickPrevious,
-  ) private returns (uint256 feeGrowthOutside) {
+  )
+    private
+    returns (
+      // tickPrevious,
+      uint256 feeGrowthOutside
+    )
+  {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
-      liquidityGrossBefore, liquidityDelta
+      liquidityGrossBefore,
+      liquidityDelta
     );
     require(liquidityGrossAfter <= maxLiquidity, '> max liquidity');
     // if lower tick, liquidityDelta should be added | removed when crossed up | down

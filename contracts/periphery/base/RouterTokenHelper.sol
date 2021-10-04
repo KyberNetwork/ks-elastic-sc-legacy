@@ -2,11 +2,13 @@
 pragma solidity 0.8.4;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
+import {TokenHelper} from '../libraries/TokenHelper.sol';
+
 import {IRouterTokenHelper} from '../../interfaces/periphery/IRouterTokenHelper.sol';
 import {IWETH} from '../../interfaces/IWETH.sol';
-import {TokenHelper} from '../libraries/TokenHelper.sol';
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
+import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
 abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorage {
   receive() external payable {
@@ -37,8 +39,7 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
   }
 
   function refundETH() external payable override {
-    if (address(this).balance > 0)
-      TokenHelper.transferEth(msg.sender, address(this).balance);
+    if (address(this).balance > 0) TokenHelper.transferEth(msg.sender, address(this).balance);
   }
 
   function transferTokens(
@@ -48,7 +49,7 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
     uint256 value
   ) internal {
     if (token == WETH && address(this).balance >= value) {
-      IWETH(WETH).deposit{ value: value }();
+      IWETH(WETH).deposit{value: value}();
       IWETH(WETH).transfer(recipient, value);
     } else {
       TokenHelper.transferToken(IERC20(token), value, sender, recipient);

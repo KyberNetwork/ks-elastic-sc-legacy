@@ -10,7 +10,6 @@ import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
 import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IERC20, IPoolStorage} from './interfaces/IPoolStorage.sol';
 
-
 abstract contract PoolStorage is IPoolStorage {
   using Clones for address;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
@@ -59,7 +58,6 @@ abstract contract PoolStorage is IPoolStorage {
     // position's lower and upper ticks
     int24 tickLower;
     int24 tickUpper;
-
     // TODO: Add back later
     // if minting, need to pass the previous initialized ticks for tickLower and tickUpper
     // int24 tickLowerPrevious;
@@ -114,12 +112,7 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.locked = true; // set pool to locked state
   }
 
-  function initPoolStorage(
-    uint160 initialSqrtPrice,
-    int24 initialTick
-  )
-    internal
-  {
+  function initPoolStorage(uint160 initialSqrtPrice, int24 initialTick) internal {
     poolData.reinvestmentLiquidity = MIN_LIQUIDITY;
     poolData.reinvestmentLiquidityLast = MIN_LIQUIDITY;
 
@@ -185,7 +178,11 @@ abstract contract PoolStorage is IPoolStorage {
       uint128 _poolReinvestmentLiquidityLast
     )
   {
-    return (poolData.feeGrowthGlobal, poolData.reinvestmentLiquidity, poolData.reinvestmentLiquidityLast);
+    return (
+      poolData.feeGrowthGlobal,
+      poolData.reinvestmentLiquidity,
+      poolData.reinvestmentLiquidityLast
+    );
   }
 
   function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
@@ -216,7 +213,9 @@ abstract contract PoolStorage is IPoolStorage {
       uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
       uint128 lp = poolData.liquidity;
       if (secondsElapsed > 0 && lp > 0) {
-        unchecked { secondsPerLiquidityInside += uint128((secondsElapsed << 96) / lp); }
+        unchecked {
+          secondsPerLiquidityInside += uint128((secondsElapsed << 96) / lp);
+        }
       }
     }
   }

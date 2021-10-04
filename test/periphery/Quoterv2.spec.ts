@@ -19,7 +19,7 @@ let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
 
 class Fixtures {
-  constructor (
+  constructor(
     public pool02: ProAMMPool,
     public tokens: MockToken[3],
     public callback: MockProAMMCallbacks2,
@@ -28,7 +28,7 @@ class Fixtures {
   ) {}
 }
 
-async function quoteToPrice (
+async function quoteToPrice(
   quoter: QuoterV2,
   tokenIn: MockToken,
   tokenOut: MockToken,
@@ -41,7 +41,7 @@ async function quoteToPrice (
       tokenOut: tokenOut.address,
       amountIn: PRECISION.mul(PRECISION),
       feeBps: swapFeeBpsArray[1],
-      sqrtPriceLimitX96: targetSqrtPrice
+      sqrtPriceLimitX96: targetSqrtPrice,
     });
     // assert that we reach the targetPrice
     expect(afterSqrtPrice).to.eq(targetSqrtPrice);
@@ -52,7 +52,7 @@ async function quoteToPrice (
       tokenOut: tokenOut.address,
       amount: PRECISION.mul(PRECISION),
       feeBps: swapFeeBpsArray[1],
-      sqrtPriceLimitX96: targetSqrtPrice
+      sqrtPriceLimitX96: targetSqrtPrice,
     });
     // assert that we reach the targetPrice
     expect(afterSqrtPrice).to.eq(targetSqrtPrice);
@@ -63,7 +63,7 @@ async function quoteToPrice (
 describe.skip('QuoterV2', function () {
   let [admin, wallet] = waffle.provider.getWallets();
 
-  async function fixture (): Promise<Fixtures> {
+  async function fixture(): Promise<Fixtures> {
     let factory = await deployFactory(admin, vestingPeriod);
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -334,13 +334,13 @@ describe.skip('QuoterV2', function () {
           returnedAmount: amountOut,
           afterSqrtPrice,
           initializedTicksCrossed,
-          gasEstimate
+          gasEstimate,
         } = await quoter.callStatic.quoteExactInputSingle({
           tokenIn: tokens[0].address,
           tokenOut: tokens[2].address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBpsArray[1],
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         console.log(`amountIn=${amountIn.toString()}`);
@@ -358,13 +358,13 @@ describe.skip('QuoterV2', function () {
           returnedAmount: amountOut,
           afterSqrtPrice,
           initializedTicksCrossed,
-          gasEstimate
+          gasEstimate,
         } = await quoter.callStatic.quoteExactInputSingle({
           tokenIn: tokens[2].address,
           tokenOut: tokens[0].address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBpsArray[1],
-          sqrtPriceLimitX96: priceLimit
+          sqrtPriceLimitX96: priceLimit,
         });
 
         expect(initializedTicksCrossed).to.be.eq(2);
@@ -518,7 +518,7 @@ describe.skip('QuoterV2', function () {
         const {amountIn, afterSqrtPriceList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[1].address, tokens[2].address, tokens[0].address].reverse(), [
             swapFeeBpsArray[1],
-            swapFeeBpsArray[0]
+            swapFeeBpsArray[0],
           ]),
           amountOut
         );
@@ -537,13 +537,13 @@ describe.skip('QuoterV2', function () {
         const {
           returnedAmount: amountIn,
           afterSqrtPrice,
-          initializedTicksCrossed
+          initializedTicksCrossed,
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[0].address,
           tokenOut: tokens[1].address,
           feeBps: swapFeeBpsArray[0],
           amount: PRECISION.mul(PRECISION),
-          sqrtPriceLimitX96: encodePriceSqrt(100, 103)
+          sqrtPriceLimitX96: encodePriceSqrt(100, 103),
         });
 
         expect(initializedTicksCrossed).to.eq(0);
@@ -555,13 +555,13 @@ describe.skip('QuoterV2', function () {
         const {
           returnedAmount: amountIn,
           afterSqrtPrice,
-          initializedTicksCrossed
+          initializedTicksCrossed,
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[1].address,
           tokenOut: tokens[0].address,
           feeBps: swapFeeBpsArray[0],
           amount: PRECISION.mul(PRECISION),
-          sqrtPriceLimitX96: encodePriceSqrt(100, 101)
+          sqrtPriceLimitX96: encodePriceSqrt(100, 101),
         });
 
         expect(initializedTicksCrossed).to.eq(0);

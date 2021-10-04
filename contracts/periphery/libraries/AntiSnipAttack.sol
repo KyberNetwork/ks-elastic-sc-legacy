@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {FullMath} from '../../libraries/FullMath.sol';
-import {LiqDeltaMath} from '../../libraries/LiqDeltaMath.sol';
-import {MathConstants as C} from '../../libraries/MathConstants.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+
+import {MathConstants as C} from '../../libraries/MathConstants.sol';
 import {SafeCast} from '../../libraries/SafeCast.sol';
-import {ISnipAttack} from '../../interfaces/ISnipAttackData.sol';
 
 /// @title AntiSnipAttack
 /// @notice Contains the snipping attack mechanism implementation
@@ -16,15 +14,24 @@ library AntiSnipAttack {
   using SafeCast for int256;
   using SafeCast for int128;
 
+  struct Data {
+    // timestamp of last action performed
+    uint32 lastActionTime;
+    // average start time of lock schedule
+    uint32 lockTime;
+    // average unlock time of locked fees
+    uint32 unlockTime;
+    // locked rToken qty since last update
+    uint256 feesLocked;
+  }
+
   /// @notice Initializes values for a new position
   /// @return data Initialized snip attack data structure
-  function initialize(uint32 currentTime) internal pure returns (ISnipAttack.Data memory data) {
-    data = ISnipAttack.Data({
-      lastActionTime: currentTime,
-      lockTime: currentTime,
-      unlockTime: currentTime,
-      feesLocked: 0
-    });
+  function initialize(uint32 currentTime) internal pure returns (Data memory data) {
+    data.lastActionTime = currentTime;
+    data.lockTime = currentTime;
+    data.unlockTime = currentTime;
+    data.feesLocked = 0;
   }
 
   /// @notice Credits accumulated fees to a user's existing position
@@ -40,7 +47,7 @@ library AntiSnipAttack {
   /// @return feesClaimable The claimable rToken amount to be sent to the user
   /// @return feesBurnable The rToken amount to be burnt
   function update(
-    ISnipAttack.Data storage self,
+    Data storage self,
     uint128 currentLiquidity,
     uint128 liquidityDelta,
     uint32 currentTime,
@@ -48,7 +55,7 @@ library AntiSnipAttack {
     uint256 feesSinceLastAction,
     uint256 vestingPeriod
   ) internal returns (uint256 feesClaimable, uint256 feesBurnable) {
-    ISnipAttack.Data memory _self = self;
+    Data memory _self = self;
     if (vestingPeriod == 0) return (feesSinceLastAction, 0);
 
     // scoping of fee proportions to avoid stack too deep
@@ -67,7 +74,8 @@ library AntiSnipAttack {
         ? C.BPS
         : Math.min(
           C.BPS,
-          ((currentTime - _self.lastActionTime) * C.BPS) / (_self.unlockTime - _self.lastActionTime)
+          ((currentTime - _self.lastActionTime) * C.BPS) /
+            (_self.unlockTime - _self.lastActionTime)
         );
 
       uint256 feesLockedBeforeUpdate = _self.feesLocked;
@@ -129,12 +137,7 @@ library AntiSnipAttack {
     uint256 nextClaimableBps
   ) internal pure returns (uint256 feesLockedNew, uint256 feesClaimable) {
     uint256 totalFees = currentFees + nextFees;
-    feesClaimable =
-      (currentClaimableBps *
-        currentFees +
-        nextClaimableBps *
-        nextFees) /
-      C.BPS;
+    feesClaimable = (currentClaimableBps * currentFees + nextClaimableBps * nextFees) / C.BPS;
     feesLockedNew = totalFees - feesClaimable;
   }
 }

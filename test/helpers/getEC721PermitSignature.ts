@@ -1,6 +1,6 @@
-import { BigNumber, constants, Signature, Wallet } from 'ethers'
-import { splitSignature } from 'ethers/lib/utils'
-import { NonfungiblePositionManager } from '../../typechain'
+import {BigNumber, constants, Signature, Wallet} from 'ethers';
+import {splitSignature} from 'ethers/lib/utils';
+import {NonfungiblePositionManager} from '../../typechain';
 
 export default async function getEC721PermitSignature(
   wallet: Wallet,
@@ -8,14 +8,14 @@ export default async function getEC721PermitSignature(
   spender: string,
   tokenId: BigNumber,
   deadline: BigNumber = constants.MaxUint256,
-  permitConfig?: { nonce?: BigNumber; name?: string; chainId?: number; version?: string }
+  permitConfig?: {nonce?: BigNumber; name?: string; chainId?: number; version?: string}
 ): Promise<Signature> {
   const [nonce, name, version, chainId] = await Promise.all([
     permitConfig?.nonce ?? (await positionManager.positions(tokenId)).pos.nonce,
     permitConfig?.name ?? positionManager.name(),
     permitConfig?.version ?? '1',
     permitConfig?.chainId ?? wallet.getChainId(),
-  ])
+  ]);
 
   return splitSignature(
     await wallet._signTypedData(
@@ -53,5 +53,5 @@ export default async function getEC721PermitSignature(
         deadline,
       }
     )
-  )
+  );
 }
