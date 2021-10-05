@@ -54,9 +54,6 @@ library SwapMath {
         isToken0
       );
       nextSqrtP = calcFinalPrice(absDelta, liquidity, fee, currentSqrtP, isExactInput, isToken0);
-      if (!isToken0 && isExactInput && nextSqrtP > targetSqrtP) {
-        nextSqrtP = targetSqrtP;
-      }
     } else {
       fee = calcStepSwapFeeAmount(
         absDelta,

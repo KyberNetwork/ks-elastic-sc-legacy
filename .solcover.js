@@ -11,5 +11,6 @@ module.exports = {
     accounts: accounts
   },
   skipFiles: ['./mock', './interfaces', './misc'],
+  // including echidna files causes bad coverage reports for some reason
   istanbulReporter: ['html', 'json']
 };

@@ -34,6 +34,14 @@ describe('ProAMMFactory', () => {
     tickDistance = 10;
   });
 
+  it('should return the contract creation code storage addresses', async () => {
+    const { contractA, contractB } = await factory.getCreationCodeContracts();
+    const codeA = await ethers.provider.getCode(contractA);
+    const codeB = await ethers.provider.getCode(contractB);
+    let factoryBytecode = await factory.getCreationCode();
+    expect(codeA.concat(codeB.slice(2))).to.eql(factoryBytecode);
+  });
+
   it('should have initialized with the expected settings', async () => {
     expect(await factory.configMaster()).to.eql(admin.address);
     expect(await factory.feeAmountTickSpacing(5)).to.eql(10);
@@ -97,9 +105,9 @@ describe('ProAMMFactory', () => {
     it('creates the predictable address', async () => {
       await factory.createPool(tokenA.address, tokenB.address, swapFeeBps);
       let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeBps);
-      let bytescode = await factory.getCreationCode();
+      let factoryBytecode = await factory.getCreationCode();
       expect(poolAddress).to.eql(
-        getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], bytescode)
+        getCreate2Address(factory.address, [tokenA.address, tokenB.address, swapFeeBps], factoryBytecode)
       );
     });
   });

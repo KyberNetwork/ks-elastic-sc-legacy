@@ -1,6 +1,10 @@
 import {BigNumber as BN, BigNumberish} from 'ethers';
 import hardhat from 'hardhat';
 
+import {Artifacts} from 'hardhat/internal/artifacts';
+import {Artifact} from 'hardhat/types';
+import path from 'path';
+
 export async function runWithImpersonation(target: string, run: () => Promise<void>): Promise<void> {
   await hardhat.network.provider.request({
     method: 'hardhat_impersonateAccount',
@@ -63,4 +67,11 @@ export async function getLatestBlockTime() {
     params: ['latest', false],
   });
   return BN.from(result.timestamp).toNumber();
+}
+
+export async function getArtifact(contract: string): Promise<Artifact> {
+  let artifactsPath: string;
+  artifactsPath = path.resolve('./artifacts');
+  const artifacts = new Artifacts(artifactsPath);
+  return artifacts.readArtifact(contract.split('/').slice(-1)[0]);
 }

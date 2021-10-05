@@ -13,7 +13,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 pragma solidity >=0.8.0;
 
-// Taken from BalancerV2. Only modification made is the require statement.
+// Taken from BalancerV2. Only modification made is changing the require statement
+// for a failed deployment to an assert statement
 library CodeDeployer {
   // During contract construction, the full code supplied exists as code, and can be accessed via `codesize` and
   // `codecopy`. This is not the contract's final code however: whatever the constructor returns is what will be
@@ -52,8 +53,7 @@ library CodeDeployer {
 
   /**
    * @dev Deploys a contract with `code` as its code, returning the destination address.
-   *
-   * Reverts if deployment fails.
+   * Asserts that contract deployment is successful
    */
   function deploy(bytes memory code) internal returns (address destination) {
     bytes32 deployerCreationCode = _DEPLOYER_CREATION_CODE;
@@ -74,7 +74,8 @@ library CodeDeployer {
       mstore(code, codeLength)
     }
 
-    // The create opcode returns the zero address when contract creation fails, so we revert if this happens.
-    require(destination != address(0), 'deployment failed');
+    // create opcode returns null address for failed contract creation instances
+    // hence, assert that the resulting address is not null
+    assert(destination != address(0));
   }
 }

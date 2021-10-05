@@ -1227,7 +1227,7 @@ describe('ProAMMPool', () => {
 
       it('should burn liquidity with event emission', async () => {
         // note that user need not be whitelisted as burn() is not restricted
-        await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'BurnLP');
+        await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'Burn');
         const {liquidity} = await pool.getPositions(user.address, tickLower, tickUpper);
         expect(liquidity).to.be.eql(ZERO);
       });
