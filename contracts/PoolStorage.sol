@@ -68,7 +68,7 @@ abstract contract PoolStorage is IPoolStorage {
   int24 public immutable override tickDistance;
 
   mapping(int24 => TickData) public override ticks;
-  mapping(int24 => Linkedlist.Data) public initializedTicks;
+  mapping(int24 => Linkedlist.Data) public override initializedTicks;
 
   mapping(bytes32 => Position) internal positions;
 
