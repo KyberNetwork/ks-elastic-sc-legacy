@@ -306,16 +306,4 @@ contract NonfungiblePositionManager is
   function _getAndIncrementNonce(uint256 tokenId) internal override returns (uint256) {
     return uint256(_positions[tokenId].nonce++);
   }
-
-  /**
-   * @dev Return the pool for the given token pair and fee. The pool contract may or may not exist.
-   *  Use determine function to save gas, instead of reading from factory
-   */
-  function _getPool(
-    address tokenA,
-    address tokenB,
-    uint16 fee
-  ) internal view returns (IProAMMPool) {
-    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee));
-  }
 }
