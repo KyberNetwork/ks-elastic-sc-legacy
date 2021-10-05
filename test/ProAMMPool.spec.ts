@@ -413,6 +413,29 @@ describe('ProAMMPool', () => {
             expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
           });
 
+          it('should not have updated time data if initial pool liquidity is zero', async () => {
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+          });
+
+          it('should update time data if initial pool liquidity is non-zero', async () => {
+            // mint a position within current price
+            // so that pool liquidity becomes non-zero
+            await callback.mint(pool.address, user.address, nearestTickToPrice - 5 * tickDistance, nearestTickToPrice + 5 * tickDistance, PRECISION, '0x');
+            let secondsPerLiquidityGlobalBefore = await pool.secondsPerLiquidityGlobal();
+            let secondsPerLiquidityUpdateTimeBefore = await pool.secondsPerLiquidityUpdateTime();
+
+            // mint position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            // should have updated
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(secondsPerLiquidityGlobalBefore);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(secondsPerLiquidityUpdateTimeBefore);
+          });
+
           it('should not change initialized ticks status for liquidity addition', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
@@ -501,8 +524,9 @@ describe('ProAMMPool', () => {
             let secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
             expect(secondsPerLiquidityInside).to.be.gt(ZERO);
             // increment time again, secondsPerLiquidityInside should further increase
+            // but because of potential underflow, we test for non-equality
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.gt(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.not.be.eq(secondsPerLiquidityInside);
 
             // cross outside position
             await swapToUpTick(pool, user, tickUpper + 1);
@@ -618,6 +642,22 @@ describe('ProAMMPool', () => {
             // secondsPerLiquidityOutside
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
             expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+          });
+
+          it('should have correctly updated time data', async () => {
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            // pool liquidity before update is zero, so no update occurs
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+
+            // mint again
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            // pool liquidity before update is non-zero, should have updated
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(ZERO);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(ZERO);
           });
 
           it('should instantiate tick lower feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
@@ -742,9 +782,10 @@ describe('ProAMMPool', () => {
 
             // swap back into position range
             // secondsPerLiquidityInside should increase
+            // but because of potential underflow, we test for non-equality
             await swapToDownTick(pool, user, tickUpper - 5);
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.gt(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.not.be.eq(secondsPerLiquidityInside);
           });
 
           it('#gas [ @skip-on-coverage ]', async () => {
@@ -850,6 +891,29 @@ describe('ProAMMPool', () => {
             // secondsPerLiquidityOutside
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
             expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+          });
+
+          it('should not have updated time data if initial pool liquidity is zero', async () => {
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+          });
+
+          it('should update time data if initial pool liquidity is non-zero', async () => {
+            // mint a position within current price
+            // so that pool liquidity becomes non-zero
+            await callback.mint(pool.address, user.address, nearestTickToPrice - 5 * tickDistance, nearestTickToPrice + 5 * tickDistance, PRECISION, '0x');
+            let secondsPerLiquidityGlobalBefore = await pool.secondsPerLiquidityGlobal();
+            let secondsPerLiquidityUpdateTimeBefore = await pool.secondsPerLiquidityUpdateTime();
+
+            // mint position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, PRECISION, '0x');
+
+            // should have updated
+            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(secondsPerLiquidityGlobalBefore);
+            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(secondsPerLiquidityUpdateTimeBefore);
           });
 
           it('should instantiate both tick lower and tick upper feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
@@ -974,8 +1038,9 @@ describe('ProAMMPool', () => {
             let secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
             expect(secondsPerLiquidityInside).to.be.gt(ZERO);
             // increment time again, secondsPerLiquidityInside should further increase
+            // but because of potential underflow, we test for non-equality
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.gt(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.not.be.eq(secondsPerLiquidityInside);
 
             // cross outside position
             await swapToUpTick(pool, user, tickUpper + 1);
