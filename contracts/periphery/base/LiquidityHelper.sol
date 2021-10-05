@@ -3,6 +3,7 @@ pragma solidity 0.8.4;
 pragma abicoder v2;
 
 import {LiquidityMath} from '../libraries/LiquidityMath.sol';
+import {PoolAddress} from '../libraries/PoolAddress.sol';
 import {TickMath} from '../../libraries/TickMath.sol';
 
 import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
@@ -44,11 +45,7 @@ abstract contract LiquidityHelper is
   ) external override {
     CallbackData memory callbackData = abi.decode(data, (CallbackData));
     require(callbackData.token0 < callbackData.token1, 'LiquidityHelper: wrong token order');
-    address pool = IProAMMFactory(factory).getPool(
-      callbackData.token0,
-      callbackData.token1,
-      callbackData.fee
-    );
+    address pool = address(_getPool(callbackData.token0, callbackData.token1, callbackData.fee));
     require(msg.sender == pool, 'LiquidityHelper: invalid callback sender');
     if (deltaQty0 > 0)
       transferTokens(callbackData.token0, callbackData.source, msg.sender, deltaQty0);
@@ -68,7 +65,7 @@ abstract contract LiquidityHelper is
     uint16 fee,
     uint160 initialSqrtPrice
   ) internal returns (IProAMMPool pool) {
-    pool = IProAMMPool(IProAMMFactory(factory).getPool(token0, token1, fee));
+    pool = _getPool(token0, token1, fee);
     if (token0 < token1) {
       pool.unlockPool(initialSqrtPrice, _callbackData(token0, token1, fee));
     } else {
@@ -94,7 +91,7 @@ abstract contract LiquidityHelper is
     )
   {
     require(params.token0 < params.token1, 'LiquidityHelper: invalid token order');
-    pool = IProAMMPool(IProAMMFactory(factory).getPool(params.token0, params.token1, params.fee));
+    pool = _getPool(params.token0, params.token1, params.fee);
 
     // compute the liquidity amount
     {
@@ -132,5 +129,18 @@ abstract contract LiquidityHelper is
   ) internal view returns (bytes memory) {
     return
       abi.encode(CallbackData({token0: token0, token1: token1, fee: fee, source: msg.sender}));
+  }
+
+  /**
+   * @dev Returns the pool address for the requested token pair swap fee
+   * Because the function calculates it instead of fetching the address from the factory,
+   * the returned pool address may not be in existence yet
+   */
+  function _getPool(
+    address tokenA,
+    address tokenB,
+    uint16 fee
+  ) internal view returns (IProAMMPool) {
+    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }
 }
