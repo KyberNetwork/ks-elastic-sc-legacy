@@ -84,13 +84,13 @@ contract ProAMMPoolTicksState is PoolStorage {
         secondsPerLiquidityGlobal -
         ticks[nextTick].secondsPerLiquidityOutside;
     }
-
-    newNextTick = willUpTick
-      ? initializedTicks[nextTick].next
-      : initializedTicks[nextTick].previous;
-    int128 liquidityNet = willUpTick
-      ? ticks[nextTick].liquidityNet
-      : -ticks[nextTick].liquidityNet;
+    int128 liquidityNet = ticks[nextTick].liquidityNet;
+    if (willUpTick) {
+      newNextTick = initializedTicks[nextTick].next;
+    } else {
+      newNextTick = initializedTicks[nextTick].previous;
+      liquidityNet = -liquidityNet;
+    }
     newLiquidity = LiqDeltaMath.addLiquidityDelta(currentLiquidity, liquidityNet);
   }
 

@@ -216,6 +216,6 @@ library TickMath {
   }
 
   function getMaxNumberTicks(int24 _tickDistance) internal pure returns (uint24 numTicks) {
-    return uint24(TickMath.MAX_TICK / _tickDistance - TickMath.MIN_TICK / _tickDistance) + 1;
+    return uint24(TickMath.MAX_TICK / _tickDistance) * 2;
   }
 }
