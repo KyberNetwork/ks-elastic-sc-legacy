@@ -212,7 +212,7 @@ contract ProAMMPoolTicksState is PoolStorage {
   }
 
   /**
-   * @dev Update the tick linkedlist
+   * @dev Update the tick linkedlist, assume that tick is not in the list
    * @param tick tick index to update
    * @param currentTick the pool currentt tick
   //  *  previousTick the nearest initialized tick that is lower than the tick, in case adding
@@ -225,12 +225,12 @@ contract ProAMMPoolTicksState is PoolStorage {
     bool isAdd
   ) private {
     if (isAdd) {
+      if (tick == TickMath.MIN_TICK || tick == TickMath.MAX_TICK) return;
       // TODO: Get this data from input params
       int24 previousTick = TickMath.MIN_TICK;
       while (initializedTicks[previousTick].next <= tick) {
         previousTick = initializedTicks[previousTick].next;
       }
-      if (tick == previousTick) return;
       initializedTicks.insert(tick, previousTick);
       if (poolData.nearestCurrentTick < tick && tick <= currentTick) {
         poolData.nearestCurrentTick = tick;

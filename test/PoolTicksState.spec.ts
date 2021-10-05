@@ -1,34 +1,20 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {
-  ZERO,
-  ONE,
-  TWO,
-  TWO_POW_96,
-  PRECISION,
-  MAX_INT_128,
-  MAX_UINT,
-  BN,
-  NEGATIVE_ONE,
-  ZERO_ADDRESS,
-  MAX_TICK,
-  MIN_TICK
-} from './helpers/helper';
+import {ZERO, TWO_POW_96, BN, NEGATIVE_ONE, ZERO_ADDRESS, MAX_TICK, MIN_TICK} from './helpers/helper';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
 import {
   MockPoolTicksState,
+  MockPoolTicksStateFactory,
   MockPoolTicksStateFactory__factory,
   MockPoolTicksState__factory,
   ReinvestmentTokenMaster__factory
 } from '../typechain';
-import exp from 'node:constants';
 import {BigNumberish} from '@ethersproject/bignumber';
 
 const tickSpacing = 50;
-const maxTickPerLiquidity = 1000000;
 
 async function assertTicksData (
   mockPoolTicksState: MockPoolTicksState,
@@ -56,6 +42,7 @@ async function assertLinkedListData (
 
 describe('LiquidityMath', () => {
   let mockPoolTicksState: MockPoolTicksState;
+  let factory: MockPoolTicksStateFactory;
   let [user1, user2] = waffle.provider.getWallets();
 
   beforeEach('setup', async () => {
@@ -67,7 +54,7 @@ describe('LiquidityMath', () => {
     const MockPoolTicksStateFactoryContract = (await ethers.getContractFactory(
       'MockPoolTicksStateFactory'
     )) as MockPoolTicksStateFactory__factory;
-    let factory = await MockPoolTicksStateFactoryContract.deploy(reinvestmentMaster.address);
+    factory = await MockPoolTicksStateFactoryContract.deploy(reinvestmentMaster.address);
 
     // deploy mock poolTicksState
     await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, tickSpacing);
@@ -179,8 +166,8 @@ describe('LiquidityMath', () => {
 
   describe('initializedTickList should be update', async () => {
     it('should init value as MIN and MAX tick', async () => {
-      assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, MAX_TICK);
-      assertLinkedListData(mockPoolTicksState, MAX_TICK, MIN_TICK, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, MAX_TICK, MIN_TICK, MAX_TICK);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
@@ -195,10 +182,10 @@ describe('LiquidityMath', () => {
         }
       );
 
-      assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, -10);
-      assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 20);
-      assertLinkedListData(mockPoolTicksState, 20, -10, MAX_TICK);
-      assertLinkedListData(mockPoolTicksState, MAX_TICK, 20, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, -10);
+      await assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 20);
+      await assertLinkedListData(mockPoolTicksState, 20, -10, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, MAX_TICK, 20, MAX_TICK);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(-10);
 
@@ -211,9 +198,9 @@ describe('LiquidityMath', () => {
         }
       );
 
-      assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 10);
-      assertLinkedListData(mockPoolTicksState, 10, -10, 20);
-      assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 10);
+      await assertLinkedListData(mockPoolTicksState, 10, -10, 20);
+      await assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(-10);
     });
@@ -245,11 +232,46 @@ describe('LiquidityMath', () => {
           secondsPerLiquidity: 0
         }
       );
-      assertLinkedListData(mockPoolTicksState, -10, 0, 0); // empty data
-      assertLinkedListData(mockPoolTicksState, 10, MIN_TICK, 20);
-      assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
+      await assertLinkedListData(mockPoolTicksState, -10, 0, 0); // empty data
+      await assertLinkedListData(mockPoolTicksState, 10, MIN_TICK, 20);
+      await assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
+  });
+
+  it('special case when add liquidity to MIN_TICK - MAX_TICK', async () => {
+    // deploy mock poolTicksState
+    await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
+    const MockPoolTicksStateContract = (await ethers.getContractFactory(
+      'MockPoolTicksState'
+    )) as MockPoolTicksState__factory;
+    mockPoolTicksState = MockPoolTicksStateContract.attach(await factory.state());
+    await mockPoolTicksState.externalInitPoolStorage(TWO_POW_96, ZERO);
+
+    await mockPoolTicksState.externalUpdatePosition(
+      {owner: user1.address, tickLower: MIN_TICK, tickUpper: 100, liquidityDelta: 10},
+      0,
+      {
+        feeGrowth: 0,
+        secondsPerLiquidity: 0
+      }
+    );
+    await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, 100);
+    await assertLinkedListData(mockPoolTicksState, 100, MIN_TICK, MAX_TICK);
+    await assertLinkedListData(mockPoolTicksState, MAX_TICK, 100, MAX_TICK);
+
+    await mockPoolTicksState.externalUpdatePosition(
+      {owner: user1.address, tickLower: -100, tickUpper: MAX_TICK, liquidityDelta: 10},
+      0,
+      {
+        feeGrowth: 0,
+        secondsPerLiquidity: 0
+      }
+    );
+    await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, -100);
+    await assertLinkedListData(mockPoolTicksState, -100, MIN_TICK, 100);
+    await assertLinkedListData(mockPoolTicksState, 100, -100, MAX_TICK);
+    await assertLinkedListData(mockPoolTicksState, MAX_TICK, 100, MAX_TICK);
   });
 });
