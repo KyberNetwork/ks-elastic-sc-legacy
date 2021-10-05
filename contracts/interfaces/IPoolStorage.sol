@@ -58,6 +58,8 @@ interface IPoolStorage {
       uint128 secondsPerLiquidityOutside
     );
 
+  function initializedTicks(int24 tick) external view returns (int24 previous, int24 next);
+
   /// @notice Returns the information about a position by the position's key
   /// @return liquidity the liquidity quantity of the position
   /// @return feeGrowthInsideLast fee growth inside the tick range as of the last mint / burn action performed

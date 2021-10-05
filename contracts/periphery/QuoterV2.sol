@@ -49,7 +49,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
     IProAMMPool pool = _getPool(tokenIn, tokenOut, feeBps);
     require(address(pool) == msg.sender, 'invalid sender');
-    (uint160 afterSqrtPrice, int24 tickAfter, , , ) = pool.getPoolState();
+    (uint160 afterSqrtPrice, , int24 nearestCurrentTickAfter, , ) = pool.getPoolState();
 
     (bool isExactInput, uint256 amountToPay, uint256 amountReceived) = amount0Delta > 0
       ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
@@ -61,7 +61,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         mstore(ptr, amountToPay)
         mstore(add(ptr, 0x20), amountReceived)
         mstore(add(ptr, 0x40), afterSqrtPrice)
-        mstore(add(ptr, 0x60), tickAfter)
+        mstore(add(ptr, 0x60), nearestCurrentTickAfter)
         revert(ptr, 128)
       }
     } else {
@@ -72,7 +72,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
         mstore(ptr, amountReceived)
         mstore(add(ptr, 0x20), amountToPay)
         mstore(add(ptr, 0x40), afterSqrtPrice)
-        mstore(add(ptr, 0x60), tickAfter)
+        mstore(add(ptr, 0x60), nearestCurrentTickAfter)
         revert(ptr, 128)
       }
     }
@@ -104,19 +104,19 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     IProAMMPool pool,
     uint256 gasEstimate
   ) private view returns (QuoteOutput memory output) {
-    int24 tickBefore;
-    int24 tickAfter;
-    (, tickBefore, , , ) = pool.getPoolState();
+    int24 nearestCurrentTickBefore;
+    int24 nearestCurrentTickAfter;
+    (, , nearestCurrentTickBefore, , ) = pool.getPoolState();
     (
       output.usedAmount,
       output.returnedAmount,
       output.afterSqrtPrice,
-      tickAfter
+      nearestCurrentTickAfter
     ) = _parseRevertReason(reason);
     output.initializedTicksCrossed = PoolTicksCounter.countInitializedTicksCrossed(
       pool,
-      tickBefore,
-      tickAfter
+      nearestCurrentTickBefore,
+      nearestCurrentTickAfter
     );
     output.gasEstimate = gasEstimate;
   }
