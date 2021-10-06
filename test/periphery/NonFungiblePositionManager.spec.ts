@@ -1,12 +1,13 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
-import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
-import {encodePriceSqrt} from '../helpers/utils';
-import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
+
+import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
+import {encodePriceSqrt, sortTokens} from '../helpers/utils';
+import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
 import {
   MockToken,
@@ -1567,8 +1568,4 @@ describe('NonFungiblePositionManager', () => {
 
 function logMessage(message: string) {
   console.log(`         ${message}`);
-}
-
-function sortTokens(token0: string, token1: string) {
-  return token0 < token1 ? [token0, token1] : [token1, token0];
 }

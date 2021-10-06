@@ -17,7 +17,7 @@ contract MockLinkedlist {
     values.insert(newValue, nearestLower);
   }
 
-  function remove(int24 value) external returns (int24) {
+  function remove(int24 value) external {
     nearestRemovedValue = values.remove(value);
   }
 

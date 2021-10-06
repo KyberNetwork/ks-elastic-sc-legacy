@@ -79,7 +79,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     require(qty1 <= _poolBalToken1(), 'lacking qty1');
     reinvestmentToken.mint(LIQUIDITY_LOCKUP_ADDRESS, MIN_LIQUIDITY);
 
-    initPoolStorage(initialSqrtPrice, initialTick);
+    _initPoolStorage(initialSqrtPrice, initialTick);
 
     emit Initialize(initialSqrtPrice, initialTick);
   }
@@ -123,12 +123,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     );
 
     uint256 feesClaimable;
-    (feesClaimable, feeGrowthInsideLast) = updatePosition(
-      posData,
-      _poolTick,
-      cumulatives,
-      maxTickLiquidity
-    );
+    (feesClaimable, feeGrowthInsideLast) = _updatePosition(posData, _poolTick, cumulatives);
     if (feesClaimable != 0) reinvestmentToken.safeTransfer(posData.owner, feesClaimable);
 
     if (_poolTick < posData.tickLower) {
@@ -332,15 +327,26 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     swapData.isToken0 = isToken0;
     swapData.isExactInput = swapData.deltaRemaining > 0;
     // tick (token1Qty/token0Qty) will increase for swapping from token1 to token0
-    bool willUpTick = (!swapData.isExactInput && isToken0) || (swapData.isExactInput && !isToken0);
-
+    bool willUpTick = (swapData.isExactInput != isToken0);
     (
       swapData.lp,
       swapData.lf,
       swapData.sqrtPc,
       swapData.currentTick,
       swapData.nextTick
-    ) = getInitialSwapData(willUpTick, sqrtPriceLimit);
+    ) = getInitialSwapData(willUpTick);
+    // verify sqrtPriceLimit
+    if (willUpTick) {
+      require(
+        sqrtPriceLimit > swapData.sqrtPc && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+    } else {
+      require(
+        sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO,
+        'bad sqrtPriceLimit'
+      );
+    }
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
@@ -361,11 +367,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       {
         uint160 targetSqrtP = swapData.nextSqrtP;
         // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-        if (
-          willUpTick
-            ? (swapData.nextSqrtP > sqrtPriceLimit)
-            : (swapData.nextSqrtP < sqrtPriceLimit)
-        ) {
+        if (willUpTick == (swapData.nextSqrtP > sqrtPriceLimit)) {
           targetSqrtP = sqrtPriceLimit;
         }
 
@@ -385,14 +387,16 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
         swapData.deltaRemaining -= deltaNext;
         swapData.actualDelta += actualDelta;
         swapData.lf += lc.toUint128();
-
-        swapData.currentTick = swapData.sqrtPc == swapData.nextSqrtP
-          ? tempNextTick // save gas by not re-computing
-          : TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
       }
 
-      // if price has not reached the next sqrt price or the next initialized tick
-      if (swapData.sqrtPc != swapData.nextSqrtP || tempNextTick != swapData.nextTick) continue;
+      // if price has not reached the next sqrt price
+      if (swapData.sqrtPc != swapData.nextSqrtP) {
+        swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
+        break;
+      }
+      swapData.currentTick = willUpTick ? tempNextTick : tempNextTick - 1;
+      // if tempNextTick is not next initialized tick
+      if (tempNextTick != swapData.nextTick) continue;
 
       if (swapData.rTotalSupplyInitial == 0) {
         // load variables that are only initialized when crossing a tick
@@ -427,7 +431,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       }
       swapData.lfLast = swapData.lf;
 
-      (swapData.lp, swapData.currentTick, swapData.nextTick) = updateLiquidityAndCrossTick(
+      (swapData.lp, swapData.nextTick) = _updateLiquidityAndCrossTick(
         swapData.nextTick,
         swapData.lp,
         swapData.feeGrowthGlobal,
