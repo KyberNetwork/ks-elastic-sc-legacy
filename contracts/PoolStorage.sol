@@ -8,7 +8,6 @@ import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
 import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
-import {IReinvestmentToken} from './interfaces/IReinvestmentToken.sol';
 import {IPoolStorage} from './interfaces/IPoolStorage.sol';
 
 abstract contract PoolStorage is IPoolStorage {
@@ -62,7 +61,6 @@ abstract contract PoolStorage is IPoolStorage {
   IProAMMFactory public immutable override factory;
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
-  IReinvestmentToken public immutable override reinvestmentToken;
   uint128 public immutable override maxTickLiquidity;
   uint16 public immutable override swapFeeBps;
   int24 public immutable override tickDistance;
@@ -90,12 +88,6 @@ abstract contract PoolStorage is IPoolStorage {
     tickDistance = _tickDistance;
 
     maxTickLiquidity = type(uint128).max / TickMath.getMaxNumberTicks(_tickDistance);
-    IReinvestmentToken _reinvestmentToken = IReinvestmentToken(
-      IProAMMFactory(_factory).reinvestmentTokenMaster().clone()
-    );
-
-    _reinvestmentToken.initialize();
-    reinvestmentToken = _reinvestmentToken;
     poolData.locked = true; // set pool to locked state
   }
 

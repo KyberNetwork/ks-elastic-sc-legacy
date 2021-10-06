@@ -27,7 +27,6 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   Parameters public override parameters;
 
   /// @inheritdoc IProAMMFactory
-  address public immutable override reinvestmentTokenMaster;
   bytes32 public immutable override poolInitHash;
   address public override configMaster;
   bool public override whitelistDisabled;
@@ -53,11 +52,8 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _;
   }
 
-  constructor(address _reinvestmentTokenMaster, uint32 _vestingPeriod)
-    BaseSplitCodeFactory(type(ProAMMPool).creationCode)
-  {
+  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(ProAMMPool).creationCode) {
     poolInitHash = keccak256(type(ProAMMPool).creationCode);
-    reinvestmentTokenMaster = _reinvestmentTokenMaster;
 
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);

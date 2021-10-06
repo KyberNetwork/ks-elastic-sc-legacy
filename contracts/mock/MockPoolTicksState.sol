@@ -12,14 +12,8 @@ contract MockPoolTicksStateFactory {
     int24 tickDistance;
   }
 
-  address public immutable reinvestmentTokenMaster;
-
   Parameters public parameters;
   MockPoolTicksState public state;
-
-  constructor(address _reinvestmentTokenMaster) {
-    reinvestmentTokenMaster = _reinvestmentTokenMaster;
-  }
 
   function create(
     address token0,
