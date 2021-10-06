@@ -111,7 +111,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
     uint128 lf = poolData.reinvestmentLiquidity;
     CumulativesData memory cumulatives = CumulativesData({
       feeGrowth: poolData.feeGrowthGlobal,
-      secondsPerLiquidity: poolData.secondsPerLiquidityGlobal
+      secondsPerLiquidity: _updateTimeData(poolData.secondsPerLiquidityGlobal, lp)
     });
 
     (, cumulatives.feeGrowth) = _syncReinvestments(
@@ -164,9 +164,6 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState {
       );
     }
     // current tick is inside the passed range
-    // update secondsPerLiquidityGlobal because poolLiquidity will be updated
-    _updateTimeData(cumulatives.secondsPerLiquidity, lp);
-
     qty0 = QtyDeltaMath.calcRequiredQty0(
       _poolSqrtPrice,
       TickMath.getSqrtRatioAtTick(posData.tickUpper),
