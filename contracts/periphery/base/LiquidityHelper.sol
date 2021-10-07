@@ -27,6 +27,7 @@ abstract contract LiquidityHelper is
     address recipient;
     int24 tickLower;
     int24 tickUpper;
+    int24[2] ticksPrevious;
     uint256 amount0Desired;
     uint256 amount1Desired;
     uint256 amount0Min;
@@ -50,29 +51,9 @@ abstract contract LiquidityHelper is
     address pool = address(_getPool(callbackData.token0, callbackData.token1, callbackData.fee));
     require(msg.sender == pool, 'LiquidityHelper: invalid callback sender');
     if (deltaQty0 > 0)
-      transferTokens(callbackData.token0, callbackData.source, msg.sender, deltaQty0);
+      _transferTokens(callbackData.token0, callbackData.source, msg.sender, deltaQty0);
     if (deltaQty1 > 0)
-      transferTokens(callbackData.token1, callbackData.source, msg.sender, deltaQty1);
-  }
-
-  /// @dev Unlock pool with initial liquidity
-  /// @param token0 the first token of the pool
-  /// @param token1 the second token of the pool
-  /// @param fee fee of the pool
-  /// @param initialSqrtPrice init price for the pool
-  /// @return pool address of pool that has been unlocked
-  function unlockPool(
-    address token0,
-    address token1,
-    uint16 fee,
-    uint160 initialSqrtPrice
-  ) internal returns (IProAMMPool pool) {
-    pool = _getPool(token0, token1, fee);
-    if (token0 < token1) {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token0, token1, fee));
-    } else {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token1, token0, fee));
-    }
+      _transferTokens(callbackData.token1, callbackData.source, msg.sender, deltaQty1);
   }
 
   /// @dev Add liquidity to a pool given params
@@ -82,7 +63,7 @@ abstract contract LiquidityHelper is
   /// @return amount1 amount of token1 that is needed
   /// @return feeGrowthInsideLast position manager's updated feeGrowthInsideLast value
   /// @return pool address of the pool
-  function addLiquidity(AddLiquidityParams memory params)
+  function _addLiquidity(AddLiquidityParams memory params)
     internal
     returns (
       uint128 liquidity,
@@ -114,6 +95,7 @@ abstract contract LiquidityHelper is
       params.recipient,
       params.tickLower,
       params.tickUpper,
+      params.ticksPrevious,
       liquidity,
       _callbackData(params.token0, params.token1, params.fee)
     );

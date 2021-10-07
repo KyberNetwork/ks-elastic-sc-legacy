@@ -67,4 +67,13 @@ contract MockPoolTicksState is ProAMMPoolTicksState {
       willUpTick
     );
   }
+
+  function externalUpdateTickList(
+    int24 tick,
+    int24 previousTick,
+    int24 currentTick,
+    bool isAdd
+  ) external {
+    _updateTickList(tick, previousTick, currentTick, isAdd);
+  }
 }

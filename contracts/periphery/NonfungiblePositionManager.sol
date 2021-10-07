@@ -90,7 +90,7 @@ contract NonfungiblePositionManager is
     IProAMMPool pool;
     uint256 feeGrowthInsideLast;
 
-    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = addLiquidity(
+    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = _addLiquidity(
       AddLiquidityParams({
         token0: params.token0,
         token1: params.token1,
@@ -98,6 +98,7 @@ contract NonfungiblePositionManager is
         recipient: address(this),
         tickLower: params.tickLower,
         tickUpper: params.tickUpper,
+        ticksPrevious: params.ticksPrevious,
         amount0Desired: params.amount0Desired,
         amount1Desired: params.amount1Desired,
         amount0Min: params.amount0Min,
@@ -140,7 +141,8 @@ contract NonfungiblePositionManager is
     IProAMMPool pool;
     uint256 feeGrowthInsideLast;
 
-    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = addLiquidity(
+    int24[2] memory ticksPrevious;
+    (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = _addLiquidity(
       AddLiquidityParams({
         token0: poolInfo.token0,
         token1: poolInfo.token1,
@@ -148,6 +150,7 @@ contract NonfungiblePositionManager is
         recipient: address(this),
         tickLower: pos.tickLower,
         tickUpper: pos.tickUpper,
+        ticksPrevious: ticksPrevious,
         amount0Desired: params.amount0Desired,
         amount1Desired: params.amount1Desired,
         amount0Min: params.amount0Min,

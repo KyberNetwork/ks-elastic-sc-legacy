@@ -5,7 +5,20 @@ pragma abicoder v2;
 import '../callback/IProAMMSwapCallback.sol';
 
 /// @notice Functions for swapping tokens via Pro-AMM v2
+/// - Support swap with exact input or exact output
+/// - Support swap with a price limit
+/// - Support swap within a single pool and between multiple pools
 interface IProAMMRouter is IProAMMSwapCallback {
+
+  /// @dev Params for swapping exact input amount
+  /// @param tokenIn the token to swap
+  /// @param tokenOut the token to receive
+  /// @param fee the pool's fee
+  /// @param recipient address to receive tokenOut
+  /// @param deadline time that the transaction will be expired
+  /// @param amountIn the tokenIn amount to swap
+  /// @param amountOutMinimum the minimum receive amount
+  /// @param sqrtPriceLimitX96 the price limit, if reached, stop swapping
   struct ExactInputSingleParams {
     address tokenIn;
     address tokenOut;
@@ -25,7 +38,13 @@ interface IProAMMRouter is IProAMMSwapCallback {
     payable
     returns (uint256 amountOut);
 
-  /// @dev If the swap is from token0 -> token1 -> token2, then path is encoded as [token0, fee01, token1, fee12, token2]
+  /// @dev Params for swapping exact input using multiple pools
+  /// @param path the encoded path to swap from tokenIn to tokenOut
+  ///   If the swap is from token0 -> token1 -> token2, then path is encoded as [token0, fee01, token1, fee12, token2]
+  /// @param recipient address to receive tokenOut
+  /// @param deadline time that the transaction will be expired
+  /// @param amountIn the tokenIn amount to swap
+  /// @param amountOutMinimum the minimum receive amount
   struct ExactInputParams {
     bytes path;
     address recipient;
@@ -42,6 +61,15 @@ interface IProAMMRouter is IProAMMSwapCallback {
     payable
     returns (uint256 amountOut);
 
+  /// @dev Params for swapping exact output amount
+  /// @param tokenIn the token to swap
+  /// @param tokenOut the token to receive
+  /// @param fee the pool's fee
+  /// @param recipient address to receive tokenOut
+  /// @param deadline time that the transaction will be expired
+  /// @param amountOut the tokenOut amount of tokenOut
+  /// @param amountInMaximum the minimum input amount
+  /// @param sqrtPriceLimitX96 the price limit, if reached, stop swapping
   struct ExactOutputSingleParams {
     address tokenIn;
     address tokenOut;
@@ -61,7 +89,13 @@ interface IProAMMRouter is IProAMMSwapCallback {
     payable
     returns (uint256 amountIn);
 
-  /// @dev If the swap is from token0 -> token1 -> token2, then path is encoded as [token2, fee12, token1, fee01, token0]
+  /// @dev Params for swapping exact output using multiple pools
+  /// @param path the encoded path to swap from tokenIn to tokenOut
+  ///   If the swap is from token0 -> token1 -> token2, then path is encoded as [token2, fee12, token1, fee01, token0]
+  /// @param recipient address to receive tokenOut
+  /// @param deadline time that the transaction will be expired
+  /// @param amountOut the tokenOut amount of tokenOut
+  /// @param amountInMaximum the minimum input amount
   struct ExactOutputParams {
     bytes path;
     address recipient;

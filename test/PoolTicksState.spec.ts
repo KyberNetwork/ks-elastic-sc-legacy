@@ -2,15 +2,14 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {ZERO, TWO_POW_96, BN, NEGATIVE_ONE, ZERO_ADDRESS, MAX_TICK, MIN_TICK} from './helpers/helper';
 import chai from 'chai';
-const {solidity, loadFixture} = waffle;
+const {solidity} = waffle;
 chai.use(solidity);
 
 import {
   MockPoolTicksState,
   MockPoolTicksStateFactory,
   MockPoolTicksStateFactory__factory,
-  MockPoolTicksState__factory,
-  ReinvestmentTokenMaster__factory
+  MockPoolTicksState__factory
 } from '../typechain';
 import {BigNumberish} from '@ethersproject/bignumber';
 
@@ -40,7 +39,21 @@ async function assertLinkedListData (
   expect(next).to.be.eq(expectedNextTick);
 }
 
-describe('LiquidityMath', () => {
+async function verifyInitializedData (
+  mockPoolTicksState: MockPoolTicksState,
+  initializedTicks: BigNumberish[]
+) {
+  for (let i = 0; i < initializedTicks.length; i++) {
+    await assertLinkedListData(
+      mockPoolTicksState,
+      initializedTicks[i],
+      i == 0 ? initializedTicks[i] : initializedTicks[i - 1],
+      i == initializedTicks.length - 1 ? initializedTicks[i] : initializedTicks[i + 1]
+    );
+  }
+}
+
+describe('PoolTicksState', () => {
   let mockPoolTicksState: MockPoolTicksState;
   let factory: MockPoolTicksStateFactory;
   let [user1, user2] = waffle.provider.getWallets();
@@ -74,7 +87,7 @@ describe('LiquidityMath', () => {
         const liquidity1 = BN.from(10000);
         // update position from 100 to 200 with currentTick = 150
         await mockPoolTicksState.externalUpdatePosition(
-          {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200},
+          {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK},
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
         );
@@ -89,7 +102,7 @@ describe('LiquidityMath', () => {
         const liquidity2 = BN.from(5000);
         // add liqudity from -100 to 100
         await mockPoolTicksState.externalUpdatePosition(
-          {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100},
+          {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK},
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
         );
@@ -114,12 +127,12 @@ describe('LiquidityMath', () => {
     beforeEach('add liquidity', async () => {
       // update position from 100 to 200 with currentTick = 150
       await mockPoolTicksState.externalUpdatePosition(
-        {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200},
+        {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
       );
       await mockPoolTicksState.externalUpdatePosition(
-        {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100},
+        {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
       );
@@ -161,15 +174,14 @@ describe('LiquidityMath', () => {
 
   describe('initializedTickList should be update', async () => {
     it('should init value as MIN and MAX tick', async () => {
-      await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, MAX_TICK);
-      await assertLinkedListData(mockPoolTicksState, MAX_TICK, MIN_TICK, MAX_TICK);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
 
     it('add liquidity', async () => {
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, liquidityDelta: 10},
+        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
         0,
         {
           feeGrowth: 0,
@@ -177,15 +189,12 @@ describe('LiquidityMath', () => {
         }
       );
 
-      await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, -10);
-      await assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 20);
-      await assertLinkedListData(mockPoolTicksState, 20, -10, MAX_TICK);
-      await assertLinkedListData(mockPoolTicksState, MAX_TICK, 20, MAX_TICK);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, -10, 20, MAX_TICK]);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(-10);
 
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: 10, tickUpper: 20, liquidityDelta: 10},
+        {owner: user1.address, tickLower: 10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
         0,
         {
           feeGrowth: 0,
@@ -193,9 +202,7 @@ describe('LiquidityMath', () => {
         }
       );
 
-      await assertLinkedListData(mockPoolTicksState, -10, MIN_TICK, 10);
-      await assertLinkedListData(mockPoolTicksState, 10, -10, 20);
-      await assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, -10, 10, 20, MAX_TICK]);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(-10);
     });
@@ -203,7 +210,7 @@ describe('LiquidityMath', () => {
     it('remove liquidity', async () => {
       // add liquidity in range [-10, 20] and [10, 20]
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, liquidityDelta: 10},
+        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
         0,
         {
           feeGrowth: 0,
@@ -211,7 +218,7 @@ describe('LiquidityMath', () => {
         }
       );
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: 10, tickUpper: 20, liquidityDelta: 10},
+        {owner: user1.address, tickLower: 10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
         0,
         {
           feeGrowth: 0,
@@ -220,7 +227,7 @@ describe('LiquidityMath', () => {
       );
       // remove liquidity at [-10, 20]
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, liquidityDelta: -10},
+        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: -10},
         0,
         {
           feeGrowth: 0,
@@ -228,8 +235,7 @@ describe('LiquidityMath', () => {
         }
       );
       await assertLinkedListData(mockPoolTicksState, -10, 0, 0); // empty data
-      await assertLinkedListData(mockPoolTicksState, 10, MIN_TICK, 20);
-      await assertLinkedListData(mockPoolTicksState, 20, 10, MAX_TICK);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 10, 20, MAX_TICK]);
 
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(MIN_TICK);
     });
@@ -245,28 +251,149 @@ describe('LiquidityMath', () => {
     await mockPoolTicksState.externalInitPoolStorage(TWO_POW_96, ZERO);
 
     await mockPoolTicksState.externalUpdatePosition(
-      {owner: user1.address, tickLower: MIN_TICK, tickUpper: 100, liquidityDelta: 10},
+      {owner: user1.address, tickLower: MIN_TICK, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
       0,
       {
         feeGrowth: 0,
         secondsPerLiquidity: 0
       }
     );
-    await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, 100);
-    await assertLinkedListData(mockPoolTicksState, 100, MIN_TICK, MAX_TICK);
-    await assertLinkedListData(mockPoolTicksState, MAX_TICK, 100, MAX_TICK);
+    await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 100, MAX_TICK]);
 
     await mockPoolTicksState.externalUpdatePosition(
-      {owner: user1.address, tickLower: -100, tickUpper: MAX_TICK, liquidityDelta: 10},
+      {owner: user1.address, tickLower: -100, tickUpper: MAX_TICK, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
       0,
       {
         feeGrowth: 0,
         secondsPerLiquidity: 0
       }
     );
-    await assertLinkedListData(mockPoolTicksState, MIN_TICK, MIN_TICK, -100);
-    await assertLinkedListData(mockPoolTicksState, -100, MIN_TICK, 100);
-    await assertLinkedListData(mockPoolTicksState, 100, -100, MAX_TICK);
-    await assertLinkedListData(mockPoolTicksState, MAX_TICK, 100, MAX_TICK);
+    await verifyInitializedData(mockPoolTicksState, [MIN_TICK, -100, 100, MAX_TICK]);
+  });
+
+  describe('#updateTickList', async () => {
+    beforeEach('setup data', async () => {
+      await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
+      const MockPoolTicksStateContract = (await ethers.getContractFactory(
+        'MockPoolTicksState'
+      )) as MockPoolTicksState__factory;
+      mockPoolTicksState = MockPoolTicksStateContract.attach(await factory.state());
+      await mockPoolTicksState.externalInitPoolStorage(TWO_POW_96, ZERO);
+    });
+
+    it('insert - at min/max ticks, nothing updates', async () => {
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(MIN_TICK, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(MAX_TICK, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+    });
+
+    it('insert - tick previous has been removed or non-existent', async () => {
+      await expect(mockPoolTicksState.externalUpdateTickList(20, 10, 100, true))
+        .to.be.revertedWith('previous tick has been removed');
+
+      // add, then remove
+      await mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, true);
+      await mockPoolTicksState.externalUpdateTickList(10, 10, 100, false);
+
+      await expect(mockPoolTicksState.externalUpdateTickList(12, 10, 100, true))
+        .to.be.revertedWith('previous tick has been removed');
+    });
+
+    it('insert - revert previous tick is higher than the new tick', async() => {
+      await mockPoolTicksState.externalUpdateTickList(200, MIN_TICK, 100, true);
+      await expect(mockPoolTicksState.externalUpdateTickList(10, 200, 200, true))
+        .to.be.revertedWith('invalid lower value');
+    });
+
+    it('insert - revert previous tick is too far from the new tick', async() => {
+      let maxTravel = 10;
+      let initializedTicks = [MIN_TICK, MAX_TICK];
+      for (let i = 1; i <= maxTravel + 1; i++) {
+        mockPoolTicksState.externalUpdateTickList(i * 10, MIN_TICK, 200, true);
+        initializedTicks.splice(i, 0, i * 10);
+      }
+      await verifyInitializedData(mockPoolTicksState, initializedTicks);
+      await expect(mockPoolTicksState.externalUpdateTickList(200, MIN_TICK, 200, true))
+        .to.be.revertedWith('invalid lower value');
+    });
+
+    it('insert - change nearest tick', async() => {
+      let {_poolTick} = await mockPoolTicksState.getPoolState();
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 100, MIN_TICK, _poolTick, true);
+      let poolData = await mockPoolTicksState.getPoolState();
+      await expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 100);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 10, MIN_TICK, _poolTick, true);
+      poolData = await mockPoolTicksState.getPoolState();
+      await expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 10);
+      // update new value which is lower than nearest, data doesn't change
+      let previousData = poolData._nearestCurrentTick;
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 200, MIN_TICK, _poolTick, true);
+      poolData = await mockPoolTicksState.getPoolState();
+      await expect(poolData._nearestCurrentTick).to.be.eq(previousData);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick + 100, MIN_TICK, _poolTick, true);
+      poolData = await mockPoolTicksState.getPoolState();
+      await expect(poolData._nearestCurrentTick).to.be.eq(previousData);
+    });
+
+    it('insert - correct data updates', async() => {
+      await mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 10, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(50, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 10, 50, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(100, 50, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 10, 50, 100, MAX_TICK]);
+    });
+
+    it('remove - revert non-existent value', async () => {
+      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false))
+        .to.be.revertedWith('remove non-existent value');
+    });
+
+    it('remove - revert non-existent value', async () => {
+      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false))
+        .to.be.revertedWith('remove non-existent value');
+    });
+
+    it('remove - at min/max tick, nothing changes', async () => {
+      await mockPoolTicksState.externalUpdateTickList(MIN_TICK, MIN_TICK, 100, false);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(MAX_TICK, MIN_TICK, 100, false);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+    });
+
+    it('remove - not update nearest tick', async () => {
+      let  {_nearestCurrentTick} = await mockPoolTicksState.getPoolState();
+      await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 10, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 100, MIN_TICK, 100, true);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, _nearestCurrentTick + 100, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 100, MIN_TICK, 100, false);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, MAX_TICK]);
+      await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 10, MIN_TICK, 100, false);
+      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, MAX_TICK]);
+    });
+
+    it('remove - should update nearest tick', async () => {
+      let  {_poolTick, _nearestCurrentTick} = await mockPoolTicksState.getPoolState();
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 100, MIN_TICK, _poolTick, true);
+      let poolData = await mockPoolTicksState.getPoolState();
+      expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 100);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 50, MIN_TICK, _poolTick, true);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 150, MIN_TICK, _poolTick, true);
+      poolData = await mockPoolTicksState.getPoolState();
+      expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 50);
+      // remove the nearest value, nearest current tick should be changed to the previous
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 50, MIN_TICK, _poolTick, false);
+      poolData = await mockPoolTicksState.getPoolState();
+      expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 100);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 100, MIN_TICK, _poolTick, false);
+      poolData = await mockPoolTicksState.getPoolState();
+      expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 150);
+      await mockPoolTicksState.externalUpdateTickList(_poolTick - 150, MIN_TICK, _poolTick, false);
+      poolData = await mockPoolTicksState.getPoolState();
+      expect(poolData._nearestCurrentTick).to.be.eq(MIN_TICK);
+    });
   });
 });

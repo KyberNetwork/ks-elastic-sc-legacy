@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.0;
 
+/// @title The implementation for a LinkedList
 library Linkedlist {
   struct Data {
     int24 previous;
     int24 next;
   }
 
-  /**
-   * @dev init data with the lowest and highest value of the LinkedList
-   */
+  /// @dev init data with the lowest and highest value of the LinkedList
+  /// @param lowestValue the lowest and also the HEAD of LinkedList
+  /// @param highestValue the highest and also the TAIL of the LinkedList
   function init(
     mapping(int24 => Linkedlist.Data) storage self,
     int24 lowestValue,
@@ -19,11 +20,8 @@ library Linkedlist {
     (self[highestValue].previous, self[highestValue].next) = (lowestValue, highestValue);
   }
 
-  /**
-   * @dev Remove a value from the linked list, return the lower value
-   *  Return the lower value after removing, in case removedValue is the lowest/highest,
-   *  no removing is done
-   */
+  /// @dev Remove a value from the linked list, return the lower value
+  ///   Return the lower value after removing, in case removedValue is the lowest/highest, no removing is done
   function remove(mapping(int24 => Linkedlist.Data) storage self, int24 removedValue)
     internal
     returns (int24 lowerValue)
@@ -38,9 +36,9 @@ library Linkedlist {
     delete self[removedValue];
   }
 
-  /**
-   * @dev Insert a new value to the linked list given its lower value that is inside the linked list
-   */
+  /// @dev Insert a new value to the linked list given its lower value that is inside the linked list
+  /// @param newValue the new value to insert, it must not exist in the LinkedList
+  /// @param lowerValue the nearest value which is <= newValue and is in the LinkedList
   function insert(
     mapping(int24 => Linkedlist.Data) storage self,
     int24 newValue,

@@ -60,7 +60,7 @@ describe('Linkedlist', () => {
   });
 
   it('correct record insert data', async () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 50; i++) {
       let t = genRandomSeed(realValues.length - 1);
       let x = realValues[t] + genRandomSeed(realValues[t + 1] - realValues[t]);
       if (x == realValues[t]) continue;
@@ -71,7 +71,7 @@ describe('Linkedlist', () => {
   });
 
   it('revert - remove nonexist value', async () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 50; i++) {
       let t = genRandomSeed(realValues.length - 1);
       let x = realValues[t] + genRandomSeed(realValues[t + 1] - realValues[t]);
       if (x == realValues[t]) continue;

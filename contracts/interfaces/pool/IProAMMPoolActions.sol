@@ -25,6 +25,7 @@ interface IProAMMPoolActions {
   /// @param recipient Address for which the added liquidity is credited to
   /// @param tickLower Recipient position's lower tick
   /// @param tickUpper Recipient position's upper tick
+  /// @param ticksPrevious The nearest tick that is initialized and <= the lower & upper ticks
   /// @param qty Liquidity quantity to mint
   /// @param data Data (if any) to be passed through to the callback
   /// @return qty0 token0 quantity sent to the pool in exchange for the minted liquidity
@@ -34,6 +35,7 @@ interface IProAMMPoolActions {
     address recipient,
     int24 tickLower,
     int24 tickUpper,
+    int24[2] calldata ticksPrevious,
     uint128 qty,
     bytes calldata data
   )

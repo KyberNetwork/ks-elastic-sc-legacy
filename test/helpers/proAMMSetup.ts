@@ -11,7 +11,7 @@ import {
 import {ethers} from 'hardhat';
 import {BigNumberish, BigNumber as BN} from 'ethers';
 import {getNearestSpacedTickAtPrice} from './utils';
-import {PRECISION} from './helper';
+import {PRECISION, MIN_TICK, MAX_INT, MAX_TICK} from './helper';
 
 export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockProAMMFactory> {
   const ProAMMFactoryContract = (await ethers.getContractFactory('MockProAMMFactory')) as MockProAMMFactory__factory;
@@ -58,7 +58,38 @@ export async function setupPoolWithLiquidity(
     recipient,
     nearestTickToPrice - 20 * tickDistance,
     nearestTickToPrice + 20 * tickDistance,
+    [MIN_TICK, MIN_TICK],
     PRECISION.div(10)
   );
+
   return [pool, nearestTickToPrice];
+}
+
+/**
+ * @return lower nearest ticks to the tickLower and tickUpper
+ */
+export async function getTicksPrevious(
+  pool: ProAMMFactory,
+  tickLower: BigNumberish,
+  tickUpper: BigNumberish
+): Promise<BigNumberish[]> {
+  // fetch all initialized ticks
+  let initializedTicks = [MIN_TICK];
+  let currentTick = MIN_TICK;
+  while (currentTick != MAX_TICK) {
+    let {next} = await pool.initializedTicks(currentTick);
+    currentTick = next;
+    initializedTicks.push(currentTick);
+  }
+  let ticksPrevious = [];
+  for (let i = 0; i < initializedTicks.length - 1; i++) {
+    if (initializedTicks[i + 1] > tickLower && ticksPrevious.length == 0) {
+      ticksPrevious.push(initializedTicks[i]);
+    }
+    if (initializedTicks[i + 1] > tickUpper && ticksPrevious.length == 1) {
+      ticksPrevious.push(initializedTicks[i])
+      break;
+    }
+  }
+  return ticksPrevious;
 }
