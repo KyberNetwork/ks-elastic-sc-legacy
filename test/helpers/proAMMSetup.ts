@@ -87,7 +87,7 @@ export async function getTicksPrevious(
       ticksPrevious.push(initializedTicks[i]);
     }
     if (initializedTicks[i + 1] > tickUpper && ticksPrevious.length == 1) {
-      ticksPrevious.push(initializedTicks[i])
+      ticksPrevious.push(initializedTicks[i]);
       break;
     }
   }

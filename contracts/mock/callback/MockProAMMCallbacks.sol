@@ -76,7 +76,14 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.mint(recipient, tickLower, tickUpper, ticksPrevious, qty, abi.encode(sendLess0, sendLess1));
+    pool.mint(
+      recipient,
+      tickLower,
+      tickUpper,
+      ticksPrevious,
+      qty,
+      abi.encode(sendLess0, sendLess1)
+    );
   }
 
   function badSwap(

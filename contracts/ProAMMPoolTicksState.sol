@@ -225,7 +225,10 @@ contract ProAMMPoolTicksState is PoolStorage {
       if (tick == TickMath.MIN_TICK || tick == TickMath.MAX_TICK) return;
       // find the correct previousTick to the `tick`, avoid revert when new liquidity has been added between tick & previousTick
       int24 nextTick = initializedTicks[previousTick].next;
-      require(nextTick != initializedTicks[previousTick].previous, 'previous tick has been removed');
+      require(
+        nextTick != initializedTicks[previousTick].previous,
+        'previous tick has been removed'
+      );
       uint256 iteration = 0;
       while (nextTick <= tick && iteration < MathConstants.MAX_TICK_TRAVEL) {
         previousTick = nextTick;

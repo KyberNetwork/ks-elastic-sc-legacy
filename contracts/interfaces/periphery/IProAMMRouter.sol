@@ -9,7 +9,6 @@ import '../callback/IProAMMSwapCallback.sol';
 /// - Support swap with a price limit
 /// - Support swap within a single pool and between multiple pools
 interface IProAMMRouter is IProAMMSwapCallback {
-
   /// @dev Params for swapping exact input amount
   /// @param tokenIn the token to swap
   /// @param tokenOut the token to receive

@@ -17,7 +17,14 @@ contract MockProAMMCallbacks2 is IProAMMMintCallback {
   ) external {
     IERC20 token0 = pool.token0();
     IERC20 token1 = pool.token1();
-    pool.mint(recipient, tickLower, tickUpper, ticksPrevious, qty, abi.encode(token0, token1, msg.sender));
+    pool.mint(
+      recipient,
+      tickLower,
+      tickUpper,
+      ticksPrevious,
+      qty,
+      abi.encode(token0, token1, msg.sender)
+    );
   }
 
   function unlockPool(IProAMMPool pool, uint160 poolSqrtPrice) external {

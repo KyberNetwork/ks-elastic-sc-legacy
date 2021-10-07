@@ -9,13 +9,13 @@ import {
   MockPoolTicksState,
   MockPoolTicksStateFactory,
   MockPoolTicksStateFactory__factory,
-  MockPoolTicksState__factory
+  MockPoolTicksState__factory,
 } from '../typechain';
 import {BigNumberish} from '@ethersproject/bignumber';
 
 const tickSpacing = 50;
 
-async function assertTicksData (
+async function assertTicksData(
   mockPoolTicksState: MockPoolTicksState,
   tick: BigNumberish,
   expectedLiquidityGross: BigNumberish,
@@ -28,7 +28,7 @@ async function assertTicksData (
   expect(feeGrowthOutside).to.be.eq(expectedFeeGrowthOutside);
 }
 
-async function assertLinkedListData (
+async function assertLinkedListData(
   mockPoolTicksState: MockPoolTicksState,
   tick: BigNumberish,
   expectedPrevTick: BigNumberish,
@@ -39,10 +39,7 @@ async function assertLinkedListData (
   expect(next).to.be.eq(expectedNextTick);
 }
 
-async function verifyInitializedData (
-  mockPoolTicksState: MockPoolTicksState,
-  initializedTicks: BigNumberish[]
-) {
+async function verifyInitializedData(mockPoolTicksState: MockPoolTicksState, initializedTicks: BigNumberish[]) {
   for (let i = 0; i < initializedTicks.length; i++) {
     await assertLinkedListData(
       mockPoolTicksState,
@@ -87,7 +84,14 @@ describe('PoolTicksState', () => {
         const liquidity1 = BN.from(10000);
         // update position from 100 to 200 with currentTick = 150
         await mockPoolTicksState.externalUpdatePosition(
-          {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK},
+          {
+            liquidityDelta: liquidity1,
+            owner: user1.address,
+            tickLower: 100,
+            tickUpper: 200,
+            tickLowerPrevious: MIN_TICK,
+            tickUpperPrevious: MIN_TICK,
+          },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
         );
@@ -102,7 +106,14 @@ describe('PoolTicksState', () => {
         const liquidity2 = BN.from(5000);
         // add liqudity from -100 to 100
         await mockPoolTicksState.externalUpdatePosition(
-          {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK},
+          {
+            liquidityDelta: liquidity2,
+            owner: user2.address,
+            tickLower: -100,
+            tickUpper: 100,
+            tickLowerPrevious: MIN_TICK,
+            tickUpperPrevious: MIN_TICK,
+          },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
         );
@@ -127,12 +138,26 @@ describe('PoolTicksState', () => {
     beforeEach('add liquidity', async () => {
       // update position from 100 to 200 with currentTick = 150
       await mockPoolTicksState.externalUpdatePosition(
-        {liquidityDelta: liquidity1, owner: user1.address, tickLower: 100, tickUpper: 200, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK },
+        {
+          liquidityDelta: liquidity1,
+          owner: user1.address,
+          tickLower: 100,
+          tickUpper: 200,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+        },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
       );
       await mockPoolTicksState.externalUpdatePosition(
-        {liquidityDelta: liquidity2, owner: user2.address, tickLower: -100, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK },
+        {
+          liquidityDelta: liquidity2,
+          owner: user2.address,
+          tickLower: -100,
+          tickUpper: 100,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+        },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
       );
@@ -181,11 +206,18 @@ describe('PoolTicksState', () => {
 
     it('add liquidity', async () => {
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+        {
+          owner: user1.address,
+          tickLower: -10,
+          tickUpper: 20,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+          liquidityDelta: 10,
+        },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
 
@@ -194,11 +226,18 @@ describe('PoolTicksState', () => {
       expect((await mockPoolTicksState.getPoolState())._nearestCurrentTick).to.be.eq(-10);
 
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: 10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+        {
+          owner: user1.address,
+          tickLower: 10,
+          tickUpper: 20,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+          liquidityDelta: 10,
+        },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
 
@@ -210,28 +249,49 @@ describe('PoolTicksState', () => {
     it('remove liquidity', async () => {
       // add liquidity in range [-10, 20] and [10, 20]
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+        {
+          owner: user1.address,
+          tickLower: -10,
+          tickUpper: 20,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+          liquidityDelta: 10,
+        },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: 10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+        {
+          owner: user1.address,
+          tickLower: 10,
+          tickUpper: 20,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+          liquidityDelta: 10,
+        },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       // remove liquidity at [-10, 20]
       await mockPoolTicksState.externalUpdatePosition(
-        {owner: user1.address, tickLower: -10, tickUpper: 20, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: -10},
+        {
+          owner: user1.address,
+          tickLower: -10,
+          tickUpper: 20,
+          tickLowerPrevious: MIN_TICK,
+          tickUpperPrevious: MIN_TICK,
+          liquidityDelta: -10,
+        },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       await assertLinkedListData(mockPoolTicksState, -10, 0, 0); // empty data
@@ -251,21 +311,35 @@ describe('PoolTicksState', () => {
     await mockPoolTicksState.externalInitPoolStorage(TWO_POW_96, ZERO);
 
     await mockPoolTicksState.externalUpdatePosition(
-      {owner: user1.address, tickLower: MIN_TICK, tickUpper: 100, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+      {
+        owner: user1.address,
+        tickLower: MIN_TICK,
+        tickUpper: 100,
+        tickLowerPrevious: MIN_TICK,
+        tickUpperPrevious: MIN_TICK,
+        liquidityDelta: 10,
+      },
       0,
       {
         feeGrowth: 0,
-        secondsPerLiquidity: 0
+        secondsPerLiquidity: 0,
       }
     );
     await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 100, MAX_TICK]);
 
     await mockPoolTicksState.externalUpdatePosition(
-      {owner: user1.address, tickLower: -100, tickUpper: MAX_TICK, tickLowerPrevious: MIN_TICK, tickUpperPrevious: MIN_TICK, liquidityDelta: 10},
+      {
+        owner: user1.address,
+        tickLower: -100,
+        tickUpper: MAX_TICK,
+        tickLowerPrevious: MIN_TICK,
+        tickUpperPrevious: MIN_TICK,
+        liquidityDelta: 10,
+      },
       0,
       {
         feeGrowth: 0,
-        secondsPerLiquidity: 0
+        secondsPerLiquidity: 0,
       }
     );
     await verifyInitializedData(mockPoolTicksState, [MIN_TICK, -100, 100, MAX_TICK]);
@@ -290,24 +364,27 @@ describe('PoolTicksState', () => {
     });
 
     it('insert - tick previous has been removed or non-existent', async () => {
-      await expect(mockPoolTicksState.externalUpdateTickList(20, 10, 100, true))
-        .to.be.revertedWith('previous tick has been removed');
+      await expect(mockPoolTicksState.externalUpdateTickList(20, 10, 100, true)).to.be.revertedWith(
+        'previous tick has been removed'
+      );
 
       // add, then remove
       await mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, true);
       await mockPoolTicksState.externalUpdateTickList(10, 10, 100, false);
 
-      await expect(mockPoolTicksState.externalUpdateTickList(12, 10, 100, true))
-        .to.be.revertedWith('previous tick has been removed');
+      await expect(mockPoolTicksState.externalUpdateTickList(12, 10, 100, true)).to.be.revertedWith(
+        'previous tick has been removed'
+      );
     });
 
-    it('insert - revert previous tick is higher than the new tick', async() => {
+    it('insert - revert previous tick is higher than the new tick', async () => {
       await mockPoolTicksState.externalUpdateTickList(200, MIN_TICK, 100, true);
-      await expect(mockPoolTicksState.externalUpdateTickList(10, 200, 200, true))
-        .to.be.revertedWith('invalid lower value');
+      await expect(mockPoolTicksState.externalUpdateTickList(10, 200, 200, true)).to.be.revertedWith(
+        'invalid lower value'
+      );
     });
 
-    it('insert - revert previous tick is too far from the new tick', async() => {
+    it('insert - revert previous tick is too far from the new tick', async () => {
       let maxTravel = 10;
       let initializedTicks = [MIN_TICK, MAX_TICK];
       for (let i = 1; i <= maxTravel + 1; i++) {
@@ -315,11 +392,12 @@ describe('PoolTicksState', () => {
         initializedTicks.splice(i, 0, i * 10);
       }
       await verifyInitializedData(mockPoolTicksState, initializedTicks);
-      await expect(mockPoolTicksState.externalUpdateTickList(200, MIN_TICK, 200, true))
-        .to.be.revertedWith('invalid lower value');
+      await expect(mockPoolTicksState.externalUpdateTickList(200, MIN_TICK, 200, true)).to.be.revertedWith(
+        'invalid lower value'
+      );
     });
 
-    it('insert - change nearest tick', async() => {
+    it('insert - change nearest tick', async () => {
       let {_poolTick} = await mockPoolTicksState.getPoolState();
       await mockPoolTicksState.externalUpdateTickList(_poolTick - 100, MIN_TICK, _poolTick, true);
       let poolData = await mockPoolTicksState.getPoolState();
@@ -337,7 +415,7 @@ describe('PoolTicksState', () => {
       await expect(poolData._nearestCurrentTick).to.be.eq(previousData);
     });
 
-    it('insert - correct data updates', async() => {
+    it('insert - correct data updates', async () => {
       await mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, true);
       await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 10, MAX_TICK]);
       await mockPoolTicksState.externalUpdateTickList(50, MIN_TICK, 100, true);
@@ -347,13 +425,15 @@ describe('PoolTicksState', () => {
     });
 
     it('remove - revert non-existent value', async () => {
-      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false))
-        .to.be.revertedWith('remove non-existent value');
+      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false)).to.be.revertedWith(
+        'remove non-existent value'
+      );
     });
 
     it('remove - revert non-existent value', async () => {
-      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false))
-        .to.be.revertedWith('remove non-existent value');
+      await expect(mockPoolTicksState.externalUpdateTickList(10, MIN_TICK, 100, false)).to.be.revertedWith(
+        'remove non-existent value'
+      );
     });
 
     it('remove - at min/max tick, nothing changes', async () => {
@@ -364,11 +444,16 @@ describe('PoolTicksState', () => {
     });
 
     it('remove - not update nearest tick', async () => {
-      let  {_nearestCurrentTick} = await mockPoolTicksState.getPoolState();
+      let {_nearestCurrentTick} = await mockPoolTicksState.getPoolState();
       await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 10, MIN_TICK, 100, true);
       await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, MAX_TICK]);
       await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 100, MIN_TICK, 100, true);
-      await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, _nearestCurrentTick + 100, MAX_TICK]);
+      await verifyInitializedData(mockPoolTicksState, [
+        MIN_TICK,
+        _nearestCurrentTick + 10,
+        _nearestCurrentTick + 100,
+        MAX_TICK,
+      ]);
       await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 100, MIN_TICK, 100, false);
       await verifyInitializedData(mockPoolTicksState, [MIN_TICK, _nearestCurrentTick + 10, MAX_TICK]);
       await mockPoolTicksState.externalUpdateTickList(_nearestCurrentTick + 10, MIN_TICK, 100, false);
@@ -376,7 +461,7 @@ describe('PoolTicksState', () => {
     });
 
     it('remove - should update nearest tick', async () => {
-      let  {_poolTick, _nearestCurrentTick} = await mockPoolTicksState.getPoolState();
+      let {_poolTick, _nearestCurrentTick} = await mockPoolTicksState.getPoolState();
       await mockPoolTicksState.externalUpdateTickList(_poolTick - 100, MIN_TICK, _poolTick, true);
       let poolData = await mockPoolTicksState.getPoolState();
       expect(poolData._nearestCurrentTick).to.be.eq(_poolTick - 100);
