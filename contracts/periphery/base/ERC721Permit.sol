@@ -3,7 +3,6 @@ pragma solidity 0.8.4;
 
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {ERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
-import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 
 import {IERC721Permit} from '../../interfaces/periphery/IERC721Permit.sol';
@@ -29,7 +28,7 @@ interface IERC1271 {
 
 /// @title ERC721 with permit
 /// @notice Nonfungible tokens that support an approve via signature, i.e. permit
-abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, IERC721Permit {
+abstract contract ERC721Permit is DeadlineValidation, ERC721Enumerable, IERC721Permit {
   /// @dev Value is equal to keccak256("Permit(address spender,uint256 tokenId,uint256 nonce,uint256 deadline)");
   bytes32 public constant override PERMIT_TYPEHASH =
     0x49ecf333e5b8c95c40fdafc95c1ad136e8914a8fb55e9dc8bb01eaa83a2df9ad;
@@ -97,23 +96,6 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721, ERC721Enumerable, 
     }
 
     _approve(spender, tokenId);
-  }
-
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 tokenId
-  ) internal override(ERC721, ERC721Enumerable) {
-    super._beforeTokenTransfer(from, to, tokenId);
-  }
-
-  function supportsInterface(bytes4 interfaceId)
-    public
-    view
-    override(ERC721, ERC721Enumerable, IERC165)
-    returns (bool)
-  {
-    return super.supportsInterface(interfaceId);
   }
 
   /// @dev Gets the current nonce for a token ID and then increments it, returning the original value
