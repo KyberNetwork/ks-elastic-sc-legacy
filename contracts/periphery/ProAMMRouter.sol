@@ -118,7 +118,7 @@ contract ProAMMRouter is
         source: msg.sender
       })
     );
-    require(amountOut >= params.amountOutMinimum, 'ProAMMRouter: insufficient amount out');
+    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
   }
 
   function swapExactInput(ExactInputParams memory params)
@@ -149,7 +149,7 @@ contract ProAMMRouter is
       }
     }
 
-    require(amountOut >= params.amountOutMinimum, 'ProAMMRouter: insufficient amount out');
+    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
   }
 
   /// @dev Perform a swap exact amount out using callback
@@ -176,13 +176,13 @@ contract ProAMMRouter is
       abi.encode(data)
     );
 
-    uint256 amountOutReceived;
-    (amountIn, amountOutReceived) = isFromToken0
+    uint256 receivedAmountOut;
+    (amountIn, receivedAmountOut) = isFromToken0
       ? (uint256(amount1Delta), uint256(-amount0Delta))
       : (uint256(amount0Delta), uint256(-amount1Delta));
-    // it's technically possible to not receive the full output amount,
-    // so if no price limit has been specified, require this possibility away
-    if (sqrtPriceLimitX96 == 0) require(amountOutReceived == amountOut);
+
+    // if no price limit has been specified, receivedAmountOut should be equals to amountOut
+    assert(sqrtPriceLimitX96 != 0 || receivedAmountOut == amountOut);
   }
 
   function swapExactOutputSingle(ExactOutputSingleParams calldata params)
@@ -201,7 +201,7 @@ contract ProAMMRouter is
         source: msg.sender
       })
     );
-    require(amountIn <= params.amountInMaximum, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
     // has to be reset even though we don't use it in the single hop case
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
@@ -221,7 +221,7 @@ contract ProAMMRouter is
     );
 
     amountIn = amountInCached;
-    require(amountIn <= params.amountInMaximum, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
 
