@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {TickMath} from '../libraries/TickMath.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 import {PathHelper} from './libraries/PathHelper.sol';
+import {PoolAddress} from './libraries/PoolAddress.sol';
 
 import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
 import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
@@ -14,19 +15,11 @@ import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
-import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
-import {PoolAddress} from './libraries/PoolAddress.sol';
 
 /// @title KyberDMM V2 Swap Router
-contract ProAMMRouter is
-  IProAMMRouter,
-  ImmutableRouterStorage,
-  RouterTokenHelperWithFee,
-  Multicall,
-  DeadlineValidation
-{
+contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidation {
   using PathHelper for bytes;
   using SafeCast for uint256;
 
@@ -36,7 +29,7 @@ contract ProAMMRouter is
   /// @dev Use to cache the computed amount in for an exact output swap.
   uint256 private amountInCached = DEFAULT_AMOUNT_IN_CACHED;
 
-  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
+  constructor(address _factory, address _WETH) RouterTokenHelperWithFee(_factory, _WETH) {}
 
   struct SwapCallbackData {
     bytes path;

@@ -18,6 +18,8 @@ abstract contract LiquidityHelper is
   ImmutableRouterStorage,
   RouterTokenHelper
 {
+  constructor(address _factory, address _WETH) RouterTokenHelper(_factory, _WETH) {}
+
   struct AddLiquidityParams {
     address token0;
     address token1;

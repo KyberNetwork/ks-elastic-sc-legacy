@@ -18,7 +18,6 @@ import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonf
 import {IRouterTokenHelper} from '../interfaces/periphery/IRouterTokenHelper.sol';
 
 import {LiquidityHelper} from './base/LiquidityHelper.sol';
-import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {RouterTokenHelper} from './base/RouterTokenHelper.sol';
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
@@ -53,7 +52,7 @@ contract NonfungiblePositionManager is
     address _descriptor
   )
     ERC721Permit('ProAMM NFT Positions V1', 'PRO-AMM-POS-V1', '1')
-    ImmutableRouterStorage(_factory, _WETH)
+    LiquidityHelper(_factory, _WETH)
   {
     _tokenDescriptor = _descriptor;
   }
