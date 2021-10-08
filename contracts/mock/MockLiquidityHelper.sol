@@ -2,11 +2,10 @@
 pragma solidity 0.8.4;
 
 import '../periphery/base/LiquidityHelper.sol';
-import '../periphery/base/ImmutableRouterStorage.sol';
 import '../periphery/base/Multicall.sol';
 
 contract MockLiquidityHelper is LiquidityHelper, Multicall {
-  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
+  constructor(address _factory, address _WETH) LiquidityHelper(_factory, _WETH) {}
 
   function testUnlockPool(
     address token0,

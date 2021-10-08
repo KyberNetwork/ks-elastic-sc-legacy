@@ -4,8 +4,6 @@ pragma abicoder v2;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
-import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 
 import {PoolAddress} from './libraries/PoolAddress.sol';
 import {MathConstants as C} from '../libraries/MathConstants.sol';
@@ -18,7 +16,6 @@ import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonf
 import {IRouterTokenHelper} from '../interfaces/periphery/IRouterTokenHelper.sol';
 
 import {LiquidityHelper} from './base/LiquidityHelper.sol';
-import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {RouterTokenHelper} from './base/RouterTokenHelper.sol';
 import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
@@ -53,7 +50,7 @@ contract NonfungiblePositionManager is
     address _descriptor
   )
     ERC721Permit('ProAMM NFT Positions V1', 'PRO-AMM-POS-V1', '1')
-    ImmutableRouterStorage(_factory, _WETH)
+    LiquidityHelper(_factory, _WETH)
   {
     _tokenDescriptor = _descriptor;
   }
@@ -267,17 +264,12 @@ contract NonfungiblePositionManager is
     super.transferAllTokens(token, minAmount, recipient);
   }
 
-  function tokenURI(uint256 tokenId)
-    public
-    view
-    override(ERC721, IERC721Metadata)
-    returns (string memory)
-  {
+  function tokenURI(uint256 tokenId) public view override returns (string memory) {
     require(_exists(tokenId), 'Nonexistent token');
     return INonfungibleTokenPositionDescriptor(_tokenDescriptor).tokenURI(this, tokenId);
   }
 
-  function getApproved(uint256 tokenId) public view override(ERC721, IERC721) returns (address) {
+  function getApproved(uint256 tokenId) public view override returns (address) {
     require(_exists(tokenId), 'ERC721: approved query for nonexistent token');
     return _positions[tokenId].operator;
   }
@@ -297,7 +289,7 @@ contract NonfungiblePositionManager is
   }
 
   /// @dev Overrides _approve to use the operator in the position, which is packed with the position permit nonce
-  function _approve(address to, uint256 tokenId) internal override(ERC721) {
+  function _approve(address to, uint256 tokenId) internal override {
     _positions[tokenId].operator = to;
     emit Approval(ownerOf(tokenId), to, tokenId);
   }

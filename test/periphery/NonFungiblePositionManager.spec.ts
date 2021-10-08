@@ -697,7 +697,7 @@ describe('NonFungiblePositionManager', () => {
       recipient: user.address,
       deadline: BN.from(2).pow(255),
       amountIn: amount,
-      amountOutMinimum: BN.from(0),
+      minAmountOut: BN.from(0),
       sqrtPriceLimitX96: BN.from(0),
     };
     await router.connect(user).swapExactInputSingle(swapParams);

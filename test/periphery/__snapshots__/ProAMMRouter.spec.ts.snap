@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ProAMMRouter #swapExactInput #gas 2 pool [ @skip-on-coverage ] 1`] = `"183854"`;
+
+exports[`ProAMMRouter #swapExactInput #gas one pool [ @skip-on-coverage ] 1`] = `"108965"`;
+
+exports[`ProAMMRouter #swapExactInput #gas one pool [ @skip-on-coverage ] 2`] = `"113780"`;
+
+exports[`ProAMMRouter #swapExactInput #gas one pool [ @skip-on-coverage ] 3`] = `"109049"`;
+
+exports[`ProAMMRouter #swapExactInput #gas one pool [ @skip-on-coverage ] 4`] = `"113792"`;
+
+exports[`ProAMMRouter #swapExactOutput #gas 2 pool [ @skip-on-coverage ] 1`] = `"198619"`;
+
+exports[`ProAMMRouter #swapExactOutput #gas one pool [ @skip-on-coverage ] 1`] = `"120664"`;
+
+exports[`ProAMMRouter #swapExactOutput #gas one pool [ @skip-on-coverage ] 2`] = `"125561"`;
+
+exports[`ProAMMRouter #swapExactOutput #gas one pool [ @skip-on-coverage ] 3`] = `"120748"`;
+
+exports[`ProAMMRouter #swapExactOutput #gas one pool [ @skip-on-coverage ] 4`] = `"125573"`;

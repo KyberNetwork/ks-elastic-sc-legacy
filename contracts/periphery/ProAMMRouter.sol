@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {TickMath} from '../libraries/TickMath.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 import {PathHelper} from './libraries/PathHelper.sol';
+import {PoolAddress} from './libraries/PoolAddress.sol';
 
 import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
 import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
@@ -14,19 +15,11 @@ import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
-import {ImmutableRouterStorage} from './base/ImmutableRouterStorage.sol';
 import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
-import {PoolAddress} from './libraries/PoolAddress.sol';
 
 /// @title KyberDMM V2 Swap Router
-contract ProAMMRouter is
-  IProAMMRouter,
-  ImmutableRouterStorage,
-  RouterTokenHelperWithFee,
-  Multicall,
-  DeadlineValidation
-{
+contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidation {
   using PathHelper for bytes;
   using SafeCast for uint256;
 
@@ -36,7 +29,7 @@ contract ProAMMRouter is
   /// @dev Use to cache the computed amount in for an exact output swap.
   uint256 private amountInCached = DEFAULT_AMOUNT_IN_CACHED;
 
-  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
+  constructor(address _factory, address _WETH) RouterTokenHelperWithFee(_factory, _WETH) {}
 
   struct SwapCallbackData {
     bytes path;
@@ -118,7 +111,7 @@ contract ProAMMRouter is
         source: msg.sender
       })
     );
-    require(amountOut >= params.amountOutMinimum, 'ProAMMRouter: insufficient amount out');
+    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
   }
 
   function swapExactInput(ExactInputParams memory params)
@@ -149,7 +142,7 @@ contract ProAMMRouter is
       }
     }
 
-    require(amountOut >= params.amountOutMinimum, 'ProAMMRouter: insufficient amount out');
+    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
   }
 
   /// @dev Perform a swap exact amount out using callback
@@ -176,13 +169,13 @@ contract ProAMMRouter is
       abi.encode(data)
     );
 
-    uint256 amountOutReceived;
-    (amountIn, amountOutReceived) = isFromToken0
+    uint256 receivedAmountOut;
+    (amountIn, receivedAmountOut) = isFromToken0
       ? (uint256(amount1Delta), uint256(-amount0Delta))
       : (uint256(amount0Delta), uint256(-amount1Delta));
-    // it's technically possible to not receive the full output amount,
-    // so if no price limit has been specified, require this possibility away
-    if (sqrtPriceLimitX96 == 0) require(amountOutReceived == amountOut);
+
+    // if no price limit has been specified, receivedAmountOut should be equals to amountOut
+    assert(sqrtPriceLimitX96 != 0 || receivedAmountOut == amountOut);
   }
 
   function swapExactOutputSingle(ExactOutputSingleParams calldata params)
@@ -201,7 +194,7 @@ contract ProAMMRouter is
         source: msg.sender
       })
     );
-    require(amountIn <= params.amountInMaximum, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
     // has to be reset even though we don't use it in the single hop case
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
@@ -221,7 +214,7 @@ contract ProAMMRouter is
     );
 
     amountIn = amountInCached;
-    require(amountIn <= params.amountInMaximum, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
 

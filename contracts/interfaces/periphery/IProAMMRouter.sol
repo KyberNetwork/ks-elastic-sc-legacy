@@ -13,7 +13,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
     address recipient;
     uint256 deadline;
     uint256 amountIn;
-    uint256 amountOutMinimum;
+    uint256 minAmountOut;
     uint160 sqrtPriceLimitX96;
   }
 
@@ -25,12 +25,13 @@ interface IProAMMRouter is IProAMMSwapCallback {
     payable
     returns (uint256 amountOut);
 
+  /// @dev If the swap is from token0 -> token1 -> token2, then path is encoded as [token0, fee01, token1, fee12, token2]
   struct ExactInputParams {
     bytes path;
     address recipient;
     uint256 deadline;
     uint256 amountIn;
-    uint256 amountOutMinimum;
+    uint256 minAmountOut;
   }
 
   /// @notice Swaps `amountIn` of one token for as much as possible of another along the specified path
@@ -48,7 +49,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
     address recipient;
     uint256 deadline;
     uint256 amountOut;
-    uint256 amountInMaximum;
+    uint256 maxAmountIn;
     uint160 sqrtPriceLimitX96;
   }
 
@@ -60,12 +61,13 @@ interface IProAMMRouter is IProAMMSwapCallback {
     payable
     returns (uint256 amountIn);
 
+  /// @dev If the swap is from token0 -> token1 -> token2, then path is encoded as [token2, fee12, token1, fee01, token0]
   struct ExactOutputParams {
     bytes path;
     address recipient;
     uint256 deadline;
     uint256 amountOut;
-    uint256 amountInMaximum;
+    uint256 maxAmountIn;
   }
 
   /// @notice Swaps as little as possible of one token for `amountOut` of another along the specified path (reversed)

@@ -5,7 +5,7 @@ import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/I
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
 
-interface INonfungiblePositionManager is IRouterTokenHelper, IERC721Metadata, IERC721Permit {
+interface INonfungiblePositionManager is IRouterTokenHelper {
   struct Position {
     // the nonce for permits
     uint96 nonce;

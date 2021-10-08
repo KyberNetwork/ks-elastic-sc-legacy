@@ -1,28 +1,20 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BigNumber as BN, ContractTransaction} from 'ethers';
-import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT} from '../helpers/helper';
-import {encodePriceSqrt, getBalances, getPriceFromTick} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {
-  ProAMMRouter,
-  ProAMMRouter__factory,
-  ProAMMFactory,
-  ProAMMPool,
-  MockToken,
-  MockToken__factory,
-  MockWeth,
-  MockWeth__factory,
-  MockProAMMCallbacks,
-  MockProAMMCallbacks__factory,
-} from '../../typechain';
+import {ProAMMRouter, ProAMMRouter__factory} from '../../typechain';
+import {ProAMMFactory, ProAMMPool} from '../../typechain';
+import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
+import {MockProAMMCallbacks, MockProAMMCallbacks__factory} from '../../typechain';
 
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {encodePath} from '../helpers/swapPath';
+import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT} from '../helpers/helper';
+import {encodePriceSqrt, getBalances, getPriceFromTick, snapshotGasCost} from '../helpers/utils';
 
 const showGasUsed = false;
 
@@ -33,8 +25,6 @@ let tokenA: MockToken;
 let tokenB: MockToken;
 let token0: MockToken;
 let token1: MockToken;
-let poolArray: ProAMMPool[] = [];
-let pool: ProAMMPool;
 let weth: MockWeth;
 let router: ProAMMRouter;
 let callback: MockProAMMCallbacks;
@@ -44,7 +34,6 @@ let tickDistanceArray = [10, 60];
 let initialPrice: BN;
 let ticks: number[];
 
-let firstSnapshot: any;
 let snapshotId: any;
 
 describe('ProAMMRouter', () => {
@@ -123,9 +112,9 @@ describe('ProAMMRouter', () => {
       tokenOut: tokenOut,
       fee: fee,
       recipient: user.address,
-      deadline: BN.from(2).pow(255),
+      deadline: MAX_UINT,
       amountIn: amount,
-      amountOutMinimum: BN.from(0),
+      minAmountOut: ZERO,
       sqrtPriceLimitX96: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
@@ -181,7 +170,7 @@ describe('ProAMMRouter', () => {
       recipient: user.address,
       deadline: BN.from(2).pow(255),
       amountIn: amount,
-      amountOutMinimum: BN.from(0),
+      minAmountOut: BN.from(0),
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -261,9 +250,9 @@ describe('ProAMMRouter', () => {
       tokenOut: tokenOut,
       fee: fee,
       recipient: user.address,
-      deadline: BN.from(2).pow(255),
+      deadline: MAX_UINT,
       amountOut: amount,
-      amountInMaximum: PRECISION,
+      maxAmountIn: PRECISION,
       sqrtPriceLimitX96: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
@@ -319,7 +308,7 @@ describe('ProAMMRouter', () => {
       recipient: user.address,
       deadline: BN.from(2).pow(255),
       amountOut: amount,
-      amountInMaximum: PRECISION,
+      maxAmountIn: PRECISION,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -453,10 +442,10 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountIn: amount,
-          amountOutMinimum: PRECISION,
+          minAmountOut: PRECISION,
           sqrtPriceLimitX96: ZERO,
         })
-      ).to.be.revertedWith('ProAMMRouter: insufficient amount out');
+      ).to.be.revertedWith('ProAMMRouter: insufficient amountOut');
     });
   });
 
@@ -522,7 +511,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountOut: amount,
-          amountInMaximum: ZERO,
+          maxAmountIn: ZERO,
           sqrtPriceLimitX96: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
@@ -555,6 +544,20 @@ describe('ProAMMRouter', () => {
       }
     });
 
+    it('#gas one pool [ @skip-on-coverage ]', async () => {
+      let firstTokens = [weth.address, tokenA.address];
+      let secondTokens = [tokenA.address, tokenB.address];
+      let fee = swapFeeBpsArray[0];
+      let numRuns = firstTokens.length;
+      for (let i = 0; i < numRuns; i++) {
+        await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
+        let tx = await swapExactInputAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
+        await snapshotGasCost(tx);
+        tx = await swapExactInputAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
+        await snapshotGasCost(tx);
+      }
+    });
+
     it('2 pools', async () => {
       let fee = swapFeeBpsArray[0];
       let gasUsed = ZERO;
@@ -570,6 +573,16 @@ describe('ProAMMRouter', () => {
       if (showGasUsed) {
         console.log(`Average gas used for 2 swapExactIn 2 pools: ${gasUsed.div(BN.from(2)).toString()}`);
       }
+    });
+
+    it('#gas 2 pool [ @skip-on-coverage ]', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      // swap tokenB -> tokenA -> eth
+      let tx = await swapExactInputAndVerify([tokenB.address, tokenA.address, weth.address], fee, amount, false);
+      await snapshotGasCost(tx);
     });
 
     it('eth -> token', async () => {
@@ -598,9 +611,9 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountIn: amount,
-          amountOutMinimum: PRECISION,
+          minAmountOut: PRECISION,
         })
-      ).to.be.revertedWith('ProAMMRouter: insufficient amount out');
+      ).to.be.revertedWith('ProAMMRouter: insufficient amountOut');
     });
   });
 
@@ -630,6 +643,20 @@ describe('ProAMMRouter', () => {
       }
     });
 
+    it('#gas one pool [ @skip-on-coverage ]', async () => {
+      let firstTokens = [weth.address, tokenA.address];
+      let secondTokens = [tokenA.address, tokenB.address];
+      let fee = swapFeeBpsArray[0];
+      let numRuns = firstTokens.length;
+      for (let i = 0; i < numRuns; i++) {
+        await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
+        let tx = await swapExactOutputAndVerify([firstTokens[i], secondTokens[i]], fee, BN.from(10000000), false);
+        await snapshotGasCost(tx);
+        tx = await swapExactOutputAndVerify([secondTokens[i], firstTokens[i]], fee, BN.from(10000000), false);
+        await snapshotGasCost(tx);
+      }
+    });
+
     it('2 pools', async () => {
       let fee = swapFeeBpsArray[0];
       let gasUsed = ZERO;
@@ -645,6 +672,16 @@ describe('ProAMMRouter', () => {
       if (showGasUsed) {
         console.log(`Average gas used for 2 swapExactIn 2 pools: ${gasUsed.div(BN.from(2)).toString()}`);
       }
+    });
+
+    it('#gas 2 pool [ @skip-on-coverage ]', async () => {
+      let fee = swapFeeBpsArray[0];
+      let amount = BN.from(1000000);
+      await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
+      await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
+      // swap tokenB -> tokenA -> eth
+      let tx = await swapExactOutputAndVerify([tokenB.address, tokenA.address, weth.address], fee, amount, false);
+      await snapshotGasCost(tx);
     });
 
     it('eth -> token', async () => {
@@ -673,7 +710,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: MAX_UINT,
           amountOut: amount,
-          amountInMaximum: ZERO,
+          maxAmountIn: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
     });
@@ -730,7 +767,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountIn: amount,
-          amountOutMinimum: ZERO,
+          minAmountOut: ZERO,
           sqrtPriceLimitX96: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
@@ -740,7 +777,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountIn: amount,
-          amountOutMinimum: ZERO,
+          minAmountOut: ZERO,
         })
       ).to.be.revertedWith('ProAMM: Expired');
 
@@ -752,7 +789,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountOut: amount,
-          amountInMaximum: PRECISION,
+          maxAmountIn: PRECISION,
           sqrtPriceLimitX96: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
@@ -762,7 +799,7 @@ describe('ProAMMRouter', () => {
           recipient: user.address,
           deadline: ZERO,
           amountOut: amount,
-          amountInMaximum: PRECISION,
+          maxAmountIn: PRECISION,
         })
       ).to.be.revertedWith('ProAMM: Expired');
     });

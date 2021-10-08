@@ -2,7 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BigNumber as BN} from 'ethers';
 import {PRECISION, ZERO_ADDRESS, ONE, TWO, ZERO, MAX_UINT} from '../helpers/helper';
-import {encodePriceSqrt, getBalances} from '../helpers/utils';
+import {encodePriceSqrt, getBalances, sortTokens} from '../helpers/utils';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -134,15 +134,14 @@ describe('LiquidityHelper', () => {
     });
 
     it(`reverts token0 > token1`, async () => {
-      let token0 = tokenA.address > tokenB.address ? tokenA.address : tokenB.address;
-      let token1 = tokenA.address > tokenB.address ? tokenB.address : tokenA.address;
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       await createPool(token0, token1, swapFeeBpsArray[0]);
       await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[0], initialPrice);
 
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
-          token0: token0,
-          token1: token1,
+          token0: token1,
+          token1: token0,
           fee: swapFeeBpsArray[0],
           recipient: user.address,
           tickLower: -100 * tickDistanceArray[0],
@@ -156,8 +155,7 @@ describe('LiquidityHelper', () => {
     });
 
     it('reverts lower than min amount', async () => {
-      let token0 = tokenA.address > tokenB.address ? tokenB.address : tokenA.address;
-      let token1 = tokenA.address > tokenB.address ? tokenA.address : tokenB.address;
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       await createPool(token0, token1, swapFeeBpsArray[0]);
       await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[0], initialPrice);
 

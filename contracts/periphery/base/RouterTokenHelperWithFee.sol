@@ -13,6 +13,8 @@ import {RouterTokenHelper} from './RouterTokenHelper.sol';
 abstract contract RouterTokenHelperWithFee is RouterTokenHelper, IRouterTokenHelperWithFee {
   uint256 constant FEE_BPS = 10000;
 
+  constructor(address _factory, address _WETH) RouterTokenHelper(_factory, _WETH) {}
+
   function unwrapWETHWithFee(
     uint256 minAmount,
     address recipient,

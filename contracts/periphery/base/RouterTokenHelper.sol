@@ -11,6 +11,8 @@ import {IWETH} from '../../interfaces/IWETH.sol';
 import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
 abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorage {
+  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
+
   receive() external payable {
     require(msg.sender == WETH, 'Not WETH');
   }
