@@ -29,8 +29,8 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
       uint256 amount1
     )
   {
+    (tokenId, liquidity, amount0, amount1) = super.mint(params);
     antiSnipAttackData[tokenId] = AntiSnipAttack.initialize(block.timestamp.toUint32());
-    return super.mint(params);
   }
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
