@@ -8,7 +8,7 @@ exports[`ProAMMPool #mint after unlockPool successful mints position above curre
 
 exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"280484"`;
 
-exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"163716"`;
+exports[`ProAMMPool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"163729"`;
 
 exports[`ProAMMPool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"234230"`;
 
