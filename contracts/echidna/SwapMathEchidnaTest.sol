@@ -17,7 +17,7 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     require(isExactInput);
     checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
-    int256 deltaNext = SwapMath.calcDeltaNext(
+    int256 reachAmount = SwapMath.calcReachAmount(
       liquidity,
       currentSqrtP,
       targetSqrtP,
@@ -26,15 +26,15 @@ contract SwapMathEchidnaTest is EchidnaAssert {
       isToken0
     );
     if (isExactInput) {
-      isTrue(deltaNext >= 0);
+      isTrue(reachAmount >= 0);
     } else {
-      isTrue(deltaNext <= 0);
+      isTrue(reachAmount <= 0);
     }
 
-    uint256 absDelta = isExactInput ? uint256(deltaNext) : uint256(-deltaNext);
+    uint256 absDelta = isExactInput ? uint256(reachAmount) : uint256(-reachAmount);
     absDelta -= 1;
 
-    uint256 fee = SwapMath.calcFinalSwapFeeAmount(
+    uint256 fee = SwapMath.estimateIncrementalLiquidity(
       absDelta,
       liquidity,
       currentSqrtP,
@@ -59,27 +59,27 @@ contract SwapMathEchidnaTest is EchidnaAssert {
 
   function checkComputeSwapStep(
     uint128 liquidity,
-    int256 amountRemaining,
+    int256 specifiedAmount,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint8 feeInBps
   ) external {
     checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
-    require(amountRemaining != 0);
-    bool isExactInput = amountRemaining > 0;
+    require(specifiedAmount != 0);
+    bool isExactInput = specifiedAmount > 0;
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
-    (int256 delta, int256 actualDelta, , uint160 nextSqrtP) = SwapMath.computeSwapStep(
+    (int256 usedAmount, int256 returnedAmount, , uint160 nextSqrtP) = SwapMath.computeSwapStep(
       liquidity,
       currentSqrtP,
       targetSqrtP,
       feeInBps,
-      amountRemaining,
+      specifiedAmount,
       isExactInput,
       isToken0
     );
 
     if (nextSqrtP != targetSqrtP) {
-      isTrue(delta == amountRemaining);
+      isTrue(usedAmount == specifiedAmount);
     }
 
     // next price is between price and price target
@@ -93,11 +93,11 @@ contract SwapMathEchidnaTest is EchidnaAssert {
 
     if (nextSqrtP != currentSqrtP) {
       if (isExactInput) {
-        isTrue(delta >= 0);
-        isTrue(actualDelta <= 0);
+        isTrue(usedAmount >= 0);
+        isTrue(returnedAmount <= 0);
       } else {
-        isTrue(delta <= 0);
-        isTrue(actualDelta >= 0);
+        isTrue(usedAmount <= 0);
+        isTrue(returnedAmount >= 0);
       }
     }
   }
