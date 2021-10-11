@@ -31,7 +31,7 @@ let callback: MockProAMMCallbacks;
 let vestingPeriod = 100;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
-let ticksPrevious = [MIN_TICK, MIN_TICK];
+let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 let initialPrice: BN;
 let ticks: number[];
 

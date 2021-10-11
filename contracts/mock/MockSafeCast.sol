@@ -4,9 +4,7 @@ pragma solidity >=0.8.0;
 import '../libraries/SafeCast.sol';
 
 contract MockSafeCast {
-  using SafeCast for uint256;
-  using SafeCast for int256;
-  using SafeCast for int128;
+  using SafeCast for *;
 
   function toUint32(uint256 y) external pure returns (uint32) {
     return y.toUint32();

@@ -61,7 +61,7 @@ let vestingPeriod = 100;
 
 let minTick = getMinTick(tickDistance);
 let maxTick = getMaxTick(tickDistance);
-let ticksPrevious = [MIN_TICK, MIN_TICK];
+let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 let initialPrice: BN;
 let nearestTickToPrice: number; // the floor of tick that mod tickDistance = 0
 let tickLower: number;

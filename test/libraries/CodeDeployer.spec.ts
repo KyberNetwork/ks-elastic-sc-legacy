@@ -8,9 +8,6 @@ import {MockCodeDeployer, MockCodeDeployer__factory} from '../../typechain';
 
 let codeDeployer: MockCodeDeployer;
 let CodeDeployer: MockCodeDeployer__factory;
-let contract: string;
-const INVALID_ID = '0x0000000000000000000000000000000000000000000000000000000000000000';
-const id = '0x0123456789012345678901234567890123456789012345678901234567890123';
 
 describe('CodeDeployer', () => {
   async function fixture() {

@@ -17,7 +17,7 @@ import {MockProAMMCallbacks2, MockProAMMCallbacks2__factory} from '../../typecha
 let swapFeeBpsArray = [5, 2];
 let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
-let ticksPrevious = [MIN_TICK, MIN_TICK];
+let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 
 class Fixtures {
   constructor(

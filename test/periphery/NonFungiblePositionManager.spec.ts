@@ -13,7 +13,7 @@ import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from 
 
 import {deployFactory, getTicksPrevious} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
-import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_INT, MIN_TICK} from '../helpers/helper';
+import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
@@ -36,7 +36,7 @@ let weth: MockWeth;
 let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
-let ticksPrevious = [MIN_TICK, MIN_TICK];
+let ticksPrevious: [BigNumber, BigNumber] = [MIN_TICK, MIN_TICK];
 let vestingPeriod = 0;
 let initialPrice: BigNumber;
 let snapshotId: any;

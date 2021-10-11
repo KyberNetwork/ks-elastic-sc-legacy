@@ -1,6 +1,6 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {Wallet, BigNumber, ContractTransaction} from 'ethers';
+import {BigNumber} from 'ethers';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -15,16 +15,14 @@ import {
   ProAMMRouter__factory,
   ProAMMRouter,
   ProAMMFactory,
-  ProAMMPool,
   MockTokenPositionDescriptor,
   MockTokenPositionDescriptor__factory,
 } from '../../typechain';
 
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
-import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, ZERO} from '../helpers/helper';
+import {BN, PRECISION, ZERO, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
-import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
 const showTxGasUsed = true;
@@ -45,12 +43,13 @@ let weth: MockWeth;
 let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
+let ticksPrevious: [BigNumber, BigNumber] = [MIN_TICK, MIN_TICK];
 let vestingPeriod = 100;
 let initialPrice: BigNumber;
 let snapshotId: any;
 let initialSnapshotId: any;
 
-describe('NonFungiblePositionManager', () => {
+describe('NonFungiblePositionManagerSnipAttack', () => {
   const [user, admin] = waffle.provider.getWallets();
   const tickLower = -100 * tickDistanceArray[0];
   const tickUpper = 100 * tickDistanceArray[0];
@@ -143,6 +142,7 @@ describe('NonFungiblePositionManager', () => {
         fee: swapFeeBpsArray[0],
         tickLower: tickLower,
         tickUpper: tickUpper,
+        ticksPrevious: ticksPrevious,
         amount0Desired: BN.from(1000000),
         amount1Desired: BN.from(1000000),
         amount0Min: 0,
