@@ -107,16 +107,8 @@ abstract contract PoolStorage is IPoolStorage {
     int24 tickLower,
     int24 tickUpper
   ) external view override returns (uint128 liquidity, uint256 feeGrowthInsideLast) {
-    bytes32 key = positionKey(owner, tickLower, tickUpper);
+    bytes32 key = _positionKey(owner, tickLower, tickUpper);
     return (positions[key].liquidity, positions[key].feeGrowthInsideLast);
-  }
-
-  function positionKey(
-    address owner,
-    int24 tickLower,
-    int24 tickUpper
-  ) internal pure returns (bytes32) {
-    return keccak256(abi.encodePacked(owner, tickLower, tickUpper));
   }
 
   function secondsPerLiquidityGlobal() external view override returns (uint128) {
@@ -197,6 +189,14 @@ abstract contract PoolStorage is IPoolStorage {
         }
       }
     }
+  }
+
+  function _positionKey(
+    address owner,
+    int24 tickLower,
+    int24 tickUpper
+  ) internal pure returns (bytes32) {
+    return keccak256(abi.encodePacked(owner, tickLower, tickUpper));
   }
 
   /// @dev For overriding in tests

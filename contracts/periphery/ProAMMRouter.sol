@@ -55,7 +55,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     if (isExactInput) {
       // transfer token from source to the pool which is the msg.sender
       // wrap eth -> weth and transfer if needed
-      transferTokens(tokenIn, swapData.source, msg.sender, amountToTransfer);
+      _transferTokens(tokenIn, swapData.source, msg.sender, amountToTransfer);
     } else {
       if (swapData.path.hasMultiplePools()) {
         swapData.path = swapData.path.skipToken();
@@ -64,35 +64,9 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
         amountInCached = amountToTransfer;
         // transfer tokenOut to the pool (it's the original tokenIn)
         // wrap eth -> weth and transfer if user uses passes eth with the swap
-        transferTokens(tokenOut, swapData.source, msg.sender, amountToTransfer);
+        _transferTokens(tokenOut, swapData.source, msg.sender, amountToTransfer);
       }
     }
-  }
-
-  /// @dev Performs a single exact input swap
-  function _swapExactInputInternal(
-    uint256 amountIn,
-    address recipient,
-    uint160 sqrtPriceLimitX96,
-    SwapCallbackData memory data
-  ) private returns (uint256 amountOut) {
-    // allow swapping to the router address with address 0
-    if (recipient == address(0)) recipient = address(this);
-
-    (address tokenIn, address tokenOut, uint16 fee) = data.path.decodeFirstPool();
-
-    bool isFromToken0 = tokenIn < tokenOut;
-
-    (int256 amount0, int256 amount1) = _getPool(tokenIn, tokenOut, fee).swap(
-      recipient,
-      amountIn.toInt256(),
-      isFromToken0,
-      sqrtPriceLimitX96 == 0
-        ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-        : sqrtPriceLimitX96,
-      abi.encode(data)
-    );
-    return uint256(-(isFromToken0 ? amount1 : amount0));
   }
 
   function swapExactInputSingle(ExactInputSingleParams calldata params)
@@ -145,39 +119,6 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
   }
 
-  /// @dev Perform a swap exact amount out using callback
-  function _swapExactOutputInternal(
-    uint256 amountOut,
-    address recipient,
-    uint160 sqrtPriceLimitX96,
-    SwapCallbackData memory data
-  ) private returns (uint256 amountIn) {
-    // consider address 0 as the router address
-    if (recipient == address(0)) recipient = address(this);
-
-    (address tokenOut, address tokenIn, uint16 fee) = data.path.decodeFirstPool();
-
-    bool isFromToken0 = tokenOut < tokenIn;
-
-    (int256 amount0Delta, int256 amount1Delta) = _getPool(tokenIn, tokenOut, fee).swap(
-      recipient,
-      -amountOut.toInt256(),
-      isFromToken0,
-      sqrtPriceLimitX96 == 0
-        ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
-        : sqrtPriceLimitX96,
-      abi.encode(data)
-    );
-
-    uint256 receivedAmountOut;
-    (amountIn, receivedAmountOut) = isFromToken0
-      ? (uint256(amount1Delta), uint256(-amount0Delta))
-      : (uint256(amount0Delta), uint256(-amount1Delta));
-
-    // if no price limit has been specified, receivedAmountOut should be equals to amountOut
-    assert(sqrtPriceLimitX96 != 0 || receivedAmountOut == amountOut);
-  }
-
   function swapExactOutputSingle(ExactOutputSingleParams calldata params)
     external
     payable
@@ -218,11 +159,68 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
 
-  /**
-   * @dev Returns the pool address for the requested token pair swap fee
-   * Because the function calculates it instead of fetching the address from the factory,
-   * the returned pool address may not be in existence yet
-   */
+  /// @dev Performs a single exact input swap
+  function _swapExactInputInternal(
+    uint256 amountIn,
+    address recipient,
+    uint160 sqrtPriceLimitX96,
+    SwapCallbackData memory data
+  ) private returns (uint256 amountOut) {
+    // allow swapping to the router address with address 0
+    if (recipient == address(0)) recipient = address(this);
+
+    (address tokenIn, address tokenOut, uint16 fee) = data.path.decodeFirstPool();
+
+    bool isFromToken0 = tokenIn < tokenOut;
+
+    (int256 amount0, int256 amount1) = _getPool(tokenIn, tokenOut, fee).swap(
+      recipient,
+      amountIn.toInt256(),
+      isFromToken0,
+      sqrtPriceLimitX96 == 0
+        ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+        : sqrtPriceLimitX96,
+      abi.encode(data)
+    );
+    return uint256(-(isFromToken0 ? amount1 : amount0));
+  }
+
+  /// @dev Perform a swap exact amount out using callback
+  function _swapExactOutputInternal(
+    uint256 amountOut,
+    address recipient,
+    uint160 sqrtPriceLimitX96,
+    SwapCallbackData memory data
+  ) private returns (uint256 amountIn) {
+    // consider address 0 as the router address
+    if (recipient == address(0)) recipient = address(this);
+
+    (address tokenOut, address tokenIn, uint16 fee) = data.path.decodeFirstPool();
+
+    bool isFromToken0 = tokenOut < tokenIn;
+
+    (int256 amount0Delta, int256 amount1Delta) = _getPool(tokenIn, tokenOut, fee).swap(
+      recipient,
+      -amountOut.toInt256(),
+      isFromToken0,
+      sqrtPriceLimitX96 == 0
+        ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
+        : sqrtPriceLimitX96,
+      abi.encode(data)
+    );
+
+    uint256 receivedAmountOut;
+    (amountIn, receivedAmountOut) = isFromToken0
+      ? (uint256(amount1Delta), uint256(-amount0Delta))
+      : (uint256(amount0Delta), uint256(-amount1Delta));
+
+    // if no price limit has been specified, receivedAmountOut should be equals to amountOut
+    assert(sqrtPriceLimitX96 != 0 || receivedAmountOut == amountOut);
+  }
+
+  /// @dev Returns the pool address for the requested token pair swap fee
+  ///   Because the function calculates it instead of fetching the address from the factory,
+  ///   the returned pool address may not be in existence yet
   function _getPool(
     address tokenA,
     address tokenB,

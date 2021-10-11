@@ -6,12 +6,12 @@ interface IRouterTokenHelper {
   /// @dev The minAmount parameter prevents malicious contracts from stealing WETH from users.
   /// @param minAmount The minimum amount of WETH to unwrap
   /// @param recipient The address receiving ETH
-  function unwrapWETH(uint256 minAmount, address recipient) external payable;
+  function unwrapWeth(uint256 minAmount, address recipient) external payable;
 
   /// @notice Refunds any ETH balance held by this contract to the `msg.sender`
   /// @dev Useful for bundling with mint or increase liquidity that uses ether, or exact output swaps
   /// that use ether for the input amount
-  function refundETH() external payable;
+  function refundEth() external payable;
 
   /// @notice Transfers the full amount of a token held by this contract to recipient
   /// @dev The minAmount parameter prevents malicious contracts from stealing the token from users

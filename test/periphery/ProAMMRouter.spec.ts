@@ -13,7 +13,7 @@ import {MockProAMMCallbacks, MockProAMMCallbacks__factory} from '../../typechain
 import {deployFactory} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {encodePath} from '../helpers/swapPath';
-import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT} from '../helpers/helper';
+import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, getBalances, getPriceFromTick, snapshotGasCost} from '../helpers/utils';
 
 const showGasUsed = false;
@@ -31,6 +31,7 @@ let callback: MockProAMMCallbacks;
 let vestingPeriod = 100;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
+let ticksPrevious = [MIN_TICK, MIN_TICK];
 let initialPrice: BN;
 let ticks: number[];
 
@@ -92,7 +93,7 @@ describe('ProAMMRouter', () => {
     await callback.connect(user).unlockPool(pool.address, poolSqrtPrice, '0x');
     await callback
       .connect(user)
-      .mint(pool.address, user.address, ticks[0], ticks[1], PRECISION.mul(BN.from(10)), '0x');
+      .mint(pool.address, user.address, ticks[0], ticks[1], ticksPrevious, PRECISION.mul(BN.from(10)), '0x');
     return pool;
   };
 
@@ -120,8 +121,8 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactInputSingle', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
-    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundEth'));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWeth', [0, user.address]));
 
     let pool = await factory.getPool(tokenIn, tokenOut, fee);
 
@@ -175,8 +176,8 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactInput', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
-    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundEth'));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWeth', [0, user.address]));
 
     let tokenList = [ZERO_ADDRESS].concat(tokens);
     let userBefore = await getBalances(user.address, tokenList);
@@ -258,8 +259,8 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactOutputSingle', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
-    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundEth'));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWeth', [0, user.address]));
 
     let pool = await factory.getPool(tokenIn, tokenOut, fee);
     let userBefore = await getBalances(user.address, [ZERO_ADDRESS, tokenIn, tokenOut]);
@@ -313,8 +314,8 @@ describe('ProAMMRouter', () => {
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
     let multicallData = [router.interface.encodeFunctionData('swapExactOutput', [swapParams])];
-    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundETH'));
-    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWETH', [0, user.address]));
+    if (isSrcEth) multicallData.push(router.interface.encodeFunctionData('refundEth'));
+    if (isDestEth) multicallData.push(router.interface.encodeFunctionData('unwrapWeth', [0, user.address]));
 
     let tokenList = [ZERO_ADDRESS].concat(tokens);
     let userBefore = await getBalances(user.address, tokenList);

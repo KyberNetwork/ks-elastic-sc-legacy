@@ -173,6 +173,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     address recipient,
     int24 tickLower,
     int24 tickUpper,
+    int24[2] calldata ticksPrevious,
     uint128 qty,
     bytes calldata data
   )
@@ -194,6 +195,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
         owner: recipient,
         tickLower: tickLower,
         tickUpper: tickUpper,
+        tickLowerPrevious: ticksPrevious[0],
+        tickUpperPrevious: ticksPrevious[1],
         liquidityDelta: int256(uint256(qty)).toInt128()
       })
     );
@@ -234,6 +237,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
         owner: msg.sender,
         tickLower: tickLower,
         tickUpper: tickUpper,
+        tickLowerPrevious: 0, // no use as there is no insertion
+        tickUpperPrevious: 0, // no use as there is no insertion
         liquidityDelta: int256(type(uint256).max - uint256(qty) + 1).toInt128()
       })
     );
@@ -331,7 +336,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       swapData.sqrtPc,
       swapData.currentTick,
       swapData.nextTick
-    ) = getInitialSwapData(willUpTick);
+    ) = _getInitialSwapData(willUpTick);
     // verify sqrtPriceLimit
     if (willUpTick) {
       require(
@@ -445,7 +450,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       poolData.feeGrowthGlobal = swapData.feeGrowthGlobal;
     }
 
-    updatePoolData(
+    _updatePoolData(
       swapData.lp,
       swapData.lf,
       swapData.sqrtPc,
@@ -485,7 +490,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       deltaQty1,
       swapData.sqrtPc,
       swapData.lp,
-      swapData.nextTick
+      swapData.currentTick
     );
   }
 

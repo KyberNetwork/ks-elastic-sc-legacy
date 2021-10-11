@@ -4,7 +4,7 @@ import chai, {expect} from 'chai';
 chai.use(solidity);
 import {BigNumber as BN} from 'ethers';
 
-import {MAX_UINT, PRECISION} from '../helpers/helper';
+import {MAX_UINT, PRECISION, MIN_TICK, MAX_TICK} from '../helpers/helper';
 import {deployFactory, setupPoolWithLiquidity} from '../helpers/proAMMSetup';
 import {encodePath} from '../helpers/swapPath';
 import {encodePriceSqrt} from '../helpers/utils';
@@ -17,6 +17,7 @@ import {MockProAMMCallbacks2, MockProAMMCallbacks2__factory} from '../../typecha
 let swapFeeBpsArray = [5, 2];
 let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
+let ticksPrevious = [MIN_TICK, MIN_TICK];
 
 class Fixtures {
   constructor(
@@ -127,9 +128,9 @@ describe('QuoterV2', function () {
       await tickMath.getMiddleSqrtRatioAtTick(24)
     );
 
-    // mint serveral initialized ticks for testing [0, 24, 36, 48] - current tick = 24
-    await callback.mint(pool02.address, wallet.address, 12, 36, PRECISION.div(10));
-    await callback.mint(pool02.address, wallet.address, 0, 48, PRECISION.div(10));
+    // mint serveral initialized ticks for testing [0, 12, 36, 48] - current tick = 24
+    await callback.mint(pool02.address, wallet.address, 12, 36, ticksPrevious, PRECISION.div(10));
+    await callback.mint(pool02.address, wallet.address, 0, 48, ticksPrevious, PRECISION.div(10));
 
     const QuoterV2Contract = (await ethers.getContractFactory('QuoterV2')) as QuoterV2__factory;
     let quoter = await QuoterV2Contract.deploy(factory.address);
@@ -217,7 +218,7 @@ describe('QuoterV2', function () {
 
       it('0 -> 2 cross 0 tick, starting tick initialized', async () => {
         // Tick 24 initialized. Tick after = 25
-        await callback.mint(pool02.address, wallet.address, 0, 24, PRECISION.div(10));
+        await callback.mint(pool02.address, wallet.address, 0, 24, ticksPrevious, PRECISION.div(10));
 
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(13);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtPrice, true);
@@ -271,7 +272,7 @@ describe('QuoterV2', function () {
 
       it('2 -> 0 cross 0 tick, starting tick initialized', async () => {
         // Tick 24 initialized. Tick after = 25
-        await callback.mint(pool02.address, wallet.address, 0, 24, PRECISION.div(10));
+        await callback.mint(pool02.address, wallet.address, 0, 24, ticksPrevious, PRECISION.div(10));
 
         let nextSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtPrice, true);
@@ -428,7 +429,7 @@ describe('QuoterV2', function () {
 
       it('0 -> 2 cross 0 tick starting tick initialized', async () => {
         // Tick 24 initialized. Tick after = 25
-        await callback.mint(pool02.address, wallet.address, 0, 24, PRECISION.div(10));
+        await callback.mint(pool02.address, wallet.address, 0, 24, ticksPrevious, PRECISION.div(10));
         const targetSqrtPrice = await tickMath.getMiddleSqrtRatioAtTick(18);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtPrice, false);
 

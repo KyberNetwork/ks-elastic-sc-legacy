@@ -31,12 +31,28 @@ interface INonfungiblePositionManager is IRouterTokenHelper {
   }
 
   /// @notice Params for the first time adding liquidity, mint new nft to sender
+  /// @param token0 the token0 of the pool
+  /// @param token1 the token1 of the pool
+  ///   - must make sure that token0 < token1
+  /// @param fee the pool's fee in bps
+  /// @param tickLower the position's lower tick
+  /// @param tickUpper the position's upper tick
+  ///   - must make sure tickLower < tickUpper, and both are in tick distance
+  /// @param ticksPrevious the nearest tick that has been initialized and lower than or equal to
+  ///   the tickLower and tickUpper, use to help insert the tickLower and tickUpper if haven't initialized
+  /// @param amount0Desired the desired amount for token0
+  /// @param amount1Desired the desired amount for token1
+  /// @param amount0Min min amount of token 0 to add
+  /// @param amount1Min min amount of token 1 to add
+  /// @param recipient the owner of the position
+  /// @param deadline time that the transaction will be expired
   struct MintParams {
     address token0;
     address token1;
     uint16 fee;
     int24 tickLower;
     int24 tickUpper;
+    int24[2] ticksPrevious;
     uint256 amount0Desired;
     uint256 amount1Desired;
     uint256 amount0Min;
@@ -46,6 +62,12 @@ interface INonfungiblePositionManager is IRouterTokenHelper {
   }
 
   /// @notice Params for adding liquidity to the existing position
+  /// @param tokenId id of the position to increase its liquidity
+  /// @param amount0Desired the desired amount for token0
+  /// @param amount1Desired the desired amount for token1
+  /// @param amount0Min min amount of token 0 to add
+  /// @param amount1Min min amount of token 1 to add
+  /// @param deadline time that the transaction will be expired
   struct IncreaseLiquidityParams {
     uint256 tokenId;
     uint256 amount0Desired;
@@ -56,6 +78,10 @@ interface INonfungiblePositionManager is IRouterTokenHelper {
   }
 
   /// @notice Params for remove liquidity from the existing position
+  /// @param tokenId id of the position to remove its liquidity
+  /// @param amount0Min min amount of token 0 to receive
+  /// @param amount1Min min amount of token 1 to receive
+  /// @param deadline time that the transaction will be expired
   struct RemoveLiquidityParams {
     uint256 tokenId;
     uint128 liquidity;
@@ -64,6 +90,11 @@ interface INonfungiblePositionManager is IRouterTokenHelper {
     uint256 deadline;
   }
 
+  /// @notice Burn the rTokens to get back token0 + token1 as fees
+  /// @param tokenId id of the position to burn r token
+  /// @param amount0Min min amount of token 0 to receive
+  /// @param amount1Min min amount of token 1 to receive
+  /// @param deadline time that the transaction will be expired
   struct BurnRTokenParams {
     uint256 tokenId;
     uint256 amount0Min;

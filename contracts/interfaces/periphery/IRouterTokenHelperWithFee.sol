@@ -7,7 +7,7 @@ interface IRouterTokenHelperWithFee is IRouterTokenHelper {
   /// @notice Unwraps the contract's WETH balance and sends it to recipient as ETH, with a percentage between
   /// 0 (exclusive), and 1 (inclusive) going to feeRecipient
   /// @dev The minAmount parameter prevents malicious contracts from stealing WETH from users.
-  function unwrapWETHWithFee(
+  function unwrapWethWithFee(
     uint256 minAmount,
     address recipient,
     uint256 feeBips,

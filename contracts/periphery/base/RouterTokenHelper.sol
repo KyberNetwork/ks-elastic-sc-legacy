@@ -17,7 +17,8 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
     require(msg.sender == WETH, 'Not WETH');
   }
 
-  function unwrapWETH(uint256 minAmount, address recipient) external payable override {
+  /// @dev Unwrap all ETH balance and send to the recipient
+  function unwrapWeth(uint256 minAmount, address recipient) external payable override {
     uint256 balanceWETH = IWETH(WETH).balanceOf(address(this));
     require(balanceWETH >= minAmount, 'Insufficient WETH');
 
@@ -27,6 +28,7 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
     }
   }
 
+  /// @dev Transfer all tokens from the contract to the recipient
   function transferAllTokens(
     address token,
     uint256 minAmount,
@@ -40,21 +42,23 @@ abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorag
     }
   }
 
-  function refundETH() external payable override {
+  /// @dev Send all ETH balance of this contract to the sender
+  function refundEth() external payable override {
     if (address(this).balance > 0) TokenHelper.transferEth(msg.sender, address(this).balance);
   }
 
-  function transferTokens(
+  /// @dev Transfer tokenAmount amount of token from the sender to the recipient
+  function _transferTokens(
     address token,
     address sender,
     address recipient,
-    uint256 value
+    uint256 tokenAmount
   ) internal {
-    if (token == WETH && address(this).balance >= value) {
-      IWETH(WETH).deposit{value: value}();
-      IWETH(WETH).transfer(recipient, value);
+    if (token == WETH && address(this).balance >= tokenAmount) {
+      IWETH(WETH).deposit{value: tokenAmount}();
+      IWETH(WETH).transfer(recipient, tokenAmount);
     } else {
-      TokenHelper.transferToken(IERC20(token), value, sender, recipient);
+      TokenHelper.transferToken(IERC20(token), tokenAmount, sender, recipient);
     }
   }
 }

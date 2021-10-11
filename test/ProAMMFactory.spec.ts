@@ -5,13 +5,8 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {
-  ProAMMFactory,
-  MockToken,
-  MockToken__factory,
-  ProAMMFactory__factory
-} from '../typechain';
-import { getCreate2Address } from './helpers/utils';
+import {ProAMMFactory, MockToken, MockToken__factory, ProAMMFactory__factory} from '../typechain';
+import {getCreate2Address} from './helpers/utils';
 
 let Token: MockToken__factory;
 let factory: ProAMMFactory;
@@ -24,7 +19,7 @@ let vestingPeriod = 100;
 describe('ProAMMFactory', () => {
   const [operator, admin, configMaster, nftManager, nftManager2] = waffle.provider.getWallets();
 
-  async function fixture () {
+  async function fixture() {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
@@ -137,10 +132,8 @@ describe('ProAMMFactory', () => {
     });
 
     it('should be able to update whitelist feature and emit event', async () => {
-      await expect(factory.connect(admin).enableWhitelist())
-        .to.emit(factory, 'WhitelistEnabled')
-      await expect(factory.connect(admin).disableWhitelist())
-        .to.emit(factory, 'WhitelistDisabled')
+      await expect(factory.connect(admin).enableWhitelist()).to.emit(factory, 'WhitelistEnabled');
+      await expect(factory.connect(admin).disableWhitelist()).to.emit(factory, 'WhitelistDisabled');
     });
 
     it('should have isWhitelistedNFTManager return true for all addresses if whitelisting feature is disabled', async () => {
@@ -246,9 +239,7 @@ describe('ProAMMFactory', () => {
 
     it('should revert for invalid tickDistance', async () => {
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, ZERO)).to.be.revertedWith('invalid tickDistance');
-      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, 16385)).to.be.revertedWith(
-        'invalid tickDistance'
-      );
+      await expect(factory.connect(admin).enableSwapFee(swapFeeBps, 16385)).to.be.revertedWith('invalid tickDistance');
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, -1)).to.be.revertedWith('invalid tickDistance');
     });
 
@@ -256,9 +247,7 @@ describe('ProAMMFactory', () => {
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, BPS_PLUS_ONE)).to.be.revertedWith(
         'existing tickDistance'
       );
-      await expect(factory.connect(admin).enableSwapFee(30, BPS_PLUS_ONE)).to.be.revertedWith(
-        'existing tickDistance'
-      );
+      await expect(factory.connect(admin).enableSwapFee(30, BPS_PLUS_ONE)).to.be.revertedWith('existing tickDistance');
     });
 
     it('should set new tickDistance and emit event', async () => {
@@ -290,7 +279,9 @@ describe('ProAMMFactory', () => {
       await expect(factory.connect(admin).updateFeeConfiguration(admin.address, 2001)).to.be.revertedWith(
         'invalid fee'
       );
-      await expect(factory.connect(admin).updateFeeConfiguration(admin.address, BPS)).to.be.revertedWith('invalid fee');
+      await expect(factory.connect(admin).updateFeeConfiguration(admin.address, BPS)).to.be.revertedWith(
+        'invalid fee'
+      );
     });
 
     it('should set new feeTo and governmentFeeBps, and emit event', async () => {
@@ -313,7 +304,9 @@ describe('ProAMMFactory', () => {
     });
 
     it('should be unable to update governmentFeeBps to 0 if feeTo is not null', async () => {
-      await expect(factory.connect(admin).updateFeeConfiguration(admin.address, ZERO)).to.be.revertedWith('bad config');
+      await expect(factory.connect(admin).updateFeeConfiguration(admin.address, ZERO)).to.be.revertedWith(
+        'bad config'
+      );
     });
 
     it('should be unable to update to null feeTo if governmentFeeBps is not 0', async () => {

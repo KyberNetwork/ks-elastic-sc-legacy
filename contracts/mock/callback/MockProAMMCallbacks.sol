@@ -30,10 +30,11 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     address recipient,
     int24 tickLower,
     int24 tickUpper,
+    int24[2] calldata ticksPrevious,
     uint128 qty,
     bytes calldata data
   ) external {
-    pool.mint(recipient, tickLower, tickUpper, qty, data);
+    pool.mint(recipient, tickLower, tickUpper, ticksPrevious, qty, data);
   }
 
   function swap(
@@ -70,11 +71,19 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     address recipient,
     int24 tickLower,
     int24 tickUpper,
+    int24[2] calldata ticksPrevious,
     uint128 qty,
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.mint(recipient, tickLower, tickUpper, qty, abi.encode(sendLess0, sendLess1));
+    pool.mint(
+      recipient,
+      tickLower,
+      tickUpper,
+      ticksPrevious,
+      qty,
+      abi.encode(sendLess0, sendLess1)
+    );
   }
 
   function badSwap(

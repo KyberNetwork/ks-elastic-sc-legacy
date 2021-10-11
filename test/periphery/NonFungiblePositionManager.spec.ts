@@ -11,9 +11,9 @@ import {ProAMMRouter__factory, ProAMMRouter} from '../../typechain';
 import {ProAMMFactory, ProAMMPool} from '../../typechain';
 import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
 
-import {deployFactory} from '../helpers/proAMMSetup';
+import {deployFactory, getTicksPrevious} from '../helpers/proAMMSetup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
-import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96} from '../helpers/helper';
+import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_INT, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
@@ -36,6 +36,7 @@ let weth: MockWeth;
 let nextTokenId: BigNumber;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
+let ticksPrevious = [MIN_TICK, MIN_TICK];
 let vestingPeriod = 0;
 let initialPrice: BigNumber;
 let snapshotId: any;
@@ -260,7 +261,7 @@ describe('NonFungiblePositionManager', () => {
           initialPrice,
         ]),
       ];
-      multicallData.push(positionManager.interface.encodeFunctionData('refundETH'));
+      multicallData.push(positionManager.interface.encodeFunctionData('refundEth'));
 
       let tx = await positionManager.connect(user).multicall(multicallData, {value: PRECISION, gasPrice: txGasPrice});
 
@@ -310,7 +311,7 @@ describe('NonFungiblePositionManager', () => {
           initialPrice,
         ]),
       ];
-      multicallData.push(positionManager.interface.encodeFunctionData('refundETH'));
+      multicallData.push(positionManager.interface.encodeFunctionData('refundEth'));
 
       let tx = await positionManager.connect(user).multicall(multicallData, {value: PRECISION, gasPrice: txGasPrice});
 
@@ -382,6 +383,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: 0,
           tickUpper: 0,
+          ticksPrevious: ticksPrevious,
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -401,6 +403,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: 0,
           tickUpper: 0,
+          ticksPrevious: ticksPrevious,
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -421,6 +424,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: 0,
           tickUpper: 0,
+          ticksPrevious: ticksPrevious,
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -440,6 +444,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
+          ticksPrevious: ticksPrevious,
           amount0Desired: BN.from(1000000),
           amount1Desired: BN.from(1000000),
           amount0Min: BN.from(1000001),
@@ -455,6 +460,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
+          ticksPrevious: ticksPrevious,
           amount0Desired: BN.from(1000000),
           amount1Desired: BN.from(1000000),
           amount0Min: 0,
@@ -475,6 +481,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
+          ticksPrevious: ticksPrevious,
           amount0Desired: BN.from(1000000),
           amount1Desired: BN.from(1000000),
           amount0Min: 0,
@@ -492,6 +499,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
+          ticksPrevious: ticksPrevious,
           amount0Desired: BN.from(1000000),
           amount1Desired: BN.from(1000000),
           amount0Min: 0,
@@ -513,6 +521,7 @@ describe('NonFungiblePositionManager', () => {
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
 
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
@@ -520,12 +529,14 @@ describe('NonFungiblePositionManager', () => {
 
         let userBalanceBefore = await getBalances(user.address, [token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
+        let _ticksPrevious = await getTicksPrevious(pool, tickLower, tickUpper);
         let tx = await positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
           fee: swapFeeBpsArray[0],
           tickLower: tickLower,
           tickUpper: tickUpper,
+          ticksPrevious: _ticksPrevious,
           amount0Desired: BN.from(1000000),
           amount1Desired: BN.from(1000000),
           amount0Min: 0,
@@ -551,7 +562,6 @@ describe('NonFungiblePositionManager', () => {
         expect(await positionManager.ownerOf(_nextTokenId)).to.be.eq(recipients[i]);
 
         // verify position and pool info in PositionManager
-        let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
         const {pos, info} = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
@@ -590,6 +600,7 @@ describe('NonFungiblePositionManager', () => {
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
 
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
@@ -597,7 +608,7 @@ describe('NonFungiblePositionManager', () => {
 
         let userBalanceBefore = await getBalances(user.address, [ZERO_ADDRESS, token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
-
+        let _ticksPrevious = await getTicksPrevious(pool, tickLower, tickUpper);
         let amount = BN.from(1000000000);
         let mintParams = {
           token0: token0,
@@ -605,6 +616,7 @@ describe('NonFungiblePositionManager', () => {
           fee: swapFeeBpsArray[0],
           tickLower: tickLower,
           tickUpper: tickUpper,
+          ticksPrevious: _ticksPrevious,
           amount0Desired: amount,
           amount1Desired: amount,
           amount0Min: BN.from(0),
@@ -613,7 +625,7 @@ describe('NonFungiblePositionManager', () => {
           deadline: PRECISION,
         };
         let multicallData = [positionManager.interface.encodeFunctionData('mint', [mintParams])];
-        multicallData.push(positionManager.interface.encodeFunctionData('refundETH'));
+        multicallData.push(positionManager.interface.encodeFunctionData('refundEth'));
         let tx = await positionManager.connect(user).multicall(multicallData, {value: amount, gasPrice: txGasPrice});
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
         let txFee = (await tx.wait()).gasUsed.mul(txGasPrice);
@@ -642,7 +654,6 @@ describe('NonFungiblePositionManager', () => {
         expect(await positionManager.ownerOf(_nextTokenId)).to.be.eq(recipients[i]);
 
         // verify position and pool info in PositionManager
-        let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
         const {pos, info} = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
@@ -680,6 +691,7 @@ describe('NonFungiblePositionManager', () => {
       fee: swapFeeBpsArray[0],
       tickLower: -100 * tickDistanceArray[0],
       tickUpper: 100 * tickDistanceArray[0],
+      ticksPrevious: ticksPrevious,
       amount0Desired: BN.from(1000000),
       amount1Desired: BN.from(1000000),
       amount0Min: 0,
