@@ -19,10 +19,10 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
 
   function unlockPool(
     IProAMMPoolActions pool,
-    uint160 poolSqrtPrice,
+    uint160 sqrtP,
     bytes calldata data
   ) external {
-    pool.unlockPool(poolSqrtPrice, data);
+    pool.unlockPool(sqrtP, data);
   }
 
   function mint(
@@ -42,10 +42,10 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bytes calldata data
   ) external {
-    pool.swap(recipient, swapQty, isToken0, sqrtPriceLimit, data);
+    pool.swap(recipient, swapQty, isToken0, limitSqrtP, data);
   }
 
   function flash(
@@ -59,11 +59,11 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
 
   function badUnlockPool(
     IProAMMPoolActions pool,
-    uint160 poolSqrtPrice,
+    uint160 sqrtP,
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.unlockPool(poolSqrtPrice, abi.encode(sendLess0, sendLess1));
+    pool.unlockPool(sqrtP, abi.encode(sendLess0, sendLess1));
   }
 
   function badMint(
@@ -91,11 +91,11 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.swap(recipient, swapQty, isToken0, sqrtPriceLimit, abi.encode(sendLess0, sendLess1));
+    pool.swap(recipient, swapQty, isToken0, limitSqrtP, abi.encode(sendLess0, sendLess1));
   }
 
   function badFlash(

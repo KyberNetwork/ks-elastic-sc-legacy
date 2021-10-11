@@ -4,9 +4,9 @@ pragma solidity >=0.8.0;
 interface IProAMMPoolEvents {
   /// @notice Emitted only once per pool when #initialize is first called
   /// @dev Mint/Burn/Swap cannot be emitted by the pool before Initialize
-  /// @param poolSqrtPrice The initial price of the pool
+  /// @param sqrtP The initial price of the pool
   /// @param tick The initial tick of the pool
-  event Initialize(uint160 poolSqrtPrice, int24 tick);
+  event Initialize(uint160 sqrtP, int24 tick);
 
   /// @notice Emitted when liquidity is minted for a given position
   /// @dev transfers reinvestment tokens for any collected fees earned by the position
@@ -56,7 +56,7 @@ interface IProAMMPoolEvents {
   /// @param recipient Address that received the swap output
   /// @param deltaQty0 Change in pool's token0 balance
   /// @param deltaQty1 Change in pool's token1 balance
-  /// @param poolSqrtPrice Pool's sqrt price after the swap
+  /// @param sqrtP Pool's sqrt price after the swap
   /// @param liquidity Pool's liquidity after the swap
   /// @param currentTick Log base 1.0001 of pool's price after the swap
   event Swap(
@@ -64,7 +64,7 @@ interface IProAMMPoolEvents {
     address indexed recipient,
     int256 deltaQty0,
     int256 deltaQty1,
-    uint160 poolSqrtPrice,
+    uint160 sqrtP,
     uint128 liquidity,
     int24 currentTick
   );

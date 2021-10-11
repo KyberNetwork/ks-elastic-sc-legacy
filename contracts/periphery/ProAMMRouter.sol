@@ -79,7 +79,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     amountOut = _swapExactInputInternal(
       params.amountIn,
       params.recipient,
-      params.sqrtPriceLimitX96,
+      params.limitSqrtP,
       SwapCallbackData({
         path: abi.encodePacked(params.tokenIn, params.fee, params.tokenOut),
         source: msg.sender
@@ -129,7 +129,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     amountIn = _swapExactOutputInternal(
       params.amountOut,
       params.recipient,
-      params.sqrtPriceLimitX96,
+      params.limitSqrtP,
       SwapCallbackData({
         path: abi.encodePacked(params.tokenOut, params.fee, params.tokenIn),
         source: msg.sender
@@ -163,7 +163,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
   function _swapExactInputInternal(
     uint256 amountIn,
     address recipient,
-    uint160 sqrtPriceLimitX96,
+    uint160 limitSqrtP,
     SwapCallbackData memory data
   ) private returns (uint256 amountOut) {
     // allow swapping to the router address with address 0
@@ -177,9 +177,9 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
       recipient,
       amountIn.toInt256(),
       isFromToken0,
-      sqrtPriceLimitX96 == 0
+      limitSqrtP == 0
         ? (isFromToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-        : sqrtPriceLimitX96,
+        : limitSqrtP,
       abi.encode(data)
     );
     return uint256(-(isFromToken0 ? amount1 : amount0));
@@ -189,7 +189,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
   function _swapExactOutputInternal(
     uint256 amountOut,
     address recipient,
-    uint160 sqrtPriceLimitX96,
+    uint160 limitSqrtP,
     SwapCallbackData memory data
   ) private returns (uint256 amountIn) {
     // consider address 0 as the router address
@@ -203,9 +203,9 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
       recipient,
       -amountOut.toInt256(),
       isFromToken0,
-      sqrtPriceLimitX96 == 0
+      limitSqrtP == 0
         ? (isFromToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
-        : sqrtPriceLimitX96,
+        : limitSqrtP,
       abi.encode(data)
     );
 
@@ -215,7 +215,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
       : (uint256(amount0Delta), uint256(-amount1Delta));
 
     // if no price limit has been specified, receivedAmountOut should be equals to amountOut
-    assert(sqrtPriceLimitX96 != 0 || receivedAmountOut == amountOut);
+    assert(limitSqrtP != 0 || receivedAmountOut == amountOut);
   }
 
   /// @dev Returns the pool address for the requested token pair swap fee

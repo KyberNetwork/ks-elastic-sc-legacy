@@ -68,8 +68,8 @@ contract NonfungiblePositionManager is
       pool = IProAMMFactory(factory).createPool(token0, token1, fee);
     }
 
-    (uint160 poolSqrtPriceX96, , , , ) = IProAMMPool(pool).getPoolState();
-    if (poolSqrtPriceX96 == 0) {
+    (uint160 sqrtP, , , , ) = IProAMMPool(pool).getPoolState();
+    if (sqrtP == 0) {
       IProAMMPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
     }
   }

@@ -224,8 +224,8 @@ library SwapMath {
     bool isToken0
   ) internal pure returns (uint160 sqrtPn) {
     if (isToken0) {
-      // if isExactInput: swap 0 -> 1, sqrtPrice decreases, we round up
-      // else swap: 1 -> 0, sqrtPrice increases, we round down
+      // if isExactInput: swap 0 -> 1, sqrtP decreases, we round up
+      // else swap: 1 -> 0, sqrtP increases, we round down
       uint256 tmp = FullMath.mulDivFloor(absDelta, sqrtPc, C.TWO_POW_96);
       if (isExactInput) {
         sqrtPn = (FullMath.mulDivCeiling(liquidity + lc, sqrtPc, liquidity + tmp)).toUint160();
@@ -233,8 +233,8 @@ library SwapMath {
         sqrtPn = (FullMath.mulDivFloor(liquidity + lc, sqrtPc, liquidity - tmp)).toUint160();
       }
     } else {
-      // if isExactInput: swap 1 -> 0, sqrtPrice increases, we round down
-      // else swap: 0 -> 1, sqrtPrice decreases, we round up
+      // if isExactInput: swap 1 -> 0, sqrtP increases, we round down
+      // else swap: 0 -> 1, sqrtP decreases, we round up
       if (isExactInput) {
         uint256 tmp = FullMath.mulDivCeiling(absDelta, C.TWO_POW_96, sqrtPc);
         sqrtPn = FullMath.mulDivFloor(liquidity + tmp, sqrtPc, liquidity + lc).toUint160();

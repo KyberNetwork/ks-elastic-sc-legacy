@@ -17,7 +17,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @param deadline time that the transaction will be expired
   /// @param amountIn the tokenIn amount to swap
   /// @param amountOutMinimum the minimum receive amount
-  /// @param sqrtPriceLimitX96 the price limit, if reached, stop swapping
+  /// @param limitSqrtP the price limit, if reached, stop swapping
   struct ExactInputSingleParams {
     address tokenIn;
     address tokenOut;
@@ -26,7 +26,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
     uint256 deadline;
     uint256 amountIn;
     uint256 minAmountOut;
-    uint160 sqrtPriceLimitX96;
+    uint160 limitSqrtP;
   }
 
   /// @notice Swaps `amountIn` of one token for as much as possible of another token
@@ -68,7 +68,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
   /// @param deadline time that the transaction will be expired
   /// @param amountOut the tokenOut amount of tokenOut
   /// @param amountInMaximum the minimum input amount
-  /// @param sqrtPriceLimitX96 the price limit, if reached, stop swapping
+  /// @param limitSqrtP the price limit, if reached, stop swapping
   struct ExactOutputSingleParams {
     address tokenIn;
     address tokenOut;
@@ -77,7 +77,7 @@ interface IProAMMRouter is IProAMMSwapCallback {
     uint256 deadline;
     uint256 amountOut;
     uint256 maxAmountIn;
-    uint160 sqrtPriceLimitX96;
+    uint160 limitSqrtP;
   }
 
   /// @notice Swaps as little as possible of one token for `amountOut` of another token

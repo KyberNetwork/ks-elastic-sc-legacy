@@ -184,7 +184,7 @@ describe('ProAMMPool', () => {
       await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
 
       result = await pool.getPoolState();
-      expect(result._poolSqrtPrice).to.be.eql(initialPrice);
+      expect(result.sqrtP).to.be.eql(initialPrice);
       expect(result._poolTick).to.be.eql(10);
       expect(result._nearestCurrentTick).to.be.eq(MIN_TICK);
       expect(result._locked).to.be.false;
@@ -353,7 +353,7 @@ describe('ProAMMPool', () => {
         beforeEach('fetch initial token balances of pool and user, and current tick', async () => {
           poolBalToken0 = await token0.balanceOf(pool.address);
           poolBalToken1 = await token1.balanceOf(pool.address);
-          initialPrice = (await pool.getPoolState())._poolSqrtPrice;
+          initialPrice = (await pool.getPoolState()).sqrtP;
         });
         describe('position above current tick', async () => {
           beforeEach('reset position data', async () => {
@@ -1675,22 +1675,22 @@ describe('ProAMMPool', () => {
       });
 
       it('should fail for bad sqrt limits', async () => {
-        // upTick: sqrtLimit < poolSqrtPrice
+        // upTick: sqrtLimit < sqrtP
         await expect(
           callback.swap(pool.address, user.address, PRECISION, false, initialPrice.sub(ONE), '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
         // upTick: sqrtLimit = MAX_SQRT_RATIO
         await expect(
           callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO, '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
-        // downTick: sqrtLimit > poolSqrtPrice
+        ).to.be.revertedWith('bad limitSqrtP');
+        // downTick: sqrtLimit > sqrtP
         await expect(
           callback.swap(pool.address, user.address, PRECISION, true, initialPrice.add(ONE), '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
         // downTick: sqrtLimit = MIN_SQRT_RATIO
         await expect(
           callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO, '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
       });
 
       it('tests token0 exactInput (move down tick)', async () => {
@@ -1716,7 +1716,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
           await callback.swap(pool.address, user.address, quoteResult.usedAmount, true, MIN_SQRT_RATIO.add(ONE), '0x')
@@ -1732,7 +1732,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1749,7 +1749,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1787,7 +1787,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1811,7 +1811,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1835,7 +1835,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(

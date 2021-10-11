@@ -32,8 +32,8 @@ contract MockPoolTicksStateFactory {
 }
 
 contract MockPoolTicksState is ProAMMPoolTicksState {
-  function externalInitPoolStorage(uint160 initialSqrtPrice, int24 initialTick) external {
-    return _initPoolStorage(initialSqrtPrice, initialTick);
+  function externalInitPoolStorage(uint160 initialSqrtP, int24 initialTick) external {
+    return _initPoolStorage(initialSqrtP, initialTick);
   }
 
   function externalUpdatePosition(

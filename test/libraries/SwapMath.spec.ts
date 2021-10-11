@@ -6,7 +6,7 @@ const {solidity} = waffle;
 chai.use(solidity);
 
 import {MockSwapMath__factory, MockSwapMath, SwapMathEchidnaTest, SwapMathEchidnaTest__factory} from '../../typechain';
-import {encodePriceSqrt, sqrtPriceToString} from '../helpers/utils';
+import {encodePriceSqrt, sqrtPToString} from '../helpers/utils';
 
 let swapMath: MockSwapMath;
 let swapMathEchidna: SwapMathEchidnaTest;

@@ -24,7 +24,7 @@ abstract contract PoolStorage is IPoolStorage {
     uint128 liquidity;
     uint128 secondsPerLiquidityGlobal;
     uint32 secondsPerLiquidityUpdateTime;
-    uint160 sqrtPrice;
+    uint160 sqrtP;
     int24 nearestCurrentTick;
     int24 currentTick;
     bool locked;
@@ -91,11 +91,11 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.locked = true; // set pool to locked state
   }
 
-  function _initPoolStorage(uint160 initialSqrtPrice, int24 initialTick) internal {
+  function _initPoolStorage(uint160 initialSqrtP, int24 initialTick) internal {
     poolData.reinvestmentLiquidity = MIN_LIQUIDITY;
     poolData.reinvestmentLiquidityLast = MIN_LIQUIDITY;
 
-    poolData.sqrtPrice = initialSqrtPrice;
+    poolData.sqrtP = initialSqrtP;
     poolData.currentTick = initialTick;
     poolData.nearestCurrentTick = TickMath.MIN_TICK;
 
@@ -125,14 +125,14 @@ abstract contract PoolStorage is IPoolStorage {
     view
     override
     returns (
-      uint160 _poolSqrtPrice,
+      uint160 sqrtP,
       int24 _poolTick,
       int24 _nearestCurrentTick,
       bool _locked,
       uint128 _poolLiquidity
     )
   {
-    _poolSqrtPrice = poolData.sqrtPrice;
+    sqrtP = poolData.sqrtP;
     _poolTick = poolData.currentTick;
     _nearestCurrentTick = poolData.nearestCurrentTick;
     _locked = poolData.locked;

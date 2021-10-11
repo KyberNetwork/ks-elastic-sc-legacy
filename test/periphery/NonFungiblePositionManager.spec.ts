@@ -152,7 +152,7 @@ describe('NonFungiblePositionManager', () => {
       // verify other data
       let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
       let poolState = await poolContract.getPoolState();
-      expect(poolState._poolSqrtPrice).to.be.eq(initialPrice);
+      expect(poolState.sqrtP).to.be.eq(initialPrice);
       expect(poolState._locked).to.be.eq(isLocked);
     };
 
@@ -710,7 +710,7 @@ describe('NonFungiblePositionManager', () => {
       deadline: BN.from(2).pow(255),
       amountIn: amount,
       minAmountOut: BN.from(0),
-      sqrtPriceLimitX96: BN.from(0),
+      limitSqrtP: BN.from(0),
     };
     await router.connect(user).swapExactInputSingle(swapParams);
   };

@@ -62,25 +62,25 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
   }
 
   /// @inheritdoc IProAMMPoolActions
-  function unlockPool(uint160 initialSqrtPrice, bytes calldata data)
+  function unlockPool(uint160 initialSqrtP, bytes calldata data)
     external
     override
     returns (uint256 qty0, uint256 qty1)
   {
-    require(poolData.sqrtPrice == 0, 'already inited');
+    require(poolData.sqrtP == 0, 'already inited');
     poolData.locked = false; // unlock the pool
     // initial tick bounds (min & max price limits) are checked in this function
-    int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
-    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtPrice, MIN_LIQUIDITY);
+    int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtP);
+    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtP, MIN_LIQUIDITY);
     IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
     // because of price bounds, qty0 and qty1 >= 1
     require(qty0 <= _poolBalToken0(), 'lacking qty0');
     require(qty1 <= _poolBalToken1(), 'lacking qty1');
     _mint(address(this), MIN_LIQUIDITY);
 
-    _initPoolStorage(initialSqrtPrice, initialTick);
+    _initPoolStorage(initialSqrtP, initialTick);
 
-    emit Initialize(initialSqrtPrice, initialTick);
+    emit Initialize(initialSqrtP, initialTick);
   }
 
   /// @dev Make changes to a position
@@ -104,7 +104,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     );
 
     // SLOAD variables into memory
-    uint160 _poolSqrtPrice = poolData.sqrtPrice;
+    uint160 sqrtP = poolData.sqrtP;
     int24 _poolTick = poolData.currentTick;
     uint128 lp = poolData.liquidity;
     uint128 lf = poolData.reinvestmentLiquidity;
@@ -153,13 +153,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     }
     // current tick is inside the passed range
     qty0 = QtyDeltaMath.calcRequiredQty0(
-      _poolSqrtPrice,
+      sqrtP,
       TickMath.getSqrtRatioAtTick(posData.tickUpper),
       posData.liquidityDelta
     );
     qty1 = QtyDeltaMath.calcRequiredQty1(
       TickMath.getSqrtRatioAtTick(posData.tickLower),
-      _poolSqrtPrice,
+      sqrtP,
       posData.liquidityDelta
     );
 
@@ -271,7 +271,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     // SLOADs for gas optimizations
     uint128 lf = poolData.reinvestmentLiquidity;
     uint128 lp = poolData.liquidity;
-    uint160 pc = poolData.sqrtPrice;
+    uint160 sqrtP = poolData.sqrtP;
     _syncReinvestments(lp, lf, poolData.feeGrowthGlobal, false);
 
     // totalSupply() is the reinvestment token supply after syncing, but before burning
@@ -280,9 +280,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     poolData.reinvestmentLiquidity = lfNew;
     poolData.reinvestmentLiquidityLast = lfNew;
     // finally, calculate and send token quantities to user
-    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(pc, lfDelta);
+    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, lfDelta);
     if (tokenQty > 0) token0.safeTransfer(msg.sender, tokenQty);
-    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(pc, lfDelta);
+    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, lfDelta);
     if (tokenQty > 0) token1.safeTransfer(msg.sender, tokenQty);
 
     _burn(msg.sender, _qty);
@@ -314,12 +314,12 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
   }
 
   // see IProAMMPoolActions
-  // swaps will execute up to sqrtPriceLimit, even if target swapQty is not reached
+  // swaps will execute up to limitSqrtP, even if target swapQty is not reached
   function swap(
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bytes calldata data
   ) external override lock returns (int256 deltaQty0, int256 deltaQty1) {
     require(swapQty != 0, '0 swapQty');
@@ -337,21 +337,21 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       swapData.currentTick,
       swapData.nextTick
     ) = _getInitialSwapData(willUpTick);
-    // verify sqrtPriceLimit
+    // verify limitSqrtP
     if (willUpTick) {
       require(
-        sqrtPriceLimit > swapData.sqrtPc && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO,
-        'bad sqrtPriceLimit'
+        limitSqrtP > swapData.sqrtPc && limitSqrtP < TickMath.MAX_SQRT_RATIO,
+        'bad limitSqrtP'
       );
     } else {
       require(
-        sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO,
-        'bad sqrtPriceLimit'
+        limitSqrtP < swapData.sqrtPc && limitSqrtP > TickMath.MIN_SQRT_RATIO,
+        'bad limitSqrtP'
       );
     }
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
-    while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
+    while (swapData.deltaRemaining != 0 && swapData.sqrtPc != limitSqrtP) {
       int24 tempNextTick = swapData.nextTick;
 
       // math calculations work with the assumption that the price diff is capped to 5%
@@ -368,9 +368,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       // local scope for targetSqrtP, deltaNext, actualDelta and lc
       {
         uint160 targetSqrtP = swapData.nextSqrtP;
-        // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-        if (willUpTick == (swapData.nextSqrtP > sqrtPriceLimit)) {
-          targetSqrtP = sqrtPriceLimit;
+        // ensure next sqrtP (and its corresponding tick) does not exceed price limit
+        if (willUpTick == (swapData.nextSqrtP > limitSqrtP)) {
+          targetSqrtP = limitSqrtP;
         }
 
         int256 deltaNext;

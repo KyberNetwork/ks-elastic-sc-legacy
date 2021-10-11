@@ -71,7 +71,7 @@ interface IPoolStorage {
   function secondsPerLiquidityUpdateTime() external view returns (uint32);
 
   /// @notice Fetches the pool's current price, tick and liquidity
-  /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)
+  /// @return sqrtP pool's current price: sqrt(token1/token0)
   /// @return poolTick pool's current tick
   /// @return nearestCurrentTick pool's nearest initialized tick that is <= pool's current tick
   /// @return locked true if pool is locked, false otherwise
@@ -80,7 +80,7 @@ interface IPoolStorage {
     external
     view
     returns (
-      uint160 poolSqrtPrice,
+      uint160 sqrtP,
       int24 poolTick,
       int24 nearestCurrentTick,
       bool locked,

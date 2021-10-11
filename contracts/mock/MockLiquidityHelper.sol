@@ -11,13 +11,13 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
     address token0,
     address token1,
     uint16 fee,
-    uint160 initialSqrtPrice
+    uint160 initialSqrtP
   ) external payable returns (IProAMMPool pool) {
     pool = _getPool(token0, token1, fee);
     if (token0 < token1) {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token0, token1, fee));
+      pool.unlockPool(initialSqrtP, _callbackData(token0, token1, fee));
     } else {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token1, token0, fee));
+      pool.unlockPool(initialSqrtP, _callbackData(token1, token0, fee));
     }
   }
 

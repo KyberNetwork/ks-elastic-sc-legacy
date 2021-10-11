@@ -82,7 +82,7 @@ describe('ProAMMRouter', () => {
     token0: string,
     token1: string,
     fee: number,
-    poolSqrtPrice: BN,
+    sqrtP: BN,
     ticks: number[]
   ): Promise<ProAMMPool> {
     await setupCallback(Token.attach(token0), Token.attach(token1));
@@ -90,7 +90,7 @@ describe('ProAMMRouter', () => {
     // whitelist callback
     await factory.connect(admin).addNFTManager(callback.address);
     let pool = (await ethers.getContractAt('ProAMMPool', await factory.getPool(token0, token1, fee))) as ProAMMPool;
-    await callback.connect(user).unlockPool(pool.address, poolSqrtPrice, '0x');
+    await callback.connect(user).unlockPool(pool.address, sqrtP, '0x');
     await callback
       .connect(user)
       .mint(pool.address, user.address, ticks[0], ticks[1], ticksPrevious, PRECISION.mul(BN.from(10)), '0x');
@@ -116,7 +116,7 @@ describe('ProAMMRouter', () => {
       deadline: MAX_UINT,
       amountIn: amount,
       minAmountOut: ZERO,
-      sqrtPriceLimitX96: initialPrice,
+      limitSqrtP: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -254,7 +254,7 @@ describe('ProAMMRouter', () => {
       deadline: MAX_UINT,
       amountOut: amount,
       maxAmountIn: PRECISION,
-      sqrtPriceLimitX96: initialPrice,
+      limitSqrtP: initialPrice,
     };
     if (isDestEth) swapParams.recipient = ZERO_ADDRESS; // keep weth at router
 
@@ -444,7 +444,7 @@ describe('ProAMMRouter', () => {
           deadline: MAX_UINT,
           amountIn: amount,
           minAmountOut: PRECISION,
-          sqrtPriceLimitX96: ZERO,
+          limitSqrtP: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: insufficient amountOut');
     });
@@ -513,7 +513,7 @@ describe('ProAMMRouter', () => {
           deadline: MAX_UINT,
           amountOut: amount,
           maxAmountIn: ZERO,
-          sqrtPriceLimitX96: ZERO,
+          limitSqrtP: ZERO,
         })
       ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
     });
@@ -769,7 +769,7 @@ describe('ProAMMRouter', () => {
           deadline: ZERO,
           amountIn: amount,
           minAmountOut: ZERO,
-          sqrtPriceLimitX96: initialPrice,
+          limitSqrtP: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
       await expect(
@@ -791,7 +791,7 @@ describe('ProAMMRouter', () => {
           deadline: ZERO,
           amountOut: amount,
           maxAmountIn: PRECISION,
-          sqrtPriceLimitX96: initialPrice,
+          limitSqrtP: initialPrice,
         })
       ).to.be.revertedWith('ProAMM: Expired');
       await expect(

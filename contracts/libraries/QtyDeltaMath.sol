@@ -13,13 +13,13 @@ library QtyDeltaMath {
   using SafeCast for uint256;
   using SafeCast for int128;
 
-  function getQtysForInitialLockup(uint160 initialSqrtPrice, uint128 liquidity)
+  function getQtysForInitialLockup(uint160 initialSqrtP, uint128 liquidity)
     internal
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = FullMath.mulDivCeiling(liquidity, C.TWO_POW_96, initialSqrtPrice);
-    qty1 = FullMath.mulDivCeiling(liquidity, initialSqrtPrice, C.TWO_POW_96);
+    qty0 = FullMath.mulDivCeiling(liquidity, C.TWO_POW_96, initialSqrtP);
+    qty1 = FullMath.mulDivCeiling(liquidity, initialSqrtP, C.TWO_POW_96);
   }
 
   /// @notice Gets the qty0 delta between two prices
@@ -102,28 +102,28 @@ library QtyDeltaMath {
 
   /// @notice Calculates the token0 quantity proportion to be sent to the user
   /// for burning reinvestment tokens
-  /// @param sqrtPrice Current pool sqrt price
+  /// @param sqrtP Current pool sqrt price
   /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token0 quantity to be sent to the user
-  function getQty0FromBurnRTokens(uint160 sqrtPrice, uint256 liquidity)
+  function getQty0FromBurnRTokens(uint160 sqrtP, uint256 liquidity)
     internal
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtPrice);
+    return FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtP);
   }
 
   /// @notice Calculates the token1 quantity proportion to be sent to the user
   /// for burning reinvestment tokens
-  /// @param sqrtPrice Current pool sqrt price
+  /// @param sqrtP Current pool sqrt price
   /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
   /// @return token1 quantity to be sent to the user
-  function getQty1FromBurnRTokens(uint160 sqrtPrice, uint256 liquidity)
+  function getQty1FromBurnRTokens(uint160 sqrtP, uint256 liquidity)
     internal
     pure
     returns (uint256)
   {
-    return FullMath.mulDivFloor(liquidity, sqrtPrice, C.TWO_POW_96);
+    return FullMath.mulDivFloor(liquidity, sqrtP, C.TWO_POW_96);
   }
 
   /// @notice Returns ceil(x / y)
