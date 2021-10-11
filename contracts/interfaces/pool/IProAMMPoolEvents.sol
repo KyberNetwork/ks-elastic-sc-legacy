@@ -35,7 +35,7 @@ interface IProAMMPoolEvents {
   /// @param qty liquidity removed
   /// @param qty0 token0 quantity withdrawn from removal of liquidity
   /// @param qty1 token1 quantity withdrawn from removal of liquidity
-  event BurnLP(
+  event Burn(
     address indexed owner,
     int24 indexed tickLower,
     int24 indexed tickUpper,

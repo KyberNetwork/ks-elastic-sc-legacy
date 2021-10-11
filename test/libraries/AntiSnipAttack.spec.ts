@@ -218,14 +218,12 @@ describe('AntiSnipAttack', () => {
             vestingPeriod
           );
           let result = await antiSnipAttack.data();
-          // gradually becomes zero the longer the position stays
-          expect(result.feesLocked).to.be.gte(ZERO);
           expect(result.lockTime).to.be.gt(lockTimeBefore);
           expect((await antiSnipAttack.fees()).feesClaimable).to.be.gt(ZERO);
         }
       });
 
-      it('should have non-zero claimable and burnable fees if liquidity is removed', async () => {
+      it('should have non-zero claimable and burnable fees when removing liquidity', async () => {
         await antiSnipAttack.update(
           currentLiquidity,
           liquidityDelta,
@@ -240,9 +238,80 @@ describe('AntiSnipAttack', () => {
       });
     });
 
-    describe('at vesting period', async () => {});
+    describe('at or after vesting period', async () => {
+      beforeEach('timeIncrement >= vestingPeriod', async () => {
+        incrementTime(genRandomBN(BN.from(vestingPeriod), BN.from(vestingPeriod * 5)).toNumber());
+      });
 
-    describe('after vesting period', async () => {});
+      it('should have non-zero locked fees', async () => {
+        let result = await antiSnipAttack.data();
+        expect(result.feesLocked).to.be.gt(ZERO);
+      });
+
+      it('should have non-zero fees claimable if adding more liquidity', async () => {
+        await antiSnipAttack.update(
+          currentLiquidity,
+          liquidityDelta,
+          currentTime,
+          true,
+          feesSinceLastAction,
+          vestingPeriod
+        );
+        let result = await antiSnipAttack.fees();
+        expect(result.feesClaimable).to.be.gt(ZERO);
+      });
+
+      it('should have updated lockTime, zero feesLocked if adding more liquidity', async () => {
+        let lockTimeBefore = (await antiSnipAttack.data()).lockTime;
+        await antiSnipAttack.update(
+          currentLiquidity,
+          liquidityDelta,
+          currentTime,
+          true,
+          feesSinceLastAction,
+          vestingPeriod
+        );
+        let result = await antiSnipAttack.data();
+        expect(result.feesLocked).to.be.eq(ZERO);
+        expect(result.lockTime).to.be.gt(lockTimeBefore);
+      });
+
+      it('should be able to handle multiple liquidity addition instances', async () => {
+        // 5 instances
+        for (let i = 0; i < 5; i++) {
+          // move forward by randomly generated time
+          let timeIncrement = genRandomBN(BN.from(vestingPeriod), BN.from(vestingPeriod * 5));
+          let lockTimeBefore = (await antiSnipAttack.data()).lockTime;
+          incrementTime(timeIncrement.toNumber());
+          await antiSnipAttack.update(
+            currentLiquidity,
+            liquidityDelta,
+            currentTime,
+            true,
+            feesSinceLastAction,
+            vestingPeriod
+          );
+          let result = await antiSnipAttack.data();
+          expect(result.feesLocked).to.be.eq(ZERO);
+          expect(result.lockTime).to.be.gt(lockTimeBefore);
+          expect((await antiSnipAttack.fees()).feesClaimable).to.be.gt(ZERO);
+        }
+      });
+
+      it('should have non-zero feesClaimable, 0 fees burnable when removing liquidity', async () => {
+        await antiSnipAttack.update(
+          currentLiquidity,
+          liquidityDelta,
+          currentTime,
+          false,
+          feesSinceLastAction,
+          vestingPeriod
+        );
+        let result = await antiSnipAttack.fees();
+        expect(result.feesClaimable).to.be.gt(ZERO);
+        expect(result.feesBurnable).to.be.eq(ZERO);
+      });
+    });
   });
 
   describe('snipping', async () => {

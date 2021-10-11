@@ -138,9 +138,7 @@ describe('LiquidityHelper', () => {
       for (let i = 0; i < firstTokens.length; i++) {
         let index = i % swapFeeBpsArray.length;
         let fee = swapFeeBpsArray[index];
-
-        let token0 = firstTokens[i] < secondTokens[i] ? firstTokens[i] : secondTokens[i];
-        let token1 = firstTokens[i] < secondTokens[i] ? secondTokens[i] : firstTokens[i];
+        let [token0, token1] = sortTokens(firstTokens[i], secondTokens[i]);
 
         let pool = await createPool(token0, token1, swapFeeBpsArray[index]);
         await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[index], initialPrice);
@@ -179,8 +177,7 @@ describe('LiquidityHelper', () => {
       let userBefore = await getBalances(user.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
       let poolBefore = await getBalances(pool.address, [ZERO_ADDRESS, weth.address, tokenA.address]);
 
-      let token0 = weth.address < tokenA.address ? weth.address : tokenA.address;
-      let token1 = weth.address > tokenA.address ? weth.address : tokenA.address;
+      let [token0, token1] = sortTokens(weth.address, tokenA.address);
 
       let params = {
         token0: token0,

@@ -61,7 +61,7 @@ let vestingPeriod = 100;
 
 let minTick = getMinTick(tickDistance);
 let maxTick = getMaxTick(tickDistance);
-let ticksPrevious = [MIN_TICK, MIN_TICK];
+let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 let initialPrice: BN;
 let nearestTickToPrice: number; // the floor of tick that mod tickDistance = 0
 let tickLower: number;
@@ -1227,7 +1227,7 @@ describe('ProAMMPool', () => {
 
       it('should burn liquidity with event emission', async () => {
         // note that user need not be whitelisted as burn() is not restricted
-        await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'BurnLP');
+        await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'Burn');
         const {liquidity} = await pool.getPositions(user.address, tickLower, tickUpper);
         expect(liquidity).to.be.eql(ZERO);
       });

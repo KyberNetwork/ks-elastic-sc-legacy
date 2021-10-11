@@ -252,7 +252,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       token1.safeTransfer(msg.sender, qty1);
     }
 
-    emit BurnLP(msg.sender, tickLower, tickUpper, qty, qty0, qty1);
+    emit Burn(msg.sender, tickLower, tickUpper, qty, qty0, qty1);
   }
 
   /// @inheritdoc IProAMMPoolActions
@@ -298,8 +298,8 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     int24 currentTick; // the tick associated with the current price
     int24 nextTick; // the tick associated with the next price
     uint160 nextSqrtP; // the price of nextTick
-    bool isToken0; // is soureQty token0 or token1?
-    bool isExactInput; // is soureQty input or output?
+    bool isToken0; // true if deltaRemaining is in token0, false if in token1
+    bool isExactInput; // true = input qty, false = output qty
     uint128 lp; // the current pool liquidity
     uint128 lf; // the current reinvestment liquidity
     // variables below are loaded only when crossing a tick
