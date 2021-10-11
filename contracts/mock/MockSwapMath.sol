@@ -86,7 +86,7 @@ contract MockSwapMath {
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint256 feeInBps,
-    int256 amountRemaining,
+    int256 qtyRemaining,
     bool isExactInput,
     bool isToken0
   )
@@ -106,7 +106,7 @@ contract MockSwapMath {
       currentSqrtP,
       targetSqrtP,
       feeInBps,
-      amountRemaining,
+      qtyRemaining,
       isExactInput,
       isToken0
     );

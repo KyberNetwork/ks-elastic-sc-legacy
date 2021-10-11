@@ -59,27 +59,27 @@ contract SwapMathEchidnaTest is EchidnaAssert {
 
   function checkComputeSwapStep(
     uint128 liquidity,
-    int256 amountRemaining,
+    int256 qtyRemaining,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint8 feeInBps
   ) external {
     checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
-    require(amountRemaining != 0);
-    bool isExactInput = amountRemaining > 0;
+    require(qtyRemaining != 0);
+    bool isExactInput = qtyRemaining > 0;
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
     (int256 delta, int256 actualDelta, , uint160 nextSqrtP) = SwapMath.computeSwapStep(
       liquidity,
       currentSqrtP,
       targetSqrtP,
       feeInBps,
-      amountRemaining,
+      qtyRemaining,
       isExactInput,
       isToken0
     );
 
     if (nextSqrtP != targetSqrtP) {
-      isTrue(delta == amountRemaining);
+      isTrue(delta == qtyRemaining);
     }
 
     // next price is between price and price target

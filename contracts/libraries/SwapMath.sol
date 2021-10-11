@@ -11,12 +11,27 @@ library SwapMath {
   using SafeCast for uint256;
   using SafeCast for int256;
 
+  /// @dev Main function called by ProAMMPool for computing
+  /// the actual swap input / output amounts to be deducted or added,
+  /// the swap fee to be collected and the resulting sqrtP.
+  /// nextSqrtP should not exceed targetSqrtP.
+  /// @param liquidity current pool liquidity quantity
+  /// @param currentSqrtP current pool sqrt price
+  /// @param targetSqrtP the max value the new sqrt price can take
+  /// @param feeInBps swap fee in basis points
+  /// @param qtyRemaining specified user quantity remaining
+  /// @param isExactInput true = qtyRemaining is remaining input qty, false = remaining output qty
+  /// @param isToken0 true = qtyRemaining is in token0 qty, false = token1 qty
+  /// @return delta qty to be deducted from qtyRemaining
+  /// @return actualDelta output qty to be accumulated if isExactInput = true, input qty if isExactInput = false
+  /// @return fee collected liquidity fee
+  /// @return nextSqrtP the new sqrt price
   function computeSwapStep(
     uint256 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint256 feeInBps,
-    int256 amountRemaining,
+    int256 qtyRemaining,
     bool isExactInput,
     bool isToken0
   )
@@ -35,10 +50,8 @@ library SwapMath {
     if (currentSqrtP == targetSqrtP) return (0, 0, 0, currentSqrtP);
     delta = calcDeltaNext(liquidity, currentSqrtP, targetSqrtP, feeInBps, isExactInput, isToken0);
 
-    if (
-      (isExactInput && delta >= amountRemaining) || (!isExactInput && delta <= amountRemaining)
-    ) {
-      delta = amountRemaining;
+    if ((isExactInput && delta >= qtyRemaining) || (!isExactInput && delta <= qtyRemaining)) {
+      delta = qtyRemaining;
     } else {
       nextSqrtP = targetSqrtP;
     }
@@ -70,11 +83,11 @@ library SwapMath {
     actualDelta = calcActualDelta(liquidity, currentSqrtP, nextSqrtP, fee, isExactInput, isToken0);
   }
 
-  // calculates the delta qty amount needed to reach sqrtPn (price of next tick)
-  // from sqrtPc (price of current tick)
-  // each of the 4 possible scenarios (isExactInput | isToken0)
-  // have vastly different formulas which are elaborated in each branch
-  // we cast sqrtPc and sqrtPn to uint256 as they are multiplied by TWO_BPS or feeInBps,
+  /// @dev calculates the delta qty amount needed to reach sqrtPn (price of next tick)
+  /// from sqrtPc (price of current tick)
+  /// each of the 4 possible scenarios (isExactInput | isToken0)
+  /// have vastly different formulas which are elaborated in each branch
+  /// we cast sqrtPc and sqrtPn to uint256 as they are multiplied by TWO_BPS or feeInBps,
   function calcDeltaNext(
     uint256 liquidity,
     uint256 sqrtPc,
@@ -139,6 +152,9 @@ library SwapMath {
     }
   }
 
+  /// @dev calculates the swap fee qty to be collected
+  /// for the final swap step to be performed,
+  /// where the next (temporary) tick will not be crossed
   function calcFinalSwapFeeAmount(
     uint256 absDelta,
     uint256 liquidity,
@@ -187,6 +203,8 @@ library SwapMath {
     }
   }
 
+  /// @dev calculates the swap fee qty to be collected for an intermediate swap step,
+  /// where the next (temporary) tick will be crossed
   function calcStepSwapFeeAmount(
     uint256 absDelta,
     uint256 liquidity,
@@ -218,6 +236,8 @@ library SwapMath {
     }
   }
 
+  /// calculates the sqrt price of the final swap step
+  /// where the next (temporary) tick will not be crossed
   function calcFinalPrice(
     uint256 absDelta,
     uint256 liquidity,
@@ -248,7 +268,7 @@ library SwapMath {
     }
   }
 
-  // calculates actual output | input tokens in exchange for
+  // calculates actual output | input token qty in exchange for
   // user specified input | output
   // round down when calculating actual output (isExactInput) so we avoid sending too much
   // round up when calculating actual input (!isExactInput) so we get desired output amount
