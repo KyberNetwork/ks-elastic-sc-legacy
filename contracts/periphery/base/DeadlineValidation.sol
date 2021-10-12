@@ -4,7 +4,7 @@ pragma solidity 0.8.4;
 /// @title Validate if the transaction is still valid
 abstract contract DeadlineValidation {
   modifier onlyNotExpired(uint256 deadline) {
-    require(_blockTimestamp() <= deadline, 'ProAMM: Expired');
+    require(_blockTimestamp() <= deadline, 'Expired');
     _;
   }
 

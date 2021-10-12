@@ -9,9 +9,9 @@ import {SafeCast} from '../libraries/SafeCast.sol';
 import {PathHelper} from './libraries/PathHelper.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
 
-import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
-import {IProAMMRouter} from '../interfaces/periphery/IProAMMRouter.sol';
+import {IPool} from '../interfaces/IPool.sol';
+import {IFactory} from '../interfaces/IFactory.sol';
+import {IRouter} from '../interfaces/periphery/IRouter.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
@@ -19,7 +19,7 @@ import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
 
 /// @title KyberDMM V2 Swap Router
-contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidation {
+contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidation {
   using PathHelper for bytes;
   using SafeCast for uint256;
 
@@ -36,17 +36,17 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     address source;
   }
 
-  function proAMMSwapCallback(
+  function swapCallback(
     int256 deltaQty0,
     int256 deltaQty1,
     bytes calldata data
   ) external override {
-    require(deltaQty0 > 0 || deltaQty1 > 0, 'ProAMMRouter: invalid delta qties');
+    require(deltaQty0 > 0 || deltaQty1 > 0, 'Router: invalid delta qties');
     SwapCallbackData memory swapData = abi.decode(data, (SwapCallbackData));
     (address tokenIn, address tokenOut, uint16 fee) = swapData.path.decodeFirstPool();
     require(
       msg.sender == address(_getPool(tokenIn, tokenOut, fee)),
-      'ProAMMRouter: invalid callback sender'
+      'Router: invalid callback sender'
     );
 
     (bool isExactInput, uint256 amountToTransfer) = deltaQty0 > 0
@@ -85,7 +85,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
         source: msg.sender
       })
     );
-    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
+    require(amountOut >= params.minAmountOut, 'Router: insufficient amountOut');
   }
 
   function swapExactInput(ExactInputParams memory params)
@@ -116,7 +116,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
       }
     }
 
-    require(amountOut >= params.minAmountOut, 'ProAMMRouter: insufficient amountOut');
+    require(amountOut >= params.minAmountOut, 'Router: insufficient amountOut');
   }
 
   function swapExactOutputSingle(ExactOutputSingleParams calldata params)
@@ -135,7 +135,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
         source: msg.sender
       })
     );
-    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'Router: amountIn is too high');
     // has to be reset even though we don't use it in the single hop case
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
@@ -155,7 +155,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     );
 
     amountIn = amountInCached;
-    require(amountIn <= params.maxAmountIn, 'ProAMMRouter: amountIn is too high');
+    require(amountIn <= params.maxAmountIn, 'Router: amountIn is too high');
     amountInCached = DEFAULT_AMOUNT_IN_CACHED;
   }
 
@@ -225,7 +225,7 @@ contract ProAMMRouter is IProAMMRouter, RouterTokenHelperWithFee, Multicall, Dea
     address tokenA,
     address tokenB,
     uint16 fee
-  ) private view returns (IProAMMPool) {
-    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
+  ) private view returns (IPool) {
+    return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }
 }

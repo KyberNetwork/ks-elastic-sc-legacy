@@ -1,2 +1,2 @@
-# pro-amm
-Main smart contract repo for Pro-AMM
+# DMM v2
+Main smart contract repo for Kyber Dmm v2

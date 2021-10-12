@@ -5,18 +5,18 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {ProAMMFactory, MockToken, MockToken__factory, ProAMMFactory__factory} from '../typechain';
+import {Factory, MockToken, MockToken__factory, Factory__factory} from '../typechain';
 import {getCreate2Address} from './helpers/utils';
 
 let Token: MockToken__factory;
-let factory: ProAMMFactory;
+let factory: Factory;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let swapFeeBps: number;
 let tickDistance: number;
 let vestingPeriod = 100;
 
-describe('ProAMMFactory', () => {
+describe('Factory', () => {
   const [operator, admin, configMaster, nftManager, nftManager2] = waffle.provider.getWallets();
 
   async function fixture() {
@@ -24,8 +24,8 @@ describe('ProAMMFactory', () => {
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
 
-    const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-    return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
+    const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
+    return await FactoryContract.connect(admin).deploy(vestingPeriod);
   }
 
   beforeEach('load fixture', async () => {

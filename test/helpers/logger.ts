@@ -1,5 +1,5 @@
 import {BigNumber} from 'ethers';
-import {ProAMMPool} from '../../typechain';
+import {Pool} from '../../typechain';
 export enum SwapTitle {
   BEFORE_SWAP,
   AFTER_SWAP,
@@ -9,7 +9,7 @@ let titleMap = {
   [SwapTitle.AFTER_SWAP]: 'AFTER SWAP',
 };
 
-export async function logSwapState(title: SwapTitle, pool: ProAMMPool) {
+export async function logSwapState(title: SwapTitle, pool: Pool) {
   console.log(`=== ${titleMap[title]} ===`);
   let poolState = await pool.getPoolState();
   let reinvestmentState = await pool.getReinvestmentState();

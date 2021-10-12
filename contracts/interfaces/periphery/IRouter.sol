@@ -2,13 +2,13 @@
 pragma solidity >=0.8.0;
 pragma abicoder v2;
 
-import '../callback/IProAMMSwapCallback.sol';
+import '../callback/ISwapCallback.sol';
 
-/// @notice Functions for swapping tokens via Pro-AMM v2
+/// @notice Functions for swapping tokens via Kyber DMM v2
 /// - Support swap with exact input or exact output
 /// - Support swap with a price limit
 /// - Support swap within a single pool and between multiple pools
-interface IProAMMRouter is IProAMMSwapCallback {
+interface IRouter is ISwapCallback {
   /// @dev Params for swapping exact input amount
   /// @param tokenIn the token to swap
   /// @param tokenOut the token to receive

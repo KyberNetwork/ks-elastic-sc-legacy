@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.4;
 
-import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
-import {IProAMMPoolActions} from '../interfaces/pool/IProAMMPoolActions.sol';
+import {IFactory} from '../interfaces/IFactory.sol';
+import {IPoolActions} from '../interfaces/pool/IPoolActions.sol';
 import {MathConstants} from '../libraries/MathConstants.sol';
 import {BaseSplitCodeFactory} from '../libraries/BaseSplitCodeFactory.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import {MockProAMMPool} from './MockProAMMPool.sol';
+import {MockPool} from './MockPool.sol';
 
-/// @title MockProAMMFactory
-/// @notice Should be the same as ProAMMFactory, but importing MockProAMMPool instead
-contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
+/// @title MockFactory
+/// @notice Should be the same as Factory, but importing MockPool instead
+contract MockFactory is BaseSplitCodeFactory, IFactory {
   using Clones for address;
   using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -23,10 +23,10 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     int24 tickDistance;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   Parameters public override parameters;
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   bytes32 public immutable override poolInitHash;
   address public override configMaster;
   bool public override whitelistDisabled;
@@ -35,9 +35,9 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   uint16 private governmentFeeBps;
   uint32 public override vestingPeriod;
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   mapping(uint16 => int24) public override feeAmountTickSpacing;
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
   // list of whitelisted NFT position manager(s)
@@ -52,8 +52,8 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _;
   }
 
-  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(MockProAMMPool).creationCode) {
-    poolInitHash = keccak256(type(MockProAMMPool).creationCode);
+  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(MockPool).creationCode) {
+    poolInitHash = keccak256(type(MockPool).creationCode);
 
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);
@@ -67,7 +67,7 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit SwapFeeEnabled(30, 60);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function createPool(
     address tokenA,
     address tokenB,
@@ -93,19 +93,19 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit PoolCreated(token0, token1, swapFeeBps, tickDistance, pool);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateConfigMaster(address _configMaster) external override onlyConfigMaster {
     emit ConfigMasterUpdated(configMaster, _configMaster);
     configMaster = _configMaster;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function enableWhitelist() external override onlyConfigMaster {
     whitelistDisabled = false;
     emit WhitelistEnabled();
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function disableWhitelist() external override onlyConfigMaster {
     whitelistDisabled = true;
     emit WhitelistDisabled();
@@ -125,13 +125,13 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit NFTManagerRemoved(_nftManager, removed);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateVestingPeriod(uint32 _vestingPeriod) external override onlyConfigMaster {
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
@@ -142,7 +142,7 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit SwapFeeEnabled(swapFeeBps, tickDistance);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateFeeConfiguration(address _feeTo, uint16 _governmentFeeBps)
     external
     override
@@ -159,7 +159,7 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit FeeConfigurationUpdated(_feeTo, _governmentFeeBps);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function feeConfiguration()
     external
     view
@@ -170,13 +170,13 @@ contract MockProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _governmentFeeBps = governmentFeeBps;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function isWhitelistedNFTManager(address sender) external view override returns (bool) {
     if (whitelistDisabled) return true;
     return whitelistedNFTManagers.contains(sender);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function getWhitelistedNFTManagers() external view override returns (address[] memory) {
     return whitelistedNFTManagers.values();
   }

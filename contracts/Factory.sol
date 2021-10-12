@@ -6,13 +6,13 @@ import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet
 import {MathConstants} from './libraries/MathConstants.sol';
 import {BaseSplitCodeFactory} from './libraries/BaseSplitCodeFactory.sol';
 
-import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IFactory} from './interfaces/IFactory.sol';
 
-import {ProAMMPool} from './ProAMMPool.sol';
+import {Pool} from './Pool.sol';
 
-/// @title ProAMM factory
-/// @notice Deploys ProAMM pools and manages control over government fees
-contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
+/// @title KyberDMM v2 factory
+/// @notice Deploys KyberDMM v2 pools and manages control over government fees
+contract Factory is BaseSplitCodeFactory, IFactory {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   struct Parameters {
@@ -23,10 +23,10 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     int24 tickDistance;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   Parameters public override parameters;
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   bytes32 public immutable override poolInitHash;
   address public override configMaster;
   bool public override whitelistDisabled;
@@ -35,9 +35,9 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
   uint16 private governmentFeeBps;
   uint32 public override vestingPeriod;
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   mapping(uint16 => int24) public override feeAmountTickSpacing;
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
   // list of whitelisted NFT position manager(s)
@@ -52,8 +52,8 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _;
   }
 
-  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(ProAMMPool).creationCode) {
-    poolInitHash = keccak256(type(ProAMMPool).creationCode);
+  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(Pool).creationCode) {
+    poolInitHash = keccak256(type(Pool).creationCode);
 
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);
@@ -67,7 +67,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit SwapFeeEnabled(30, 60);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function createPool(
     address tokenA,
     address tokenB,
@@ -93,19 +93,19 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit PoolCreated(token0, token1, swapFeeBps, tickDistance, pool);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateConfigMaster(address _configMaster) external override onlyConfigMaster {
     emit ConfigMasterUpdated(configMaster, _configMaster);
     configMaster = _configMaster;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function enableWhitelist() external override onlyConfigMaster {
     whitelistDisabled = false;
     emit WhitelistEnabled();
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function disableWhitelist() external override onlyConfigMaster {
     whitelistDisabled = true;
     emit WhitelistDisabled();
@@ -125,13 +125,13 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit NFTManagerRemoved(_nftManager, removed);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateVestingPeriod(uint32 _vestingPeriod) external override onlyConfigMaster {
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) public override onlyConfigMaster {
     require(swapFeeBps < MathConstants.BPS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
@@ -142,7 +142,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit SwapFeeEnabled(swapFeeBps, tickDistance);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function updateFeeConfiguration(address _feeTo, uint16 _governmentFeeBps)
     external
     override
@@ -159,7 +159,7 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     emit FeeConfigurationUpdated(_feeTo, _governmentFeeBps);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function feeConfiguration()
     external
     view
@@ -170,13 +170,13 @@ contract ProAMMFactory is BaseSplitCodeFactory, IProAMMFactory {
     _governmentFeeBps = governmentFeeBps;
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function isWhitelistedNFTManager(address sender) external view override returns (bool) {
     if (whitelistDisabled) return true;
     return whitelistedNFTManagers.contains(sender);
   }
 
-  /// @inheritdoc IProAMMFactory
+  /// @inheritdoc IFactory
   function getWhitelistedNFTManagers() external view override returns (address[] memory) {
     return whitelistedNFTManagers.values();
   }

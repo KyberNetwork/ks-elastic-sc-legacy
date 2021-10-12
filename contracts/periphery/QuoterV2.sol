@@ -8,16 +8,16 @@ import {PathHelper} from './libraries/PathHelper.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
 import {PoolTicksCounter} from './libraries/PoolTicksCounter.sol';
 
-import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
-import {IProAMMSwapCallback} from '../interfaces/callback/IProAMMSwapCallback.sol';
+import {IPool} from '../interfaces/IPool.sol';
+import {IFactory} from '../interfaces/IFactory.sol';
+import {ISwapCallback} from '../interfaces/callback/ISwapCallback.sol';
 import {IQuoterV2} from '../interfaces/periphery/IQuoterV2.sol';
 
 /// @title Provides quotes for swaps
 /// @notice Allows getting the expected amount out or amount in for a given swap without executing the swap
 /// @dev These functions are not gas efficient and should _not_ be called on chain. Instead, optimistically execute
 /// the swap and check the amounts in the callback.
-contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
+contract QuoterV2 is IQuoterV2, ISwapCallback {
   using PathHelper for bytes;
   using SafeCast for uint256;
 
@@ -29,7 +29,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
 
   constructor(address _factory) {
     factory = _factory;
-    poolInitHash = IProAMMFactory(_factory).poolInitHash();
+    poolInitHash = IFactory(_factory).poolInitHash();
   }
 
   /**
@@ -41,19 +41,19 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
     address tokenA,
     address tokenB,
     uint16 feeBps
-  ) private view returns (IProAMMPool) {
-    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, feeBps, poolInitHash));
+  ) private view returns (IPool) {
+    return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, feeBps, poolInitHash));
   }
 
-  /// @inheritdoc IProAMMSwapCallback
-  function proAMMSwapCallback(
+  /// @inheritdoc ISwapCallback
+  function swapCallback(
     int256 amount0Delta,
     int256 amount1Delta,
     bytes memory path
   ) external view override {
     require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
     (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
-    IProAMMPool pool = _getPool(tokenIn, tokenOut, feeBps);
+    IPool pool = _getPool(tokenIn, tokenOut, feeBps);
     require(address(pool) == msg.sender, 'invalid sender');
     (uint160 afterSqrtP, , int24 nearestCurrentTickAfter, , ) = pool.getPoolState();
 
@@ -107,7 +107,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
 
   function _handleRevert(
     bytes memory reason,
-    IProAMMPool pool,
+    IPool pool,
     uint256 gasEstimate
   ) private view returns (QuoteOutput memory output) {
     int24 nearestCurrentTickBefore;
@@ -134,7 +134,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
   {
     // if tokenIn < tokenOut, token input and specified token is token0, swap from 0 to 1
     bool isToken0 = params.tokenIn < params.tokenOut;
-    IProAMMPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
+    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
     bytes memory data = abi.encodePacked(params.tokenIn, params.feeBps, params.tokenOut);
     uint160 priceLimit = params.limitSqrtP == 0
       ? (isToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
@@ -198,7 +198,7 @@ contract QuoterV2 is IQuoterV2, IProAMMSwapCallback {
   {
     // if tokenIn > tokenOut, output token and specified token is token0, swap from token1 to token0
     bool isToken0 = params.tokenIn > params.tokenOut;
-    IProAMMPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
+    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
 
     // if no price limit has been specified, cache the output amount for comparison in the swap callback
     if (params.limitSqrtP == 0) amountOutCached = params.amount;

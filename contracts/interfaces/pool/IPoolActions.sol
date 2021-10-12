@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-interface IProAMMPoolActions {
+interface IPoolActions {
   /// @notice Adds initial liquidity and sets initial price for the pool
-  /// @dev Function calls IProAMMMintCallback#proAMMMintCallback to receive
+  /// @dev Function calls IMintCallback#mintCallback to receive
   /// required tokens from the caller. Hence, the caller is required to
   /// implement the mint callback as well
   /// @param initialSqrtP the initial sqrt price of the pool
@@ -16,7 +16,7 @@ interface IProAMMPoolActions {
 
   /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when
-  /// the IProAMMMintCallback#proAMMMintCallback is called to this method's caller
+  /// the IMintCallback#mintCallback is called to this method's caller
   /// The quantity of token0/token1 to be sent depends on
   /// tickLower, tickUpper, the amount of liquidity, and the current price of the pool.
   /// Also sends reinvestment tokens (fees) to the recipient for any fees collected
@@ -77,7 +77,7 @@ interface IProAMMPoolActions {
     returns (uint256 qty0, uint256 qty1);
 
   /// @notice Swap token0 -> token1, or vice versa
-  /// @dev This method's caller receives a callback in the form of IProAMMSwapCallback#proAMMSwapCallback
+  /// @dev This method's caller receives a callback in the form of ISwapCallback#swapCallback
   /// @param recipient The address to receive the swap output
   /// @param swapQty The swap quantity, which implicitly configures the swap as exact input (>0), or exact output (<0)
   /// @param isToken0 Whether the swapQty is specified in token0 (true) or token1 (false)
@@ -95,7 +95,7 @@ interface IProAMMPoolActions {
   ) external returns (int256 qty0, int256 qty1);
 
   /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
-  /// @dev The caller of this method receives a callback in the form of IProAMMFlashCallback#proAMMFlashCallback
+  /// @dev The caller of this method receives a callback in the form of IFlashCallback#flashCallback
   /// @dev Fees collected are distributed to all rToken holders
   /// since no rTokens minted from it
   /// @param recipient The address which will receive the token0 and token1 amounts

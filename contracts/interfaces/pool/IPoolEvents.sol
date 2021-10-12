@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-interface IProAMMPoolEvents {
+interface IPoolEvents {
   /// @notice Emitted only once per pool when #initialize is first called
   /// @dev Mint/Burn/Swap cannot be emitted by the pool before Initialize
   /// @param sqrtP The initial price of the pool

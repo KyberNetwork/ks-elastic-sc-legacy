@@ -5,14 +5,14 @@ chai.use(solidity);
 import {BigNumber as BN} from 'ethers';
 
 import {MAX_UINT, PRECISION, MIN_TICK, MAX_TICK} from '../helpers/helper';
-import {deployFactory, setupPoolWithLiquidity} from '../helpers/proAMMSetup';
+import {deployFactory, setupPoolWithLiquidity} from '../helpers/setup';
 import {encodePath} from '../helpers/swapPath';
 import {encodePriceSqrt} from '../helpers/utils';
 
 import {QuoterV2, QuoterV2__factory} from '../../typechain';
 import {MockToken, MockToken__factory} from '../../typechain';
-import {ProAMMPool, MockTickMath, MockTickMath__factory} from '../../typechain';
-import {MockProAMMCallbacks2, MockProAMMCallbacks2__factory} from '../../typechain';
+import {Pool, MockTickMath, MockTickMath__factory} from '../../typechain';
+import {MockCallbacks2, MockCallbacks2__factory} from '../../typechain';
 
 let swapFeeBpsArray = [5, 2];
 let tickDistanceArray = [10, 6];
@@ -21,9 +21,9 @@ let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 
 class Fixtures {
   constructor(
-    public pool02: ProAMMPool,
+    public pool02: Pool,
     public tokens: MockToken[3],
-    public callback: MockProAMMCallbacks2,
+    public callback: MockCallbacks2,
     public quoter: QuoterV2,
     public tickMath: MockTickMath
   ) {}
@@ -76,9 +76,7 @@ describe('QuoterV2', function () {
     const TickMathContract = (await ethers.getContractFactory('MockTickMath')) as MockTickMath__factory;
     const tickMath = await TickMathContract.deploy();
 
-    const CallbackContract = (await ethers.getContractFactory(
-      'MockProAMMCallbacks2'
-    )) as MockProAMMCallbacks2__factory;
+    const CallbackContract = (await ethers.getContractFactory('MockCallbacks2')) as MockCallbacks2__factory;
     let callback = await CallbackContract.deploy();
 
     // whitelist callback
@@ -140,9 +138,9 @@ describe('QuoterV2', function () {
 
   let tokens: MockToken[];
   let quoter: QuoterV2;
-  let callback: MockProAMMCallbacks2;
+  let callback: MockCallbacks2;
   let tickMath: MockTickMath;
-  let pool02: ProAMMPool;
+  let pool02: Pool;
 
   // helper for getting weth and token balances
   beforeEach('load fixture', async () => {

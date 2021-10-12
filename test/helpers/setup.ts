@@ -1,52 +1,52 @@
 import {
-  MockProAMMFactory__factory,
-  ProAMMFactory__factory,
-  ProAMMFactory,
-  ProAMMPool,
-  MockProAMMFactory,
+  MockFactory__factory,
+  Factory__factory,
+  Factory,
+  Pool,
+  MockFactory,
   MockToken,
-  ProAMMPool__factory,
-  MockProAMMCallbacks2,
+  Pool__factory,
+  MockCallbacks2,
 } from '../../typechain';
 import {ethers} from 'hardhat';
 import {BigNumberish, BigNumber as BN} from 'ethers';
 import {getNearestSpacedTickAtPrice} from './utils';
 import {PRECISION, MIN_TICK, MAX_INT, MAX_TICK, ZERO} from './helper';
 
-export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockProAMMFactory> {
-  const ProAMMFactoryContract = (await ethers.getContractFactory('MockProAMMFactory')) as MockProAMMFactory__factory;
-  return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
+export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockFactory> {
+  const FactoryContract = (await ethers.getContractFactory('MockFactory')) as MockFactory__factory;
+  return await FactoryContract.connect(admin).deploy(vestingPeriod);
 }
 
-export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<ProAMMFactory> {
-  const ProAMMFactoryContract = (await ethers.getContractFactory('ProAMMFactory')) as ProAMMFactory__factory;
-  return await ProAMMFactoryContract.connect(admin).deploy(vestingPeriod);
+export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<Factory> {
+  const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
+  return await FactoryContract.connect(admin).deploy(vestingPeriod);
 }
 
 export async function createPool(
-  factory: ProAMMFactory,
+  factory: Factory,
   tokenA: MockToken,
   tokenB: MockToken,
   feeBps: BigNumberish
-): Promise<ProAMMPool> {
+): Promise<Pool> {
   await factory.createPool(tokenA.address, tokenB.address, feeBps);
   const addr = await factory.getPool(tokenA.address, tokenB.address, feeBps);
-  const ProAMMPoolContract = (await ethers.getContractFactory('ProAMMPool')) as ProAMMPool__factory;
-  return ProAMMPoolContract.attach(addr);
+  const PoolContract = (await ethers.getContractFactory('Pool')) as Pool__factory;
+  return PoolContract.attach(addr);
 }
 
 /**
  * @returns [pool, nearestTickToPrice]
  */
 export async function setupPoolWithLiquidity(
-  factory: ProAMMFactory,
-  mockCallback: MockProAMMCallbacks2,
+  factory: Factory,
+  mockCallback: MockCallbacks2,
   recipient: string,
   tokenA: MockToken,
   tokenB: MockToken,
   feeBps: BigNumberish,
   initialPrice: BN
-): Promise<[ProAMMPool, number]> {
+): Promise<[Pool, number]> {
   const pool = await createPool(factory, tokenA, tokenB, feeBps);
   await mockCallback.unlockPool(pool.address, initialPrice);
   let tickDistance = await pool.tickDistance();
@@ -69,7 +69,7 @@ export async function setupPoolWithLiquidity(
  * @return lower nearest ticks to the tickLower and tickUpper
  */
 export async function getTicksPrevious(
-  pool: ProAMMPool,
+  pool: Pool,
   tickLower: BigNumberish,
   tickUpper: BigNumberish
 ): Promise<[BN, BN]> {

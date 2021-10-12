@@ -53,7 +53,7 @@ const config: HardhatUserConfig = {
           },
         }
       },
-      'contracts/ProAMMFactory.sol': {
+      'contracts/Factory.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
@@ -65,7 +65,7 @@ const config: HardhatUserConfig = {
           }
         }
       },
-      'contracts/ProAMMPool.sol': {
+      'contracts/Pool.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
@@ -74,7 +74,7 @@ const config: HardhatUserConfig = {
           },
         }
       },
-      'contracts/mock/MockProAMMPool.sol': {
+      'contracts/mock/MockPool.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {

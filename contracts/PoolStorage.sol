@@ -7,7 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
-import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IFactory} from './interfaces/IFactory.sol';
 import {IPoolStorage} from './interfaces/IPoolStorage.sol';
 
 abstract contract PoolStorage is IPoolStorage {
@@ -58,7 +58,7 @@ abstract contract PoolStorage is IPoolStorage {
   }
 
   /// see IPoolStorage for explanations of the immutables below
-  IProAMMFactory public immutable override factory;
+  IFactory public immutable override factory;
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
   uint128 public immutable override maxTickLiquidity;
@@ -80,8 +80,8 @@ abstract contract PoolStorage is IPoolStorage {
       address _token1,
       uint16 _swapFeeBps,
       int24 _tickDistance
-    ) = IProAMMFactory(msg.sender).parameters();
-    factory = IProAMMFactory(_factory);
+    ) = IFactory(msg.sender).parameters();
+    factory = IFactory(_factory);
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
     swapFeeBps = _swapFeeBps;

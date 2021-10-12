@@ -12,7 +12,7 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
     address token1,
     uint16 fee,
     uint160 initialSqrtP
-  ) external payable returns (IProAMMPool pool) {
+  ) external payable returns (IPool pool) {
     pool = _getPool(token0, token1, fee);
     if (token0 < token1) {
       pool.unlockPool(initialSqrtP, _callbackData(token0, token1, fee));
@@ -29,7 +29,7 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
       uint256 amount0,
       uint256 amount1,
       uint256 feeGrowthInsideLast,
-      IProAMMPool pool
+      IPool pool
     )
   {
     return _addLiquidity(params);

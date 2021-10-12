@@ -5,12 +5,12 @@ import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {ProAMMRouter, ProAMMRouter__factory} from '../../typechain';
-import {ProAMMFactory, ProAMMPool} from '../../typechain';
+import {Router, Router__factory} from '../../typechain';
+import {Factory, Pool} from '../../typechain';
 import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
-import {MockProAMMCallbacks, MockProAMMCallbacks__factory} from '../../typechain';
+import {MockCallbacks, MockCallbacks__factory} from '../../typechain';
 
-import {deployFactory} from '../helpers/proAMMSetup';
+import {deployFactory} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {encodePath} from '../helpers/swapPath';
 import {PRECISION, ZERO, ZERO_ADDRESS, MAX_UINT, MIN_TICK} from '../helpers/helper';
@@ -19,15 +19,15 @@ import {encodePriceSqrt, getBalances, getPriceFromTick, snapshotGasCost} from '.
 const showGasUsed = false;
 
 let Token: MockToken__factory;
-let CallbackContract: MockProAMMCallbacks__factory;
-let factory: ProAMMFactory;
+let CallbackContract: MockCallbacks__factory;
+let factory: Factory;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let token0: MockToken;
 let token1: MockToken;
 let weth: MockWeth;
-let router: ProAMMRouter;
-let callback: MockProAMMCallbacks;
+let router: Router;
+let callback: MockCallbacks;
 let vestingPeriod = 100;
 let swapFeeBpsArray = [5, 30];
 let tickDistanceArray = [10, 60];
@@ -37,7 +37,7 @@ let ticks: number[];
 
 let snapshotId: any;
 
-describe('ProAMMRouter', () => {
+describe('Router', () => {
   const [user, admin] = waffle.provider.getWallets();
 
   before('factory, token and callback setup', async () => {
@@ -48,11 +48,11 @@ describe('ProAMMRouter', () => {
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
     weth = await WETH.deploy();
-    const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
+    const Router = (await ethers.getContractFactory('Router')) as Router__factory;
     router = await Router.deploy(factory.address, weth.address);
 
     // use callback to add liquidity
-    CallbackContract = (await ethers.getContractFactory('MockProAMMCallbacks')) as MockProAMMCallbacks__factory;
+    CallbackContract = (await ethers.getContractFactory('MockCallbacks')) as MockCallbacks__factory;
 
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
@@ -84,12 +84,12 @@ describe('ProAMMRouter', () => {
     fee: number,
     sqrtP: BN,
     ticks: number[]
-  ): Promise<ProAMMPool> {
+  ): Promise<Pool> {
     await setupCallback(Token.attach(token0), Token.attach(token1));
     await factory.createPool(token0, token1, fee);
     // whitelist callback
     await factory.connect(admin).addNFTManager(callback.address);
-    let pool = (await ethers.getContractAt('ProAMMPool', await factory.getPool(token0, token1, fee))) as ProAMMPool;
+    let pool = (await ethers.getContractAt('Pool', await factory.getPool(token0, token1, fee))) as Pool;
     await callback.connect(user).unlockPool(pool.address, sqrtP, '0x');
     await callback
       .connect(user)
@@ -446,7 +446,7 @@ describe('ProAMMRouter', () => {
           minAmountOut: PRECISION,
           limitSqrtP: ZERO,
         })
-      ).to.be.revertedWith('ProAMMRouter: insufficient amountOut');
+      ).to.be.revertedWith('Router: insufficient amountOut');
     });
   });
 
@@ -515,7 +515,7 @@ describe('ProAMMRouter', () => {
           maxAmountIn: ZERO,
           limitSqrtP: ZERO,
         })
-      ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
+      ).to.be.revertedWith('Router: amountIn is too high');
     });
   });
 
@@ -614,7 +614,7 @@ describe('ProAMMRouter', () => {
           amountIn: amount,
           minAmountOut: PRECISION,
         })
-      ).to.be.revertedWith('ProAMMRouter: insufficient amountOut');
+      ).to.be.revertedWith('Router: insufficient amountOut');
     });
   });
 
@@ -713,7 +713,7 @@ describe('ProAMMRouter', () => {
           amountOut: amount,
           maxAmountIn: ZERO,
         })
-      ).to.be.revertedWith('ProAMMRouter: amountIn is too high');
+      ).to.be.revertedWith('Router: amountIn is too high');
     });
   });
 
@@ -745,15 +745,9 @@ describe('ProAMMRouter', () => {
     });
 
     it('callback: invalid data', async () => {
-      await expect(router.connect(user).proAMMSwapCallback(0, 0, '0x')).to.be.revertedWith(
-        'ProAMMRouter: invalid delta qties'
-      );
-      await expect(router.connect(user).proAMMSwapCallback(-1, 0, '0x')).to.be.revertedWith(
-        'ProAMMRouter: invalid delta qties'
-      );
-      await expect(router.connect(user).proAMMSwapCallback(0, -1, '0x')).to.be.revertedWith(
-        'ProAMMRouter: invalid delta qties'
-      );
+      await expect(router.connect(user).swapCallback(0, 0, '0x')).to.be.revertedWith('Router: invalid delta qties');
+      await expect(router.connect(user).swapCallback(-1, 0, '0x')).to.be.revertedWith('Router: invalid delta qties');
+      await expect(router.connect(user).swapCallback(0, -1, '0x')).to.be.revertedWith('Router: invalid delta qties');
     });
 
     it('swap: expiry', async () => {
@@ -771,7 +765,7 @@ describe('ProAMMRouter', () => {
           minAmountOut: ZERO,
           limitSqrtP: initialPrice,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
       await expect(
         router.connect(user).swapExactInput({
           path: encodePath([tokenA.address, tokenB.address], [fee]),
@@ -780,7 +774,7 @@ describe('ProAMMRouter', () => {
           amountIn: amount,
           minAmountOut: ZERO,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
 
       await expect(
         router.connect(user).swapExactOutputSingle({
@@ -793,7 +787,7 @@ describe('ProAMMRouter', () => {
           maxAmountIn: PRECISION,
           limitSqrtP: initialPrice,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
       await expect(
         router.connect(user).swapExactOutput({
           path: encodePath([tokenA.address, tokenB.address], [fee]),
@@ -802,7 +796,7 @@ describe('ProAMMRouter', () => {
           amountOut: amount,
           maxAmountIn: PRECISION,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
     });
   });
 });

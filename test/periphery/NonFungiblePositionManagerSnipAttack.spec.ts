@@ -12,14 +12,14 @@ import {
   MockWeth__factory,
   NonfungiblePositionManagerSnipAttack,
   NonfungiblePositionManagerSnipAttack__factory,
-  ProAMMRouter__factory,
-  ProAMMRouter,
-  ProAMMFactory,
+  Router__factory,
+  Router,
+  Factory,
   MockTokenPositionDescriptor,
   MockTokenPositionDescriptor__factory,
 } from '../../typechain';
 
-import {deployFactory} from '../helpers/proAMMSetup';
+import {deployFactory} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
@@ -31,9 +31,9 @@ const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
 let PositionManager: NonfungiblePositionManagerSnipAttack__factory;
-let factory: ProAMMFactory;
+let factory: Factory;
 let positionManager: NonfungiblePositionManagerSnipAttack;
-let router: ProAMMRouter;
+let router: Router;
 let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
 let tokenB: MockToken;
@@ -74,7 +74,7 @@ describe('NonFungiblePositionManagerSnipAttack', () => {
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 
-    const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
+    const Router = (await ethers.getContractFactory('Router')) as Router__factory;
     router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickDistance apart from default ones

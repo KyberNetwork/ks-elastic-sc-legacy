@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
-import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
-import {IProAMMSwapCallback} from '../../interfaces/callback/IProAMMSwapCallback.sol';
+import {IPool} from '../../interfaces/IPool.sol';
+import {IMintCallback} from '../../interfaces/callback/IMintCallback.sol';
+import {ISwapCallback} from '../../interfaces/callback/ISwapCallback.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-contract MockProAMMCallbacks2 is IProAMMMintCallback {
+contract MockCallbacks2 is IMintCallback {
   function mint(
-    IProAMMPool pool,
+    IPool pool,
     address recipient,
     int24 tickLower,
     int24 tickUpper,
@@ -27,13 +27,13 @@ contract MockProAMMCallbacks2 is IProAMMMintCallback {
     );
   }
 
-  function unlockPool(IProAMMPool pool, uint160 sqrtP) external {
+  function unlockPool(IPool pool, uint160 sqrtP) external {
     IERC20 token0 = pool.token0();
     IERC20 token1 = pool.token1();
     pool.unlockPool(sqrtP, abi.encode(token0, token1, msg.sender));
   }
 
-  function proAMMMintCallback(
+  function mintCallback(
     uint256 deltaQty0,
     uint256 deltaQty1,
     bytes calldata data

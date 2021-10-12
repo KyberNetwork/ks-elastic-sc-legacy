@@ -10,7 +10,7 @@ import {Linkedlist} from './libraries/Linkedlist.sol';
 
 import {PoolStorage} from './PoolStorage.sol';
 
-contract ProAMMPoolTicksState is PoolStorage {
+contract PoolTicksState is PoolStorage {
   using SafeCast for int256;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
 

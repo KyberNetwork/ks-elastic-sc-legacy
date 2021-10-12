@@ -3,12 +3,12 @@ pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IProAMMFactory} from './IProAMMFactory.sol';
+import {IFactory} from './IFactory.sol';
 
 interface IPoolStorage {
-  /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
+  /// @notice The contract that deployed the pool, which must adhere to the IFactory interface
   /// @return The contract address
-  function factory() external view returns (IProAMMFactory);
+  function factory() external view returns (IFactory);
 
   /// @notice The first of the two tokens of the pool, sorted by address
   /// @return The token contract address
