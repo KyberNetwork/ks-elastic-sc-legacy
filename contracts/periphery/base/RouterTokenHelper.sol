@@ -8,10 +8,10 @@ import {TokenHelper} from '../libraries/TokenHelper.sol';
 import {IRouterTokenHelper} from '../../interfaces/periphery/IRouterTokenHelper.sol';
 import {IWETH} from '../../interfaces/IWETH.sol';
 
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
+import {ImmutablePeripheryStorage} from './ImmutablePeripheryStorage.sol';
 
-abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutableRouterStorage {
-  constructor(address _factory, address _WETH) ImmutableRouterStorage(_factory, _WETH) {}
+abstract contract RouterTokenHelper is IRouterTokenHelper, ImmutablePeripheryStorage {
+  constructor(address _factory, address _WETH) ImmutablePeripheryStorage(_factory, _WETH) {}
 
   receive() external payable {
     require(msg.sender == WETH, 'Not WETH');

@@ -11,9 +11,8 @@ import {IFactory} from '../../interfaces/IFactory.sol';
 import {IMintCallback} from '../../interfaces/callback/IMintCallback.sol';
 
 import {RouterTokenHelper} from './RouterTokenHelper.sol';
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
-abstract contract LiquidityHelper is IMintCallback, ImmutableRouterStorage, RouterTokenHelper {
+abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   constructor(address _factory, address _WETH) RouterTokenHelper(_factory, _WETH) {}
 
   struct AddLiquidityParams {

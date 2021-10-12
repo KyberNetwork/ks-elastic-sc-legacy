@@ -5,7 +5,7 @@ import {IFactory} from '../../interfaces/IFactory.sol';
 
 /// @title Immutable state
 /// @notice Immutable state used by periphery contracts
-abstract contract ImmutableRouterStorage {
+abstract contract ImmutablePeripheryStorage {
   address public immutable factory;
   address public immutable WETH;
   bytes32 internal immutable poolInitHash;
