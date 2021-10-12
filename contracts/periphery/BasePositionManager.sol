@@ -11,7 +11,7 @@ import {FullMath} from '../libraries/FullMath.sol';
 
 import {IPool} from '../interfaces/IPool.sol';
 import {IFactory} from '../interfaces/IFactory.sol';
-import {INonfungiblePositionManager} from '../interfaces/periphery/INonfungiblePositionManager.sol';
+import {IBasePositionManager} from '../interfaces/periphery/IBasePositionManager.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 import {IRouterTokenHelper} from '../interfaces/periphery/IRouterTokenHelper.sol';
 
@@ -21,8 +21,8 @@ import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit} from './base/ERC721Permit.sol';
 
-contract NonfungiblePositionManager is
-  INonfungiblePositionManager,
+contract BasePositionManager is
+  IBasePositionManager,
   Multicall,
   ERC721Permit('DMM v2 NFT Positions Manager', 'DMM2-PM', '1'),
   LiquidityHelper

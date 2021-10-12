@@ -6,7 +6,7 @@ const {solidity} = waffle;
 chai.use(solidity);
 
 import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
-import {NonfungiblePositionManager, NonfungiblePositionManager__factory} from '../../typechain';
+import {BasePositionManager, NonfungiblePositionManager__factory} from '../../typechain';
 import {Router__factory, Router} from '../../typechain';
 import {Factory, Pool} from '../../typechain';
 import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
@@ -27,7 +27,7 @@ let PositionManager: NonfungiblePositionManager__factory;
 let admin;
 let user;
 let factory: Factory;
-let positionManager: NonfungiblePositionManager;
+let positionManager: BasePositionManager;
 let router: Router;
 let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
@@ -49,7 +49,7 @@ let getBalances: (
   tokenBalances: BigNumber[];
 }>;
 
-describe('NonFungiblePositionManager', () => {
+describe('BasePositionManager', () => {
   const [user, admin, other] = waffle.provider.getWallets();
   const tickLower = -100 * tickDistanceArray[0];
   const tickUpper = 100 * tickDistanceArray[0];
@@ -68,9 +68,7 @@ describe('NonFungiblePositionManager', () => {
     )) as MockTokenPositionDescriptor__factory;
     tokenDescriptor = await Descriptor.deploy();
 
-    PositionManager = (await ethers.getContractFactory(
-      'NonfungiblePositionManager'
-    )) as NonfungiblePositionManager__factory;
+    PositionManager = (await ethers.getContractFactory('BasePositionManager')) as NonfungiblePositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 

@@ -5,9 +5,9 @@ pragma abicoder v2;
 import {AntiSnipAttack} from '../periphery/libraries/AntiSnipAttack.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 
-import './NonfungiblePositionManager.sol';
+import './BasePositionManager.sol';
 
-contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
+contract AntiSnipAttackPositionManager is BasePositionManager {
   using SafeCast for uint256;
   mapping(uint256 => AntiSnipAttack.Data) public antiSnipAttackData;
 
@@ -15,7 +15,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
     address _factory,
     address _WETH,
     address _descriptor
-  ) NonfungiblePositionManager(_factory, _WETH, _descriptor) {}
+  ) BasePositionManager(_factory, _WETH, _descriptor) {}
 
   function mint(MintParams calldata params)
     public

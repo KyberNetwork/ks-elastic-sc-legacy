@@ -44,7 +44,7 @@ const config: HardhatUserConfig = {
       }
     ],
     overrides: {
-      'contracts/periphery/NonfungiblePositionManager.sol': {
+      'contracts/periphery/BasePositionManager.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {
@@ -86,7 +86,7 @@ const config: HardhatUserConfig = {
           }
         }
       },
-      'contracts/periphery/NonfungiblePositionManagerSnipAttack.sol': {
+      'contracts/periphery/AntiSnipAttackPositionManager.sol': {
         version: '0.8.4',
         settings: {
           optimizer: {

@@ -91,7 +91,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         })
       ).to.be.revertedWith('LiquidityHelper: invalid token order');
     });
@@ -113,7 +113,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: PRECISION.add(ONE),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
       await expect(
@@ -128,7 +128,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: PRECISION.add(ONE)
+          amount1Min: PRECISION.add(ONE),
         })
       ).to.be.revertedWith('LiquidityHelper: price slippage check');
     });
@@ -158,7 +158,7 @@ describe('LiquidityHelper', () => {
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
           amount0Min: BN.from(0),
-          amount1Min: BN.from(0)
+          amount1Min: BN.from(0),
         });
 
         let userAfter = await getBalances(user.address, [firstTokens[i], secondTokens[i]]);
@@ -191,7 +191,7 @@ describe('LiquidityHelper', () => {
         amount0Desired: PRECISION,
         amount1Desired: PRECISION,
         amount0Min: BN.from(0),
-        amount1Min: BN.from(0)
+        amount1Min: BN.from(0),
       };
 
       let multicallData = [liquidityHelper.interface.encodeFunctionData('testAddLiquidity', [params])];

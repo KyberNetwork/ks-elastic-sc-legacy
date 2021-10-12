@@ -10,7 +10,7 @@ import {
   MockToken__factory,
   MockWeth,
   MockWeth__factory,
-  NonfungiblePositionManagerSnipAttack,
+  AntiSnipAttackPositionManager,
   NonfungiblePositionManagerSnipAttack__factory,
   Router__factory,
   Router,
@@ -32,7 +32,7 @@ const BIG_AMOUNT = BN.from(2).pow(255);
 let Token: MockToken__factory;
 let PositionManager: NonfungiblePositionManagerSnipAttack__factory;
 let factory: Factory;
-let positionManager: NonfungiblePositionManagerSnipAttack;
+let positionManager: AntiSnipAttackPositionManager;
 let router: Router;
 let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
@@ -49,7 +49,7 @@ let initialPrice: BigNumber;
 let snapshotId: any;
 let initialSnapshotId: any;
 
-describe('NonFungiblePositionManagerSnipAttack', () => {
+describe('AntiSnipAttackPositionManager', () => {
   const [user, admin] = waffle.provider.getWallets();
   const tickLower = -100 * tickDistanceArray[0];
   const tickUpper = 100 * tickDistanceArray[0];
@@ -69,7 +69,7 @@ describe('NonFungiblePositionManagerSnipAttack', () => {
     tokenDescriptor = await Descriptor.deploy();
 
     PositionManager = (await ethers.getContractFactory(
-      'NonfungiblePositionManagerSnipAttack'
+      'AntiSnipAttackPositionManager'
     )) as NonfungiblePositionManagerSnipAttack__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
