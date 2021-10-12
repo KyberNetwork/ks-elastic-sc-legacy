@@ -155,10 +155,14 @@ contract BasePositionManager is
       })
     );
 
-    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+      }
       additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
-        feeGrowthInsideLast - pos.feeGrowthInsideLast,
+        feeGrowthInsideDiff,
         C.TWO_POW_96
       );
       pos.rTokenOwed += additionalRTokenOwed;
@@ -194,10 +198,14 @@ contract BasePositionManager is
     );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+      }
       additionalRTokenOwed = FullMath.mulDivFloor(
         pos.liquidity,
-        feeGrowthInsideLast - pos.feeGrowthInsideLast,
+        feeGrowthInsideDiff,
         C.TWO_POW_96
       );
       pos.rTokenOwed += additionalRTokenOwed;

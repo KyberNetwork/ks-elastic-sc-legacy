@@ -67,7 +67,11 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
       })
     );
 
-    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+      }
       // zero fees burnable when adding liquidity
       (additionalRTokenOwed, ) = AntiSnipAttack.update(
         antiSnipAttackData[params.tokenId],
@@ -75,11 +79,7 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
         liquidity,
         block.timestamp.toUint32(),
         true,
-        FullMath.mulDivFloor(
-          pos.liquidity,
-          feeGrowthInsideLast - pos.feeGrowthInsideLast,
-          C.TWO_POW_96
-        ),
+        FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
         IFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
@@ -114,19 +114,19 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    if (feeGrowthInsideLast > pos.feeGrowthInsideLast) {
+    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
       uint256 feesBurnable;
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+      }
       (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
         antiSnipAttackData[params.tokenId],
         pos.liquidity,
         params.liquidity,
         block.timestamp.toUint32(),
         false,
-        FullMath.mulDivFloor(
-          pos.liquidity,
-          feeGrowthInsideLast - pos.feeGrowthInsideLast,
-          C.TWO_POW_96
-        ),
+        FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
         IFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
