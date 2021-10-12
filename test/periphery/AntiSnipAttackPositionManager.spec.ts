@@ -5,32 +5,20 @@ import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {
-  MockToken,
-  MockToken__factory,
-  MockWeth,
-  MockWeth__factory,
-  AntiSnipAttackPositionManager,
-  NonfungiblePositionManagerSnipAttack__factory,
-  Router__factory,
-  Router,
-  Factory,
-  MockTokenPositionDescriptor,
-  MockTokenPositionDescriptor__factory,
-} from '../../typechain';
+import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
+import {AntiSnipAttackPositionManager, AntiSnipAttackPositionManager__factory} from '../../typechain';
+import {Router__factory, Router, Factory} from '../../typechain';
+import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
 
 import {deployFactory} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
 
-const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
-const showTxGasUsed = true;
-
 const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
-let PositionManager: NonfungiblePositionManagerSnipAttack__factory;
+let PositionManager: AntiSnipAttackPositionManager__factory;
 let factory: Factory;
 let positionManager: AntiSnipAttackPositionManager;
 let router: Router;
@@ -70,7 +58,7 @@ describe('AntiSnipAttackPositionManager', () => {
 
     PositionManager = (await ethers.getContractFactory(
       'AntiSnipAttackPositionManager'
-    )) as NonfungiblePositionManagerSnipAttack__factory;
+    )) as AntiSnipAttackPositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 

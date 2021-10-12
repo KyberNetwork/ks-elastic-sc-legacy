@@ -6,7 +6,7 @@ const {solidity} = waffle;
 chai.use(solidity);
 
 import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
-import {BasePositionManager, NonfungiblePositionManager__factory} from '../../typechain';
+import {BasePositionManager, BasePositionManager__factory} from '../../typechain';
 import {Router__factory, Router} from '../../typechain';
 import {Factory, Pool} from '../../typechain';
 import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
@@ -23,9 +23,7 @@ const showTxGasUsed = true;
 const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
-let PositionManager: NonfungiblePositionManager__factory;
-let admin;
-let user;
+let PositionManager: BasePositionManager__factory;
 let factory: Factory;
 let positionManager: BasePositionManager;
 let router: Router;
@@ -68,7 +66,7 @@ describe('BasePositionManager', () => {
     )) as MockTokenPositionDescriptor__factory;
     tokenDescriptor = await Descriptor.deploy();
 
-    PositionManager = (await ethers.getContractFactory('BasePositionManager')) as NonfungiblePositionManager__factory;
+    PositionManager = (await ethers.getContractFactory('BasePositionManager')) as BasePositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 
