@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';

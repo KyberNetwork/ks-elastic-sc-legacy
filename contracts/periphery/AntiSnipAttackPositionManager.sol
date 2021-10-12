@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 pragma abicoder v2;
 
 import {AntiSnipAttack} from '../periphery/libraries/AntiSnipAttack.sol';

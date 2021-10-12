@@ -4,12 +4,47 @@ import 'solidity-coverage';
 import 'hardhat-typechain';
 import 'hardhat-contract-sizer';
 
-import {HardhatUserConfig} from 'hardhat/types';
+import {HardhatUserConfig, SolcUserConfig} from 'hardhat/types';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 import {accounts} from './test-wallets';
+
+const solcConfig: SolcUserConfig = {
+  version: '0.8.9',
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 100000
+    },
+    metadata: {
+      bytecodeHash: 'none'
+    }
+  }
+};
+
+const lowRunSolcConfig = {
+  ...solcConfig,
+  settings: {
+    ...solcConfig.settings,
+    optimizer: {
+      enabled: true,
+      runs: 5000
+    }
+  }
+};
+
+const veryLowRunSolcConfig = {
+  ...solcConfig,
+  settings: {
+    ...solcConfig.settings,
+    optimizer: {
+      enabled: true,
+      runs: 2000
+    }
+  }
+};
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
@@ -29,72 +64,13 @@ const config: HardhatUserConfig = {
   },
 
   solidity: {
-    compilers: [
-      {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 100000,
-          },
-          metadata: {
-            bytecodeHash: 'none'
-          }
-        }
-      }
-    ],
+    compilers: [solcConfig],
     overrides: {
-      'contracts/periphery/BasePositionManager.sol': {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 5000,
-          },
-        }
-      },
-      'contracts/Factory.sol': {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 2000,
-          },
-          metadata: {
-            bytecodeHash: 'none'
-          }
-        }
-      },
-      'contracts/Pool.sol': {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 2000,
-          },
-        }
-      },
-      'contracts/mock/MockPool.sol': {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-          metadata: {
-            bytecodeHash: 'none'
-          }
-        }
-      },
-      'contracts/periphery/AntiSnipAttackPositionManager.sol': {
-        version: '0.8.4',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 2000,
-          },
-        }
-      }
+      'contracts/periphery/BasePositionManager.sol': lowRunSolcConfig,
+      'contracts/periphery/AntiSnipAttackPositionManager.sol': veryLowRunSolcConfig,
+      'contracts/Factory.sol': veryLowRunSolcConfig,
+      'contracts/Pool.sol': veryLowRunSolcConfig,
+      'contracts/mock/MockPool.sol': veryLowRunSolcConfig
     }
   },
 

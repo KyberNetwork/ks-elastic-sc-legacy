@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.4;
+pragma solidity >=0.8.0;
 
 import {IFactory} from '../interfaces/IFactory.sol';
 import {IPoolActions} from '../interfaces/pool/IPoolActions.sol';
