@@ -1,7 +1,7 @@
 {
   "name": "dmm-v2",
   "version": "1.0.0",
-  "description": "This repository contains the contracts for the Kyber Dmm v2",
+  "description": "This repository contains the contracts for the KyberDMM v2",
   "main": "hardhat.config.ts",
   "directories": {
     "test": "test"

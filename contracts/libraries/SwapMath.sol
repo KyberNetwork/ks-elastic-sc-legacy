@@ -11,18 +11,20 @@ library SwapMath {
   using SafeCast for uint256;
   using SafeCast for int256;
 
-  /// @dev compute the output data for the swap
-  /// @param liquidity total of reinvest liquidity and base liquidity
-  /// @param currentSqrtP the sqrt of current price
-  /// @param targetSqrtP the sqrt of target price, if the swap reaches target price, the swap will stop
-  /// @param feeInBps the deltaL of the swap
-  /// @param specifiedAmount the amount of the swap
-  /// @param isExactInput is specifiedAmount input or output?
-  /// @param isToken0 is specifiedAmount token0 or token1?
-  /// @return usedAmount the specified amount is used
-  /// @return returnedAmount the opposite amount of usedAmount
-  /// @return deltaL the deltaL for this swap - also the increment of reinvestLiquidity
-  /// @return nextSqrtP the price after swapping
+  /// @dev Computes the actual swap input / output amounts to be deducted or added,
+  /// the swap fee to be collected and the resulting sqrtP.
+  /// @notice nextSqrtP should not exceed targetSqrtP.
+  /// @param liquidity active base liquidity + reinvest liquidity
+  /// @param currentSqrtP current sqrt price
+  /// @param targetSqrtP sqrt price limit the new sqrt price can take
+  /// @param feeInBps swap fee in basis points
+  /// @param specifiedAmount the amount remaining to be used for the swap
+  /// @param isExactInput true if usedAmount refers to input amount, false if usedAmount refers to output amount
+  /// @param isToken0 true if usedAmount is in token0 qty, false if usedAmount is in token1 qty
+  /// @return usedAmount actual amount to be used for the swap
+  /// @return returnedAmount output qty to be accumulated if isExactInput = true, input qty if isExactInput = false
+  /// @return deltaL collected swap fee, to be incremented to reinvest liquidity
+  /// @return nextSqrtP the new sqrt price after the computed swap step
   function computeSwapStep(
     uint256 liquidity,
     uint160 currentSqrtP,
@@ -96,7 +98,7 @@ library SwapMath {
   }
 
   /// @dev calculates the amount needed to reach targetSqrtP from currentSqrtP
-  /// @dev we cast currentSqrtP and targetSqrtP to uint256 as they are multiplied by TWO_BPS or feeInBps,
+  /// @dev we cast currentSqrtP and targetSqrtP to uint256 as they are multiplied by TWO_BPS or feeInBps
   function calcReachAmount(
     uint256 liquidity,
     uint256 currentSqrtP,
@@ -153,7 +155,9 @@ library SwapMath {
     }
   }
 
-  /// @dev estimate deltaL base on amountSpecified
+  /// @dev estimates deltaL, the swap fee to be collected based on amountSpecified
+  /// for the final swap step to be performed,
+  /// where the next (temporary) tick will not be crossed
   function estimateIncrementalLiquidity(
     uint256 absDelta,
     uint256 liquidity,
@@ -199,7 +203,8 @@ library SwapMath {
     }
   }
 
-  /// @dev from currentLiquidity, specifiedAmount, current and next Price calculate deltaL
+  /// @dev calculates deltaL, the swap fee to be collected for an intermediate swap step,
+  /// where the next (temporary) tick will be crossed
   function calcIncrementalLiquidity(
     uint256 absDelta,
     uint256 liquidity,

@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import '../callback/ISwapCallback.sol';
 
-/// @notice Functions for swapping tokens via Kyber DMM v2
+/// @notice Functions for swapping tokens via KyberDMM v2
 /// - Support swap with exact input or exact output
 /// - Support swap with a price limit
 /// - Support swap within a single pool and between multiple pools
