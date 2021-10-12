@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import {LiqDeltaMath} from './libraries/LiqDeltaMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
@@ -10,7 +10,7 @@ import {Linkedlist} from './libraries/Linkedlist.sol';
 
 import {PoolStorage} from './PoolStorage.sol';
 
-contract ProAMMPoolTicksState is PoolStorage {
+contract PoolTicksState is PoolStorage {
   using SafeCast for int256;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
 
@@ -96,13 +96,13 @@ contract ProAMMPoolTicksState is PoolStorage {
   function _updatePoolData(
     uint128 newLiquidity,
     uint128 newRLiquidity,
-    uint160 newSqrtPrice,
+    uint160 newSqrtP,
     int24 newCurrentTick,
     int24 nextTick
   ) internal {
     poolData.liquidity = newLiquidity;
     poolData.reinvestmentLiquidity = newRLiquidity;
-    poolData.sqrtPrice = newSqrtPrice;
+    poolData.sqrtP = newSqrtP;
     poolData.currentTick = newCurrentTick;
     poolData.nearestCurrentTick = nextTick > newCurrentTick
       ? initializedTicks[nextTick].previous
@@ -113,7 +113,7 @@ contract ProAMMPoolTicksState is PoolStorage {
   /// @param willUpTick whether is up/down tick
   /// @return poolLiquidity current pool liquidity
   /// @return poolReinvestmentLiquidity current pool reinvestment liquidity
-  /// @return poolSqrtPrice current pool sqrt price
+  /// @return sqrtP current pool sqrt price
   /// @return poolCurrentTick current pool tick
   /// @return poolNextTick next tick to calculate data
   function _getInitialSwapData(bool willUpTick)
@@ -122,14 +122,14 @@ contract ProAMMPoolTicksState is PoolStorage {
     returns (
       uint128 poolLiquidity,
       uint128 poolReinvestmentLiquidity,
-      uint160 poolSqrtPrice,
+      uint160 sqrtP,
       int24 poolCurrentTick,
       int24 poolNextTick
     )
   {
     poolLiquidity = poolData.liquidity;
     poolReinvestmentLiquidity = poolData.reinvestmentLiquidity;
-    poolSqrtPrice = poolData.sqrtPrice;
+    sqrtP = poolData.sqrtP;
     poolCurrentTick = poolData.currentTick;
     poolNextTick = poolData.nearestCurrentTick;
     if (willUpTick) {

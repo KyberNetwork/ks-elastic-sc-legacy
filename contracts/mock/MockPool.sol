@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import '../ProAMMPool.sol';
+import '../Pool.sol';
 
-contract MockProAMMPool is ProAMMPool {
+contract MockPool is Pool {
   uint32 private timestamp = uint32(block.timestamp);
 
   function forwardTime(uint32 _amount) external {

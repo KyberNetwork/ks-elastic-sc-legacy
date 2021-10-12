@@ -3,12 +3,12 @@ pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IProAMMFactory} from './IProAMMFactory.sol';
+import {IFactory} from './IFactory.sol';
 
 interface IPoolStorage {
-  /// @notice The contract that deployed the pool, which must adhere to the IProAMMFactory interface
+  /// @notice The contract that deployed the pool, which must adhere to the IFactory interface
   /// @return The contract address
-  function factory() external view returns (IProAMMFactory);
+  function factory() external view returns (IFactory);
 
   /// @notice The first of the two tokens of the pool, sorted by address
   /// @return The token contract address
@@ -71,7 +71,7 @@ interface IPoolStorage {
   function secondsPerLiquidityUpdateTime() external view returns (uint32);
 
   /// @notice Fetches the pool's current price, tick and liquidity
-  /// @return poolSqrtPrice pool's current price: sqrt(token1/token0)
+  /// @return sqrtP pool's current price: sqrt(token1/token0)
   /// @return poolTick pool's current tick
   /// @return nearestCurrentTick pool's nearest initialized tick that is <= pool's current tick
   /// @return locked true if pool is locked, false otherwise
@@ -80,7 +80,7 @@ interface IPoolStorage {
     external
     view
     returns (
-      uint160 poolSqrtPrice,
+      uint160 sqrtP,
       int24 poolTick,
       int24 nearestCurrentTick,
       bool locked,

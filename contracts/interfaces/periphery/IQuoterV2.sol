@@ -11,7 +11,7 @@ interface IQuoterV2 {
   struct QuoteOutput {
     uint256 usedAmount;
     uint256 returnedAmount;
-    uint160 afterSqrtPrice;
+    uint160 afterSqrtP;
     uint32 initializedTicksCrossed;
     uint256 gasEstimate;
   }
@@ -20,14 +20,14 @@ interface IQuoterV2 {
   /// @param path The path of the swap, i.e. each token pair and the pool fee
   /// @param amountIn The amount of the first token to swap
   /// @return amountOut The amount of the last token that would be received
-  /// @return afterSqrtPriceList List of the sqrt price after the swap for each pool in the path
+  /// @return afterSqrtPList List of the sqrt price after the swap for each pool in the path
   /// @return initializedTicksCrossedList List of the initialized ticks that the swap crossed for each pool in the path
   /// @return gasEstimate The estimate of the gas that the swap consumes
   function quoteExactInput(bytes memory path, uint256 amountIn)
     external
     returns (
       uint256 amountOut,
-      uint160[] memory afterSqrtPriceList,
+      uint160[] memory afterSqrtPList,
       uint32[] memory initializedTicksCrossedList,
       uint256 gasEstimate
     );
@@ -37,7 +37,7 @@ interface IQuoterV2 {
     address tokenOut;
     uint256 amountIn;
     uint16 feeBps;
-    uint160 sqrtPriceLimitX96;
+    uint160 limitSqrtP;
   }
 
   /// @notice Returns the amount out received for a given exact input but for a swap of a single pool
@@ -46,7 +46,7 @@ interface IQuoterV2 {
   /// tokenOut The token being swapped out
   /// fee The fee of the token pool to consider for the pair
   /// amountIn The desired input amount
-  /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
+  /// limitSqrtP The price limit of the pool that cannot be exceeded by the swap
   function quoteExactInputSingle(QuoteExactInputSingleParams memory params)
     external
     returns (QuoteOutput memory);
@@ -55,14 +55,14 @@ interface IQuoterV2 {
   /// @param path The path of the swap, i.e. each token pair and the pool fee. Path must be provided in reverse order
   /// @param amountOut The amount of the last token to receive
   /// @return amountIn The amount of first token required to be paid
-  /// @return afterSqrtPriceList List of the sqrt price after the swap for each pool in the path
+  /// @return afterSqrtPList List of the sqrt price after the swap for each pool in the path
   /// @return initializedTicksCrossedList List of the initialized ticks that the swap crossed for each pool in the path
   /// @return gasEstimate The estimate of the gas that the swap consumes
   function quoteExactOutput(bytes memory path, uint256 amountOut)
     external
     returns (
       uint256 amountIn,
-      uint160[] memory afterSqrtPriceList,
+      uint160[] memory afterSqrtPList,
       uint32[] memory initializedTicksCrossedList,
       uint256 gasEstimate
     );
@@ -72,7 +72,7 @@ interface IQuoterV2 {
     address tokenOut;
     uint256 amount;
     uint16 feeBps;
-    uint160 sqrtPriceLimitX96;
+    uint160 limitSqrtP;
   }
 
   /// @notice Returns the amount in required to receive the given exact output amount but for a swap of a single pool
@@ -81,7 +81,7 @@ interface IQuoterV2 {
   /// tokenOut The token being swapped out
   /// fee The fee of the token pool to consider for the pair
   /// amountOut The desired output amount
-  /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
+  /// limitSqrtP The price limit of the pool that cannot be exceeded by the swap
   function quoteExactOutputSingle(QuoteExactOutputSingleParams memory params)
     external
     returns (QuoteOutput memory);

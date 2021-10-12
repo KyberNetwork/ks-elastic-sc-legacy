@@ -18,13 +18,13 @@ contract MockTickMath {
     return gasBefore - gasleft();
   }
 
-  function getTickAtSqrtRatio(uint160 sqrtPriceX96) external pure returns (int24) {
-    return TickMath.getTickAtSqrtRatio(sqrtPriceX96);
+  function getTickAtSqrtRatio(uint160 sqrtP) external pure returns (int24) {
+    return TickMath.getTickAtSqrtRatio(sqrtP);
   }
 
-  function getGasCostOfGetTickAtSqrtRatio(uint160 sqrtPriceX96) external view returns (uint256) {
+  function getGasCostOfGetTickAtSqrtRatio(uint160 sqrtP) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    TickMath.getTickAtSqrtRatio(sqrtPriceX96);
+    TickMath.getTickAtSqrtRatio(sqrtP);
     return gasBefore - gasleft();
   }
 

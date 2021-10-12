@@ -23,7 +23,7 @@ export function encodePriceSqrt(reserve1: BigNumberish, reserve0: BigNumberish):
   );
 }
 
-export function sqrtPriceToString(a: BN) {
+export function sqrtPToString(a: BN) {
   let sqrtP = new bn(a.toString()).dividedBy(new bn(2).pow(96));
   return sqrtP.toString();
 }

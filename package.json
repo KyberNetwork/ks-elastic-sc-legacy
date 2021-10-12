@@ -1,7 +1,7 @@
 {
-  "name": "pro-amm",
+  "name": "dmm-v2",
   "version": "1.0.0",
-  "description": "This repository contains the contracts for the Kyber Pro AMM",
+  "description": "This repository contains the contracts for the KyberDMM v2",
   "main": "hardhat.config.ts",
   "directories": {
     "test": "test"
@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "dotenv": "8.2.0",
-    "solc": "0.8.4",
     "solhint": "3.3.2"
   },
   "devDependencies": {

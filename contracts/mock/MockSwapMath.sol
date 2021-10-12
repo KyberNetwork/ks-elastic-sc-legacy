@@ -4,56 +4,69 @@ pragma solidity >=0.8.0;
 import '../libraries/SwapMath.sol';
 
 contract MockSwapMath {
-  function calcDeltaNext(
-    uint256 lpPluslf,
-    uint160 sqrtPc,
-    uint160 sqrtPn,
+  function calcReachAmount(
+    uint256 liquidity,
+    uint160 currentSqrtP,
+    uint160 nextSqrtP,
     uint16 feeInBps,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (int256) {
-    return SwapMath.calcDeltaNext(lpPluslf, sqrtPc, sqrtPn, feeInBps, isExactInput, isToken0);
+  ) external pure returns (int256 reachAmount) {
+    reachAmount = SwapMath.calcReachAmount(
+      liquidity,
+      currentSqrtP,
+      nextSqrtP,
+      feeInBps,
+      isExactInput,
+      isToken0
+    );
   }
 
   function calcFinalPrice(
     uint256 absDelta,
-    uint256 lpPluslf,
-    uint256 lc,
-    uint160 sqrtPc,
+    uint256 liquidity,
+    uint256 deltaL,
+    uint160 currentSqrtP,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (uint256) {
-    return SwapMath.calcFinalPrice(absDelta, lpPluslf, lc, sqrtPc, isExactInput, isToken0);
+  ) external pure returns (uint256 nextSqrtP) {
+    nextSqrtP = SwapMath.calcFinalPrice(
+      absDelta,
+      liquidity,
+      deltaL,
+      currentSqrtP,
+      isExactInput,
+      isToken0
+    );
   }
 
-  function calcFinalSwapFeeAmount(
+  function estimateIncrementalLiquidity(
     uint256 absDelta,
     uint256 liquidity,
-    uint160 sqrtPc,
+    uint160 currentSqrtP,
     uint16 feeInBps,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (uint256) {
-    return
-      SwapMath.calcFinalSwapFeeAmount(
-        absDelta,
-        liquidity,
-        sqrtPc,
-        feeInBps,
-        isExactInput,
-        isToken0
-      );
+  ) external pure returns (uint256 deltaL) {
+    deltaL = SwapMath.estimateIncrementalLiquidity(
+      absDelta,
+      liquidity,
+      currentSqrtP,
+      feeInBps,
+      isExactInput,
+      isToken0
+    );
   }
 
-  function calcStepSwapFeeAmount(
+  function calcIncrementalLiquidity(
     uint256 absDelta,
     uint256 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (uint256 rLiquidity) {
-    rLiquidity = SwapMath.calcStepSwapFeeAmount(
+  ) external pure returns (uint256 deltaL) {
+    deltaL = SwapMath.calcIncrementalLiquidity(
       absDelta,
       liquidity,
       currentSqrtP,
@@ -63,15 +76,15 @@ contract MockSwapMath {
     );
   }
 
-  function calcActualDelta(
+  function calcReturnedAmount(
     uint256 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
     uint128 rLiquidity,
     bool isExactInput,
     bool isToken0
-  ) external pure returns (int256 actualDelta) {
-    actualDelta = SwapMath.calcActualDelta(
+  ) external pure returns (int256 returnedAmount) {
+    returnedAmount = SwapMath.calcReturnedAmount(
       liquidity,
       currentSqrtP,
       targetSqrtP,
@@ -93,15 +106,15 @@ contract MockSwapMath {
     external
     view
     returns (
-      int256 delta,
-      int256 actualDelta,
-      uint256 fee,
+      int256 usedAmount,
+      int256 returnedAmount,
+      uint256 deltaL,
       uint160 nextSqrtP,
       uint256 gasCost
     )
   {
     uint256 start = gasleft();
-    (delta, actualDelta, fee, nextSqrtP) = SwapMath.computeSwapStep(
+    (usedAmount, returnedAmount, deltaL, nextSqrtP) = SwapMath.computeSwapStep(
       liquidity,
       currentSqrtP,
       targetSqrtP,

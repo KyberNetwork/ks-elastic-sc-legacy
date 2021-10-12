@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -7,7 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
-import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
+import {IFactory} from './interfaces/IFactory.sol';
 import {IPoolStorage} from './interfaces/IPoolStorage.sol';
 
 abstract contract PoolStorage is IPoolStorage {
@@ -24,7 +24,7 @@ abstract contract PoolStorage is IPoolStorage {
     uint128 liquidity;
     uint128 secondsPerLiquidityGlobal;
     uint32 secondsPerLiquidityUpdateTime;
-    uint160 sqrtPrice;
+    uint160 sqrtP;
     int24 nearestCurrentTick;
     int24 currentTick;
     bool locked;
@@ -58,7 +58,7 @@ abstract contract PoolStorage is IPoolStorage {
   }
 
   /// see IPoolStorage for explanations of the immutables below
-  IProAMMFactory public immutable override factory;
+  IFactory public immutable override factory;
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
   uint128 public immutable override maxTickLiquidity;
@@ -80,8 +80,8 @@ abstract contract PoolStorage is IPoolStorage {
       address _token1,
       uint16 _swapFeeBps,
       int24 _tickDistance
-    ) = IProAMMFactory(msg.sender).parameters();
-    factory = IProAMMFactory(_factory);
+    ) = IFactory(msg.sender).parameters();
+    factory = IFactory(_factory);
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
     swapFeeBps = _swapFeeBps;
@@ -91,11 +91,11 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.locked = true; // set pool to locked state
   }
 
-  function _initPoolStorage(uint160 initialSqrtPrice, int24 initialTick) internal {
+  function _initPoolStorage(uint160 initialSqrtP, int24 initialTick) internal {
     poolData.reinvestmentLiquidity = MIN_LIQUIDITY;
     poolData.reinvestmentLiquidityLast = MIN_LIQUIDITY;
 
-    poolData.sqrtPrice = initialSqrtPrice;
+    poolData.sqrtP = initialSqrtP;
     poolData.currentTick = initialTick;
     poolData.nearestCurrentTick = TickMath.MIN_TICK;
 
@@ -125,14 +125,14 @@ abstract contract PoolStorage is IPoolStorage {
     view
     override
     returns (
-      uint160 _poolSqrtPrice,
+      uint160 sqrtP,
       int24 _poolTick,
       int24 _nearestCurrentTick,
       bool _locked,
       uint128 _poolLiquidity
     )
   {
-    _poolSqrtPrice = poolData.sqrtPrice;
+    sqrtP = poolData.sqrtP;
     _poolTick = poolData.currentTick;
     _nearestCurrentTick = poolData.nearestCurrentTick;
     _locked = poolData.locked;

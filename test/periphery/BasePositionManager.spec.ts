@@ -6,12 +6,12 @@ const {solidity} = waffle;
 chai.use(solidity);
 
 import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
-import {NonfungiblePositionManager, NonfungiblePositionManager__factory} from '../../typechain';
-import {ProAMMRouter__factory, ProAMMRouter} from '../../typechain';
-import {ProAMMFactory, ProAMMPool} from '../../typechain';
+import {BasePositionManager, BasePositionManager__factory} from '../../typechain';
+import {Router__factory, Router} from '../../typechain';
+import {Factory, Pool} from '../../typechain';
 import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
 
-import {deployFactory, getTicksPrevious} from '../helpers/proAMMSetup';
+import {deployFactory, getTicksPrevious} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
@@ -23,12 +23,10 @@ const showTxGasUsed = true;
 const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
-let PositionManager: NonfungiblePositionManager__factory;
-let admin;
-let user;
-let factory: ProAMMFactory;
-let positionManager: NonfungiblePositionManager;
-let router: ProAMMRouter;
+let PositionManager: BasePositionManager__factory;
+let factory: Factory;
+let positionManager: BasePositionManager;
+let router: Router;
 let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
 let tokenB: MockToken;
@@ -49,7 +47,7 @@ let getBalances: (
   tokenBalances: BigNumber[];
 }>;
 
-describe('NonFungiblePositionManager', () => {
+describe('BasePositionManager', () => {
   const [user, admin, other] = waffle.provider.getWallets();
   const tickLower = -100 * tickDistanceArray[0];
   const tickUpper = 100 * tickDistanceArray[0];
@@ -68,13 +66,11 @@ describe('NonFungiblePositionManager', () => {
     )) as MockTokenPositionDescriptor__factory;
     tokenDescriptor = await Descriptor.deploy();
 
-    PositionManager = (await ethers.getContractFactory(
-      'NonfungiblePositionManager'
-    )) as NonfungiblePositionManager__factory;
+    PositionManager = (await ethers.getContractFactory('BasePositionManager')) as BasePositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 
-    const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
+    const Router = (await ethers.getContractFactory('Router')) as Router__factory;
     router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickDistance apart from default ones
@@ -150,9 +146,9 @@ describe('NonFungiblePositionManager', () => {
       expect(poolBalances.tokenBalances[1]).to.be.eq(token1Balance);
 
       // verify other data
-      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+      let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let poolState = await poolContract.getPoolState();
-      expect(poolState._poolSqrtPrice).to.be.eq(initialPrice);
+      expect(poolState.sqrtP).to.be.eq(initialPrice);
       expect(poolState._locked).to.be.eq(isLocked);
     };
 
@@ -411,7 +407,7 @@ describe('NonFungiblePositionManager', () => {
           recipient: user.address,
           deadline: 0,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
     });
 
     it('revert pool does not exist', async () => {
@@ -521,7 +517,7 @@ describe('NonFungiblePositionManager', () => {
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
-      let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
+      let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
 
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
@@ -600,7 +596,7 @@ describe('NonFungiblePositionManager', () => {
       let poolId = 1;
 
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
-      let pool = (await ethers.getContractAt('ProAMMPool', poolAddress)) as ProAMMPool;
+      let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
 
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
@@ -710,7 +706,7 @@ describe('NonFungiblePositionManager', () => {
       deadline: BN.from(2).pow(255),
       amountIn: amount,
       minAmountOut: BN.from(0),
-      sqrtPriceLimitX96: BN.from(0),
+      limitSqrtP: BN.from(0),
     };
     await router.connect(user).swapExactInputSingle(swapParams);
   };
@@ -806,7 +802,7 @@ describe('NonFungiblePositionManager', () => {
           amount1Min: 0,
           deadline: 0,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
     });
 
     it('revert price slippage', async () => {
@@ -837,7 +833,7 @@ describe('NonFungiblePositionManager', () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
-      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+      let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
@@ -902,7 +898,7 @@ describe('NonFungiblePositionManager', () => {
       await initLiquidity(other, tokenA.address, tokenB.address);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
-      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+      let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
@@ -1028,7 +1024,7 @@ describe('NonFungiblePositionManager', () => {
           amount1Min: 0,
           deadline: 0,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
     });
 
     it('revert unauthorized', async () => {
@@ -1071,7 +1067,7 @@ describe('NonFungiblePositionManager', () => {
       await initLiquidity(other, tokenA.address, tokenB.address);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
-      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+      let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
@@ -1126,7 +1122,7 @@ describe('NonFungiblePositionManager', () => {
       await initLiquidity(other, tokenA.address, tokenB.address);
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
-      let poolContract = (await ethers.getContractAt('ProAMMPool', pool)) as ProAMMPool;
+      let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
@@ -1254,7 +1250,7 @@ describe('NonFungiblePositionManager', () => {
           amount1Min: 0,
           deadline: 0,
         })
-      ).to.be.revertedWith('ProAMM: Expired');
+      ).to.be.revertedWith('Expired');
     });
 
     it('revert no rToken to burn', async () => {
@@ -1516,7 +1512,7 @@ describe('NonFungiblePositionManager', () => {
     it('revert expired', async () => {
       const {v, r, s} = await getEC721PermitSignature(user, positionManager, other.address, nextTokenId, PRECISION);
       await expect(positionManager.connect(user).permit(other.address, nextTokenId, 1, v, r, s)).to.be.revertedWith(
-        'ProAMM: Expired'
+        'Expired'
       );
     });
 

@@ -1,10 +1,10 @@
 import {BigNumber, constants, Signature, Wallet} from 'ethers';
 import {splitSignature} from 'ethers/lib/utils';
-import {NonfungiblePositionManager} from '../../typechain';
+import {BasePositionManager} from '../../typechain';
 
 export default async function getEC721PermitSignature(
   wallet: Wallet,
-  positionManager: NonfungiblePositionManager,
+  positionManager: BasePositionManager,
   spender: string,
   tokenId: BigNumber,
   deadline: BigNumber = constants.MaxUint256,

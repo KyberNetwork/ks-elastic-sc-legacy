@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity >=0.8.0;
 
 import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
 
-interface INonfungiblePositionManager is IRouterTokenHelper {
+interface IBasePositionManager is IRouterTokenHelper {
   struct Position {
     // the nonce for permits
     uint96 nonce;

@@ -5,35 +5,23 @@ import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {
-  MockToken,
-  MockToken__factory,
-  MockWeth,
-  MockWeth__factory,
-  NonfungiblePositionManagerSnipAttack,
-  NonfungiblePositionManagerSnipAttack__factory,
-  ProAMMRouter__factory,
-  ProAMMRouter,
-  ProAMMFactory,
-  MockTokenPositionDescriptor,
-  MockTokenPositionDescriptor__factory,
-} from '../../typechain';
+import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
+import {AntiSnipAttackPositionManager, AntiSnipAttackPositionManager__factory} from '../../typechain';
+import {Router__factory, Router, Factory} from '../../typechain';
+import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
 
-import {deployFactory} from '../helpers/proAMMSetup';
+import {deployFactory} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO, MIN_TICK} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens} from '../helpers/utils';
 
-const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
-const showTxGasUsed = true;
-
 const BIG_AMOUNT = BN.from(2).pow(255);
 
 let Token: MockToken__factory;
-let PositionManager: NonfungiblePositionManagerSnipAttack__factory;
-let factory: ProAMMFactory;
-let positionManager: NonfungiblePositionManagerSnipAttack;
-let router: ProAMMRouter;
+let PositionManager: AntiSnipAttackPositionManager__factory;
+let factory: Factory;
+let positionManager: AntiSnipAttackPositionManager;
+let router: Router;
 let tokenDescriptor: MockTokenPositionDescriptor;
 let tokenA: MockToken;
 let tokenB: MockToken;
@@ -49,7 +37,7 @@ let initialPrice: BigNumber;
 let snapshotId: any;
 let initialSnapshotId: any;
 
-describe('NonFungiblePositionManagerSnipAttack', () => {
+describe('AntiSnipAttackPositionManager', () => {
   const [user, admin] = waffle.provider.getWallets();
   const tickLower = -100 * tickDistanceArray[0];
   const tickUpper = 100 * tickDistanceArray[0];
@@ -69,12 +57,12 @@ describe('NonFungiblePositionManagerSnipAttack', () => {
     tokenDescriptor = await Descriptor.deploy();
 
     PositionManager = (await ethers.getContractFactory(
-      'NonfungiblePositionManagerSnipAttack'
-    )) as NonfungiblePositionManagerSnipAttack__factory;
+      'AntiSnipAttackPositionManager'
+    )) as AntiSnipAttackPositionManager__factory;
     positionManager = await PositionManager.deploy(factory.address, weth.address, tokenDescriptor.address);
     await factory.connect(admin).addNFTManager(positionManager.address);
 
-    const Router = (await ethers.getContractFactory('ProAMMRouter')) as ProAMMRouter__factory;
+    const Router = (await ethers.getContractFactory('Router')) as Router__factory;
     router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickDistance apart from default ones

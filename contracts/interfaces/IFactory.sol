@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-/// @title The interface for the ProAMMFactory
-/// @notice The ProAMMFactory facilitates creation of ProAMM pools and control over government fees
-interface IProAMMFactory {
+/// @title KyberDMM v2 factory
+/// @notice Deploys KyberDMM v2 pools and manages control over government fees
+interface IFactory {
   /// @notice Emitted when a pool is created
   /// @param token0 First pool token by address sort order
   /// @param token1 Second pool token by address sort order
@@ -58,7 +58,7 @@ interface IProAMMFactory {
   /// @notice Returns the address which can update the fee configuration
   function configMaster() external view returns (address);
 
-  /// @notice Returns the keccak256 hash of the ProAMMPool creation code
+  /// @notice Returns the keccak256 hash of the Pool creation code
   /// This is used for pre-computation of pool addresses
   function poolInitHash() external view returns (bytes32);
 

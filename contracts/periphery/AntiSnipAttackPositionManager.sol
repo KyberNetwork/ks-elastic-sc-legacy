@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 pragma abicoder v2;
 
 import {AntiSnipAttack} from '../periphery/libraries/AntiSnipAttack.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 
-import './NonfungiblePositionManager.sol';
+import './BasePositionManager.sol';
 
-contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
+contract AntiSnipAttackPositionManager is BasePositionManager {
   using SafeCast for uint256;
   mapping(uint256 => AntiSnipAttack.Data) public antiSnipAttackData;
 
@@ -15,7 +15,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
     address _factory,
     address _WETH,
     address _descriptor
-  ) NonfungiblePositionManager(_factory, _WETH, _descriptor) {}
+  ) BasePositionManager(_factory, _WETH, _descriptor) {}
 
   function mint(MintParams calldata params)
     public
@@ -47,7 +47,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
   {
     Position storage pos = _positions[params.tokenId];
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
-    IProAMMPool pool;
+    IPool pool;
     uint256 feeGrowthInsideLast;
 
     int24[2] memory ticksPrevious;
@@ -80,7 +80,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
           feeGrowthInsideLast - pos.feeGrowthInsideLast,
           C.TWO_POW_96
         ),
-        IProAMMFactory(factory).vestingPeriod()
+        IFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
@@ -104,7 +104,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
     require(pos.liquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
-    IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
+    IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     uint256 feeGrowthInsideLast;
     (amount0, amount1, feeGrowthInsideLast) = pool.burn(
@@ -127,7 +127,7 @@ contract NonfungiblePositionManagerSnipAttack is NonfungiblePositionManager {
           feeGrowthInsideLast - pos.feeGrowthInsideLast,
           C.TWO_POW_96
         ),
-        IProAMMFactory(factory).vestingPeriod()
+        IFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;

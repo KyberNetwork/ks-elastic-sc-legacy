@@ -22,17 +22,17 @@ const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
 import {
-  MockProAMMFactory,
-  MockProAMMPool,
+  MockFactory,
+  MockPool,
   MockToken,
   MockToken__factory,
-  MockProAMMCallbacks,
-  MockProAMMPool__factory,
+  MockCallbacks,
+  MockPool__factory,
   QuoterV2,
   QuoterV2__factory,
-  MockProAMMCallbacks__factory,
+  MockCallbacks__factory,
 } from '../typechain';
-import {deployMockFactory, getTicksPrevious} from './helpers/proAMMSetup';
+import {deployMockFactory, getTicksPrevious} from './helpers/setup';
 import {
   encodePriceSqrt,
   getMaxTick,
@@ -44,15 +44,15 @@ import {
 import {genRandomBN} from './helpers/genRandomBN';
 import {logBalanceChange, logSwapState, SwapTitle} from './helpers/logger';
 
-let factory: MockProAMMFactory;
+let factory: MockFactory;
 let token0: MockToken;
 let token1: MockToken;
 let quoter: QuoterV2;
 let poolBalToken0: BN;
 let poolBalToken1: BN;
-let poolArray: MockProAMMPool[] = [];
-let pool: MockProAMMPool;
-let callback: MockProAMMCallbacks;
+let poolArray: MockPool[] = [];
+let pool: MockPool;
+let callback: MockCallbacks;
 let swapFeeBpsArray = [5, 30];
 let swapFeeBps = swapFeeBpsArray[0];
 let tickDistanceArray = [10, 60];
@@ -73,21 +73,21 @@ let result: any;
 
 class Fixtures {
   constructor(
-    public factory: MockProAMMFactory,
-    public poolArray: MockProAMMPool[],
+    public factory: MockFactory,
+    public poolArray: MockPool[],
     public token0: MockToken,
     public token1: MockToken,
-    public callback: MockProAMMCallbacks,
+    public callback: MockCallbacks,
     public quoter: QuoterV2
   ) {}
 }
 
-describe('ProAMMPool', () => {
+describe('Pool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture(): Promise<Fixtures> {
     let factory = await deployMockFactory(admin, vestingPeriod);
-    const ProAMMPoolContract = (await ethers.getContractFactory('MockProAMMPool')) as MockProAMMPool__factory;
+    const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
@@ -106,10 +106,10 @@ describe('ProAMMPool', () => {
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
       await factory.createPool(token0.address, token1.address, swapFeeBpsArray[i]);
       const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeBpsArray[i]);
-      poolArray.push(ProAMMPoolContract.attach(poolAddress));
+      poolArray.push(PoolContract.attach(poolAddress));
     }
 
-    const CallbackContract = (await ethers.getContractFactory('MockProAMMCallbacks')) as MockProAMMCallbacks__factory;
+    const CallbackContract = (await ethers.getContractFactory('MockCallbacks')) as MockCallbacks__factory;
     let callback = await CallbackContract.deploy(tokenA.address, tokenB.address);
     // user give token approval to callbacks
     await tokenA.connect(user).approve(callback.address, MAX_UINT);
@@ -152,15 +152,15 @@ describe('ProAMMPool', () => {
     });
 
     it('should fail to unlockPool for non-compliant ERC20 tokens', async () => {
-      const ProAMMPoolContract = (await ethers.getContractFactory('MockProAMMPool')) as MockProAMMPool__factory;
+      const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
       await factory.createPool(user.address, admin.address, swapFeeBps);
-      let badPool = ProAMMPoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
+      let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
 
       // use valid token0 so that poolBalToken1() will revert
       let badAddress = '0xffffffffffffffffffffffffffffffffffffffff';
       await factory.createPool(token0.address, badAddress, swapFeeBps);
-      badPool = ProAMMPoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
+      badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
     });
 
@@ -184,7 +184,7 @@ describe('ProAMMPool', () => {
       await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
 
       result = await pool.getPoolState();
-      expect(result._poolSqrtPrice).to.be.eql(initialPrice);
+      expect(result.sqrtP).to.be.eql(initialPrice);
       expect(result._poolTick).to.be.eql(10);
       expect(result._nearestCurrentTick).to.be.eq(MIN_TICK);
       expect(result._locked).to.be.false;
@@ -353,7 +353,7 @@ describe('ProAMMPool', () => {
         beforeEach('fetch initial token balances of pool and user, and current tick', async () => {
           poolBalToken0 = await token0.balanceOf(pool.address);
           poolBalToken1 = await token1.balanceOf(pool.address);
-          initialPrice = (await pool.getPoolState())._poolSqrtPrice;
+          initialPrice = (await pool.getPoolState()).sqrtP;
         });
         describe('position above current tick', async () => {
           beforeEach('reset position data', async () => {
@@ -1675,22 +1675,22 @@ describe('ProAMMPool', () => {
       });
 
       it('should fail for bad sqrt limits', async () => {
-        // upTick: sqrtLimit < poolSqrtPrice
+        // upTick: sqrtLimit < sqrtP
         await expect(
           callback.swap(pool.address, user.address, PRECISION, false, initialPrice.sub(ONE), '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
         // upTick: sqrtLimit = MAX_SQRT_RATIO
         await expect(
           callback.swap(pool.address, user.address, PRECISION, false, MAX_SQRT_RATIO, '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
-        // downTick: sqrtLimit > poolSqrtPrice
+        ).to.be.revertedWith('bad limitSqrtP');
+        // downTick: sqrtLimit > sqrtP
         await expect(
           callback.swap(pool.address, user.address, PRECISION, true, initialPrice.add(ONE), '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
         // downTick: sqrtLimit = MIN_SQRT_RATIO
         await expect(
           callback.swap(pool.address, user.address, PRECISION, true, MIN_SQRT_RATIO, '0x')
-        ).to.be.revertedWith('bad sqrtPriceLimit');
+        ).to.be.revertedWith('bad limitSqrtP');
       });
 
       it('tests token0 exactInput (move down tick)', async () => {
@@ -1716,7 +1716,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
           await callback.swap(pool.address, user.address, quoteResult.usedAmount, true, MIN_SQRT_RATIO.add(ONE), '0x')
@@ -1732,7 +1732,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1749,7 +1749,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1787,7 +1787,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1811,7 +1811,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1835,7 +1835,7 @@ describe('ProAMMPool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          sqrtPriceLimitX96: priceLimit,
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -2149,7 +2149,7 @@ async function isTickCleared(tick: number): Promise<boolean> {
   return true;
 }
 
-async function doRandomSwaps(pool: MockProAMMPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
+async function doRandomSwaps(pool: MockPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
   for (let i = 0; i < iterations; i++) {
     let isToken0 = Math.random() < 0.5;
     let isExactInput = Math.random() < 0.5;
@@ -2176,7 +2176,7 @@ async function doRandomSwaps(pool: MockProAMMPool, user: Wallet, iterations: num
   }
 }
 
-async function swapToUpTick(pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToUpTick(pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick < targetTick) {
     // either specify exactInputToken1 or exactOutputToken0
     let isToken0 = Math.random() < 0.5;
@@ -2197,7 +2197,7 @@ async function swapToUpTick(pool: MockProAMMPool, user: Wallet, targetTick: numb
   }
 }
 
-async function swapToDownTick(pool: MockProAMMPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToDownTick(pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState())._poolTick > targetTick) {
     // either specify exactInputToken0 or exactOutputToken1
     let isToken0 = Math.random() < 0.5;

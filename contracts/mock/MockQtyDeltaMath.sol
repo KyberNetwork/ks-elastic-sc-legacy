@@ -20,12 +20,12 @@ contract MockQtyDeltaMath {
     return QtyDeltaMath.calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity);
   }
 
-  function getQtyFromBurnRTokens(uint160 sqrtPrice, uint256 lfDelta)
+  function getQtyFromBurnRTokens(uint160 sqrtP, uint256 lfDelta)
     external
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = QtyDeltaMath.getQty0FromBurnRTokens(sqrtPrice, lfDelta);
-    qty1 = QtyDeltaMath.getQty1FromBurnRTokens(sqrtPrice, lfDelta);
+    qty0 = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, lfDelta);
+    qty1 = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, lfDelta);
   }
 }

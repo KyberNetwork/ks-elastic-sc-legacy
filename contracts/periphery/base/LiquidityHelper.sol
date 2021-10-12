@@ -1,23 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 pragma abicoder v2;
 
 import {LiquidityMath} from '../libraries/LiquidityMath.sol';
 import {PoolAddress} from '../libraries/PoolAddress.sol';
 import {TickMath} from '../../libraries/TickMath.sol';
 
-import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from '../../interfaces/IProAMMFactory.sol';
-import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
+import {IPool} from '../../interfaces/IPool.sol';
+import {IFactory} from '../../interfaces/IFactory.sol';
+import {IMintCallback} from '../../interfaces/callback/IMintCallback.sol';
 
 import {RouterTokenHelper} from './RouterTokenHelper.sol';
-import {ImmutableRouterStorage} from './ImmutableRouterStorage.sol';
 
-abstract contract LiquidityHelper is
-  IProAMMMintCallback,
-  ImmutableRouterStorage,
-  RouterTokenHelper
-{
+abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   constructor(address _factory, address _WETH) RouterTokenHelper(_factory, _WETH) {}
 
   struct AddLiquidityParams {
@@ -41,7 +36,7 @@ abstract contract LiquidityHelper is
     address source;
   }
 
-  function proAMMMintCallback(
+  function mintCallback(
     uint256 deltaQty0,
     uint256 deltaQty1,
     bytes calldata data
@@ -70,7 +65,7 @@ abstract contract LiquidityHelper is
       uint256 amount0,
       uint256 amount1,
       uint256 feeGrowthInsideLast,
-      IProAMMPool pool
+      IPool pool
     )
   {
     require(params.token0 < params.token1, 'LiquidityHelper: invalid token order');
@@ -124,7 +119,7 @@ abstract contract LiquidityHelper is
     address tokenA,
     address tokenB,
     uint16 fee
-  ) internal view returns (IProAMMPool) {
-    return IProAMMPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
+  ) internal view returns (IPool) {
+    return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }
 }

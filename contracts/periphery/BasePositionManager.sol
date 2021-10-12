@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 pragma abicoder v2;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -9,9 +9,9 @@ import {PoolAddress} from './libraries/PoolAddress.sol';
 import {MathConstants as C} from '../libraries/MathConstants.sol';
 import {FullMath} from '../libraries/FullMath.sol';
 
-import {INonfungiblePositionManager} from '../interfaces/periphery/INonfungiblePositionManager.sol';
-import {IProAMMPool} from '../interfaces/IProAMMPool.sol';
-import {IProAMMFactory} from '../interfaces/IProAMMFactory.sol';
+import {IPool} from '../interfaces/IPool.sol';
+import {IFactory} from '../interfaces/IFactory.sol';
+import {IBasePositionManager} from '../interfaces/periphery/IBasePositionManager.sol';
 import {INonfungibleTokenPositionDescriptor} from '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 import {IRouterTokenHelper} from '../interfaces/periphery/IRouterTokenHelper.sol';
 
@@ -21,10 +21,10 @@ import {Multicall} from './base/Multicall.sol';
 import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {ERC721Permit} from './base/ERC721Permit.sol';
 
-contract NonfungiblePositionManager is
-  INonfungiblePositionManager,
+contract BasePositionManager is
+  IBasePositionManager,
   Multicall,
-  ERC721Permit,
+  ERC721Permit('DMM v2 NFT Positions Manager', 'DMM2-PM', '1'),
   LiquidityHelper
 {
   address internal immutable _tokenDescriptor;
@@ -48,10 +48,7 @@ contract NonfungiblePositionManager is
     address _factory,
     address _WETH,
     address _descriptor
-  )
-    ERC721Permit('ProAMM NFT Positions V1', 'PRO-AMM-POS-V1', '1')
-    LiquidityHelper(_factory, _WETH)
-  {
+  ) LiquidityHelper(_factory, _WETH) {
     _tokenDescriptor = _descriptor;
   }
 
@@ -62,15 +59,15 @@ contract NonfungiblePositionManager is
     uint160 currentSqrtP
   ) external payable override returns (address pool) {
     require(token0 < token1);
-    pool = IProAMMFactory(factory).getPool(token0, token1, fee);
+    pool = IFactory(factory).getPool(token0, token1, fee);
 
     if (pool == address(0)) {
-      pool = IProAMMFactory(factory).createPool(token0, token1, fee);
+      pool = IFactory(factory).createPool(token0, token1, fee);
     }
 
-    (uint160 poolSqrtPriceX96, , , , ) = IProAMMPool(pool).getPoolState();
-    if (poolSqrtPriceX96 == 0) {
-      IProAMMPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
+    (uint160 sqrtP, , , , ) = IPool(pool).getPoolState();
+    if (sqrtP == 0) {
+      IPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
     }
   }
 
@@ -87,7 +84,7 @@ contract NonfungiblePositionManager is
       uint256 amount1
     )
   {
-    IProAMMPool pool;
+    IPool pool;
     uint256 feeGrowthInsideLast;
 
     (liquidity, amount0, amount1, feeGrowthInsideLast, pool) = _addLiquidity(
@@ -138,7 +135,7 @@ contract NonfungiblePositionManager is
   {
     Position storage pos = _positions[params.tokenId];
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
-    IProAMMPool pool;
+    IPool pool;
     uint256 feeGrowthInsideLast;
 
     int24[2] memory ticksPrevious;
@@ -187,7 +184,7 @@ contract NonfungiblePositionManager is
     require(pos.liquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
-    IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
+    IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     uint256 feeGrowthInsideLast;
     (amount0, amount1, feeGrowthInsideLast) = pool.burn(
@@ -225,7 +222,7 @@ contract NonfungiblePositionManager is
     require(pos.rTokenOwed > 0, 'No rToken to burn');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
-    IProAMMPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
+    IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     rTokenQty = pos.rTokenOwed;
     pos.rTokenOwed = 0;

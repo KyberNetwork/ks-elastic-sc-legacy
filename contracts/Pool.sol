@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
@@ -14,16 +14,16 @@ import {FullMath} from './libraries/FullMath.sol';
 import {SafeCast} from './libraries/SafeCast.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
-import {IProAMMPool} from './interfaces/IProAMMPool.sol';
-import {IProAMMPoolActions} from './interfaces/pool/IProAMMPoolActions.sol';
-import {IProAMMFactory} from './interfaces/IProAMMFactory.sol';
-import {IProAMMMintCallback} from './interfaces/callback/IProAMMMintCallback.sol';
-import {IProAMMSwapCallback} from './interfaces/callback/IProAMMSwapCallback.sol';
-import {IProAMMFlashCallback} from './interfaces/callback/IProAMMFlashCallback.sol';
+import {IPool} from './interfaces/IPool.sol';
+import {IPoolActions} from './interfaces/pool/IPoolActions.sol';
+import {IFactory} from './interfaces/IFactory.sol';
+import {IMintCallback} from './interfaces/callback/IMintCallback.sol';
+import {ISwapCallback} from './interfaces/callback/ISwapCallback.sol';
+import {IFlashCallback} from './interfaces/callback/IFlashCallback.sol';
 
-import {ProAMMPoolTicksState} from './ProAMMPoolTicksState.sol';
+import {PoolTicksState} from './PoolTicksState.sol';
 
-contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken', 'RT') {
+contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2-RT') {
   using SafeCast for uint256;
   using SafeCast for int256;
   using SafeERC20 for IERC20;
@@ -61,26 +61,26 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     return abi.decode(data, (uint256));
   }
 
-  /// @inheritdoc IProAMMPoolActions
-  function unlockPool(uint160 initialSqrtPrice, bytes calldata data)
+  /// @inheritdoc IPoolActions
+  function unlockPool(uint160 initialSqrtP, bytes calldata data)
     external
     override
     returns (uint256 qty0, uint256 qty1)
   {
-    require(poolData.sqrtPrice == 0, 'already inited');
+    require(poolData.sqrtP == 0, 'already inited');
     poolData.locked = false; // unlock the pool
     // initial tick bounds (min & max price limits) are checked in this function
-    int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtPrice);
-    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtPrice, MIN_LIQUIDITY);
-    IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
+    int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtP);
+    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtP, MIN_LIQUIDITY);
+    IMintCallback(msg.sender).mintCallback(qty0, qty1, data);
     // because of price bounds, qty0 and qty1 >= 1
     require(qty0 <= _poolBalToken0(), 'lacking qty0');
     require(qty1 <= _poolBalToken1(), 'lacking qty1');
     _mint(address(this), MIN_LIQUIDITY);
 
-    _initPoolStorage(initialSqrtPrice, initialTick);
+    _initPoolStorage(initialSqrtP, initialTick);
 
-    emit Initialize(initialSqrtPrice, initialTick);
+    emit Initialize(initialSqrtP, initialTick);
   }
 
   /// @dev Make changes to a position
@@ -104,7 +104,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     );
 
     // SLOAD variables into memory
-    uint160 _poolSqrtPrice = poolData.sqrtPrice;
+    uint160 sqrtP = poolData.sqrtP;
     int24 _poolTick = poolData.currentTick;
     uint128 lp = poolData.liquidity;
     uint128 lf = poolData.reinvestmentLiquidity;
@@ -153,13 +153,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     }
     // current tick is inside the passed range
     qty0 = QtyDeltaMath.calcRequiredQty0(
-      _poolSqrtPrice,
+      sqrtP,
       TickMath.getSqrtRatioAtTick(posData.tickUpper),
       posData.liquidityDelta
     );
     qty1 = QtyDeltaMath.calcRequiredQty1(
       TickMath.getSqrtRatioAtTick(posData.tickLower),
-      _poolSqrtPrice,
+      sqrtP,
       posData.liquidityDelta
     );
 
@@ -168,7 +168,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     poolData.liquidity = LiqDeltaMath.addLiquidityDelta(lp, posData.liquidityDelta);
   }
 
-  /// @inheritdoc IProAMMPoolActions
+  /// @inheritdoc IPoolActions
   function mint(
     address recipient,
     int24 tickLower,
@@ -207,14 +207,14 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     uint256 balance1Before;
     if (qty0 > 0) balance0Before = _poolBalToken0();
     if (qty1 > 0) balance1Before = _poolBalToken1();
-    IProAMMMintCallback(msg.sender).proAMMMintCallback(qty0, qty1, data);
+    IMintCallback(msg.sender).mintCallback(qty0, qty1, data);
     if (qty0 > 0) require(balance0Before + qty0 <= _poolBalToken0(), 'lacking qty0');
     if (qty1 > 0) require(balance1Before + qty1 <= _poolBalToken1(), 'lacking qty1');
 
     emit Mint(msg.sender, recipient, tickLower, tickUpper, qty, qty0, qty1);
   }
 
-  /// @inheritdoc IProAMMPoolActions
+  /// @inheritdoc IPoolActions
   function burn(
     int24 tickLower,
     int24 tickUpper,
@@ -255,7 +255,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     emit Burn(msg.sender, tickLower, tickUpper, qty, qty0, qty1);
   }
 
-  /// @inheritdoc IProAMMPoolActions
+  /// @inheritdoc IPoolActions
   function burnRTokens(uint256 _qty, bool isLogicalBurn)
     external
     override
@@ -271,7 +271,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     // SLOADs for gas optimizations
     uint128 lf = poolData.reinvestmentLiquidity;
     uint128 lp = poolData.liquidity;
-    uint160 pc = poolData.sqrtPrice;
+    uint160 sqrtP = poolData.sqrtP;
     _syncReinvestments(lp, lf, poolData.feeGrowthGlobal, false);
 
     // totalSupply() is the reinvestment token supply after syncing, but before burning
@@ -280,9 +280,9 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     poolData.reinvestmentLiquidity = lfNew;
     poolData.reinvestmentLiquidityLast = lfNew;
     // finally, calculate and send token quantities to user
-    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(pc, lfDelta);
+    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, lfDelta);
     if (tokenQty > 0) token0.safeTransfer(msg.sender, tokenQty);
-    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(pc, lfDelta);
+    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, lfDelta);
     if (tokenQty > 0) token1.safeTransfer(msg.sender, tokenQty);
 
     _burn(msg.sender, _qty);
@@ -292,13 +292,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
 
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
-    int256 deltaRemaining; // the specified amount (could be tokenIn or tokenOut)
-    int256 actualDelta; // the opposite amout of sourceQty
-    uint160 sqrtPc; // current sqrt(price), multiplied by 2^96
+    int256 specifiedAmount; // the specified amount (could be tokenIn or tokenOut)
+    int256 returnedAmount; // the opposite amout of sourceQty
+    uint160 sqrtP; // current sqrt(price), multiplied by 2^96
     int24 currentTick; // the tick associated with the current price
-    int24 nextTick; // the tick associated with the next price
+    int24 nextTick; // the next initialized tick
     uint160 nextSqrtP; // the price of nextTick
-    bool isToken0; // true if deltaRemaining is in token0, false if in token1
+    bool isToken0; // true if specifiedAmount is in token0, false if in token1
     bool isExactInput; // true = input qty, false = output qty
     uint128 lp; // the current pool liquidity
     uint128 lf; // the current reinvestment liquidity
@@ -313,50 +313,49 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     uint256 lpFee;
   }
 
-  // see IProAMMPoolActions
-  // swaps will execute up to sqrtPriceLimit, even if target swapQty is not reached
+  // see IPoolActions
+  // swaps will execute up to limitSqrtP, even if target swapQty is not reached
   function swap(
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bytes calldata data
   ) external override lock returns (int256 deltaQty0, int256 deltaQty1) {
     require(swapQty != 0, '0 swapQty');
 
     SwapData memory swapData;
-    swapData.deltaRemaining = swapQty;
+    swapData.specifiedAmount = swapQty;
     swapData.isToken0 = isToken0;
-    swapData.isExactInput = swapData.deltaRemaining > 0;
+    swapData.isExactInput = swapData.specifiedAmount > 0;
     // tick (token1Qty/token0Qty) will increase for swapping from token1 to token0
     bool willUpTick = (swapData.isExactInput != isToken0);
     (
       swapData.lp,
       swapData.lf,
-      swapData.sqrtPc,
+      swapData.sqrtP,
       swapData.currentTick,
       swapData.nextTick
     ) = _getInitialSwapData(willUpTick);
-    // verify sqrtPriceLimit
+    // verify limitSqrtP
     if (willUpTick) {
       require(
-        sqrtPriceLimit > swapData.sqrtPc && sqrtPriceLimit < TickMath.MAX_SQRT_RATIO,
-        'bad sqrtPriceLimit'
+        limitSqrtP > swapData.sqrtP && limitSqrtP < TickMath.MAX_SQRT_RATIO,
+        'bad limitSqrtP'
       );
     } else {
       require(
-        sqrtPriceLimit < swapData.sqrtPc && sqrtPriceLimit > TickMath.MIN_SQRT_RATIO,
-        'bad sqrtPriceLimit'
+        limitSqrtP < swapData.sqrtP && limitSqrtP > TickMath.MIN_SQRT_RATIO,
+        'bad limitSqrtP'
       );
     }
 
     // continue swapping while specified input/output isn't satisfied or price limit not reached
-    while (swapData.deltaRemaining != 0 && swapData.sqrtPc != sqrtPriceLimit) {
-      int24 tempNextTick = swapData.nextTick;
-
+    while (swapData.specifiedAmount != 0 && swapData.sqrtP != limitSqrtP) {
       // math calculations work with the assumption that the price diff is capped to 5%
       // since tick distance is uncapped between currentTick and nextTick
       // we use tempNextTick to satisfy our assumption
+      int24 tempNextTick = swapData.nextTick;
       if (willUpTick && tempNextTick > C.MAX_TICK_DISTANCE + swapData.currentTick) {
         tempNextTick = swapData.currentTick + C.MAX_TICK_DISTANCE;
       } else if (!willUpTick && tempNextTick < swapData.currentTick - C.MAX_TICK_DISTANCE) {
@@ -365,35 +364,35 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
 
       swapData.nextSqrtP = TickMath.getSqrtRatioAtTick(tempNextTick);
 
-      // local scope for targetSqrtP, deltaNext, actualDelta and lc
+      // local scope for targetSqrtP, usedAmount, returnedAmount and deltaL
       {
         uint160 targetSqrtP = swapData.nextSqrtP;
-        // ensure next sqrtPrice (and its corresponding tick) does not exceed price limit
-        if (willUpTick == (swapData.nextSqrtP > sqrtPriceLimit)) {
-          targetSqrtP = sqrtPriceLimit;
+        // ensure next sqrtP (and its corresponding tick) does not exceed price limit
+        if (willUpTick == (swapData.nextSqrtP > limitSqrtP)) {
+          targetSqrtP = limitSqrtP;
         }
 
-        int256 deltaNext;
-        int256 actualDelta;
-        uint256 lc;
-        (deltaNext, actualDelta, lc, swapData.sqrtPc) = SwapMath.computeSwapStep(
+        int256 usedAmount;
+        int256 returnedAmount;
+        uint256 deltaL;
+        (usedAmount, returnedAmount, deltaL, swapData.sqrtP) = SwapMath.computeSwapStep(
           swapData.lp + swapData.lf,
-          swapData.sqrtPc,
+          swapData.sqrtP,
           targetSqrtP,
           swapFeeBps,
-          swapData.deltaRemaining,
+          swapData.specifiedAmount,
           swapData.isExactInput,
           swapData.isToken0
         );
 
-        swapData.deltaRemaining -= deltaNext;
-        swapData.actualDelta += actualDelta;
-        swapData.lf += lc.toUint128();
+        swapData.specifiedAmount -= usedAmount;
+        swapData.returnedAmount += returnedAmount;
+        swapData.lf += deltaL.toUint128();
       }
 
       // if price has not reached the next sqrt price
-      if (swapData.sqrtPc != swapData.nextSqrtP) {
-        swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtPc);
+      if (swapData.sqrtP != swapData.nextSqrtP) {
+        swapData.currentTick = TickMath.getTickAtSqrtRatio(swapData.sqrtP);
         break;
       }
       swapData.currentTick = willUpTick ? tempNextTick : tempNextTick - 1;
@@ -453,14 +452,14 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     _updatePoolData(
       swapData.lp,
       swapData.lf,
-      swapData.sqrtPc,
+      swapData.sqrtP,
       swapData.currentTick,
       swapData.nextTick
     );
 
     (deltaQty0, deltaQty1) = isToken0
-      ? (swapQty - swapData.deltaRemaining, swapData.actualDelta)
-      : (swapData.actualDelta, swapQty - swapData.deltaRemaining);
+      ? (swapQty - swapData.specifiedAmount, swapData.returnedAmount)
+      : (swapData.returnedAmount, swapQty - swapData.specifiedAmount);
 
     // handle token transfers and perform callback
     if (willUpTick) {
@@ -470,7 +469,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
 
       // collect deltaQty1
       uint256 balance1Before = _poolBalToken1();
-      IProAMMSwapCallback(msg.sender).proAMMSwapCallback(deltaQty0, deltaQty1, data);
+      ISwapCallback(msg.sender).swapCallback(deltaQty0, deltaQty1, data);
       require(_poolBalToken1() >= balance1Before + uint256(deltaQty1), 'lacking deltaQty1');
     } else {
       // inbound deltaQty0 (positive), outbound deltaQty1 (negative)
@@ -479,7 +478,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
 
       // collect deltaQty0
       uint256 balance0Before = _poolBalToken0();
-      IProAMMSwapCallback(msg.sender).proAMMSwapCallback(deltaQty0, deltaQty1, data);
+      ISwapCallback(msg.sender).swapCallback(deltaQty0, deltaQty1, data);
       require(_poolBalToken0() >= balance0Before + uint256(deltaQty0), 'lacking deltaQty0');
     }
 
@@ -488,13 +487,13 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
       recipient,
       deltaQty0,
       deltaQty1,
-      swapData.sqrtPc,
+      swapData.sqrtP,
       swapData.lp,
       swapData.currentTick
     );
   }
 
-  /// @inheritdoc IProAMMPoolActions
+  /// @inheritdoc IPoolActions
   function flash(
     address recipient,
     uint256 qty0,
@@ -515,7 +514,7 @@ contract ProAMMPool is IProAMMPool, ProAMMPoolTicksState, ERC20('pro-AMM rToken'
     if (qty0 > 0) token0.safeTransfer(recipient, qty0);
     if (qty1 > 0) token1.safeTransfer(recipient, qty1);
 
-    IProAMMFlashCallback(msg.sender).proAMMFlashCallback(feeQty0, feeQty1, data);
+    IFlashCallback(msg.sender).flashCallback(feeQty0, feeQty1, data);
 
     uint256 balance0After = _poolBalToken0();
     uint256 balance1After = _poolBalToken1();

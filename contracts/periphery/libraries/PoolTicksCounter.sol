@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import {IProAMMPool} from '../../interfaces/IProAMMPool.sol';
+import {IPool} from '../../interfaces/IPool.sol';
 
 library PoolTicksCounter {
   function countInitializedTicksCrossed(
-    IProAMMPool self,
+    IPool self,
     int24 nearestCurrentTickBefore,
     int24 nearestCurrentTickAfter
   ) internal view returns (uint32 initializedTicksCrossed) {

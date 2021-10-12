@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 
-import {IProAMMPoolActions} from '../../interfaces/pool/IProAMMPoolActions.sol';
-import {IProAMMMintCallback} from '../../interfaces/callback/IProAMMMintCallback.sol';
-import {IProAMMSwapCallback} from '../../interfaces/callback/IProAMMSwapCallback.sol';
-import {IProAMMFlashCallback} from '../../interfaces/callback/IProAMMFlashCallback.sol';
+import {IPoolActions} from '../../interfaces/pool/IPoolActions.sol';
+import {IMintCallback} from '../../interfaces/callback/IMintCallback.sol';
+import {ISwapCallback} from '../../interfaces/callback/ISwapCallback.sol';
+import {IFlashCallback} from '../../interfaces/callback/IFlashCallback.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAMMFlashCallback {
+contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
   IERC20 public immutable token0;
   IERC20 public immutable token1;
   address public immutable user;
@@ -18,15 +18,15 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
   }
 
   function unlockPool(
-    IProAMMPoolActions pool,
-    uint160 poolSqrtPrice,
+    IPoolActions pool,
+    uint160 sqrtP,
     bytes calldata data
   ) external {
-    pool.unlockPool(poolSqrtPrice, data);
+    pool.unlockPool(sqrtP, data);
   }
 
   function mint(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     address recipient,
     int24 tickLower,
     int24 tickUpper,
@@ -38,18 +38,18 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
   }
 
   function swap(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bytes calldata data
   ) external {
-    pool.swap(recipient, swapQty, isToken0, sqrtPriceLimit, data);
+    pool.swap(recipient, swapQty, isToken0, limitSqrtP, data);
   }
 
   function flash(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     uint256 qty0,
     uint256 qty1,
     bytes calldata data
@@ -58,16 +58,16 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
   }
 
   function badUnlockPool(
-    IProAMMPoolActions pool,
-    uint160 poolSqrtPrice,
+    IPoolActions pool,
+    uint160 sqrtP,
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.unlockPool(poolSqrtPrice, abi.encode(sendLess0, sendLess1));
+    pool.unlockPool(sqrtP, abi.encode(sendLess0, sendLess1));
   }
 
   function badMint(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     address recipient,
     int24 tickLower,
     int24 tickUpper,
@@ -87,19 +87,19 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
   }
 
   function badSwap(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     address recipient,
     int256 swapQty,
     bool isToken0,
-    uint160 sqrtPriceLimit,
+    uint160 limitSqrtP,
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.swap(recipient, swapQty, isToken0, sqrtPriceLimit, abi.encode(sendLess0, sendLess1));
+    pool.swap(recipient, swapQty, isToken0, limitSqrtP, abi.encode(sendLess0, sendLess1));
   }
 
   function badFlash(
-    IProAMMPoolActions pool,
+    IPoolActions pool,
     uint256 qty0,
     uint256 qty1,
     bool sendLess0,
@@ -109,7 +109,7 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     pool.flash(address(this), qty0, qty1, abi.encode(sendLess0, sendLess1, isFee));
   }
 
-  function proAMMMintCallback(
+  function mintCallback(
     uint256 deltaQty0,
     uint256 deltaQty1,
     bytes calldata data
@@ -123,7 +123,7 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     if (deltaQty1 > 0) token1.transferFrom(user, msg.sender, deltaQty1);
   }
 
-  function proAMMFlashCallback(
+  function flashCallback(
     uint256 feeQty0,
     uint256 feeQty1,
     bytes calldata data
@@ -146,7 +146,7 @@ contract MockProAMMCallbacks is IProAMMMintCallback, IProAMMSwapCallback, IProAM
     if (feeQty1 > 0) token1.transferFrom(user, msg.sender, feeQty1);
   }
 
-  function proAMMSwapCallback(
+  function swapCallback(
     int256 deltaQty0,
     int256 deltaQty1,
     bytes calldata data

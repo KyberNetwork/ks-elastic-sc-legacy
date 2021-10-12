@@ -62,7 +62,7 @@ describe('QtyDeltaMath', () => {
 
     // it(`gas cost for amount0 where roundUp = true`, async () => {
     //   await snapshotGasCost(
-    //     sqrtPriceMath.getGasCostOfGetAmount0Delta(
+    //     sqrtPMath.getGasCostOfGetAmount0Delta(
     //       encodePriceSqrt(100, 121),
     //       encodePriceSqrt(1, 1),
     //       expandTo18Decimals(1),
@@ -73,7 +73,7 @@ describe('QtyDeltaMath', () => {
 
     // it(`gas cost for amount0 where roundUp = true`, async () => {
     //   await snapshotGasCost(
-    //     sqrtPriceMath.getGasCostOfGetAmount0Delta(
+    //     sqrtPMath.getGasCostOfGetAmount0Delta(
     //       encodePriceSqrt(100, 121),
     //       encodePriceSqrt(1, 1),
     //       expandTo18Decimals(1),
@@ -112,7 +112,7 @@ describe('QtyDeltaMath', () => {
 
     // it(`gas cost for amount0 where roundUp = true`, async () => {
     //   await snapshotGasCost(
-    //     sqrtPriceMath.getGasCostOfGetAmount0Delta(
+    //     sqrtPMath.getGasCostOfGetAmount0Delta(
     //       encodePriceSqrt(100, 121),
     //       encodePriceSqrt(1, 1),
     //       expandTo18Decimals(1),
@@ -123,7 +123,7 @@ describe('QtyDeltaMath', () => {
 
     // it(`gas cost for amount0 where roundUp = false`, async () => {
     //   await snapshotGasCost(
-    //     sqrtPriceMath.getGasCostOfGetAmount0Delta(
+    //     sqrtPMath.getGasCostOfGetAmount0Delta(
     //       encodePriceSqrt(100, 121),
     //       encodePriceSqrt(1, 1),
     //       expandTo18Decimals(1),
@@ -144,7 +144,7 @@ describe('QtyDeltaMath', () => {
       expect(qtyDeltaMath.getQtyFromBurnRTokens(ZERO, PRECISION)).to.be.reverted;
     });
 
-    it('liquidity=PRECISION, sqrtPrice=2 => qty0=0.5*PRECISION - qty1=2*PRECISION', async () => {
+    it('liquidity=PRECISION, sqrtP=2 => qty0=0.5*PRECISION - qty1=2*PRECISION', async () => {
       const result = await qtyDeltaMath.getQtyFromBurnRTokens(TWO_POW_96.mul(2), PRECISION);
       expect(result.qty0).to.equal(PRECISION.div(TWO));
       expect(result.qty1).to.equal(PRECISION.mul(TWO));

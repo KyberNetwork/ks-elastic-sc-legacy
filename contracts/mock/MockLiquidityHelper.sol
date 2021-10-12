@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.4;
+pragma solidity >=0.8.0;
 
 import '../periphery/base/LiquidityHelper.sol';
 import '../periphery/base/Multicall.sol';
@@ -11,13 +11,13 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
     address token0,
     address token1,
     uint16 fee,
-    uint160 initialSqrtPrice
-  ) external payable returns (IProAMMPool pool) {
+    uint160 initialSqrtP
+  ) external payable returns (IPool pool) {
     pool = _getPool(token0, token1, fee);
     if (token0 < token1) {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token0, token1, fee));
+      pool.unlockPool(initialSqrtP, _callbackData(token0, token1, fee));
     } else {
-      pool.unlockPool(initialSqrtPrice, _callbackData(token1, token0, fee));
+      pool.unlockPool(initialSqrtP, _callbackData(token1, token0, fee));
     }
   }
 
@@ -29,7 +29,7 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
       uint256 amount0,
       uint256 amount1,
       uint256 feeGrowthInsideLast,
-      IProAMMPool pool
+      IPool pool
     )
   {
     return _addLiquidity(params);

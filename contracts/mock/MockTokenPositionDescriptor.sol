@@ -10,12 +10,7 @@ contract MockTokenPositionDescriptor is INonfungibleTokenPositionDescriptor {
     tokenUri = _tokenUri;
   }
 
-  function tokenURI(INonfungiblePositionManager, uint256)
-    external
-    view
-    override
-    returns (string memory)
-  {
+  function tokenURI(IBasePositionManager, uint256) external view override returns (string memory) {
     return tokenUri;
   }
 }
