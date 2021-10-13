@@ -302,11 +302,14 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     bool isExactInput; // true = input qty, false = output qty
     uint128 baseL; // the cached base pool liquidity without reinvestment liquidity
     uint128 reinvestL; // the cached reinvestment liquidity
-    // variables below are loaded only when crossing a tick
-    uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
-    uint128 reinvestLLast; // collected liquidity
+  }
+
+  // variables below are loaded only when crossing a tick
+  struct SwapCache {
     uint256 rTotalSupply; // cache of total reinvestment token supply
+    uint128 reinvestLLast; // collected liquidity
     uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
+    uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
     address feeTo; // recipient of govt fees
     uint16 governmentFeeBps; // governmentFeeBps to be charged
     uint256 governmentFee; // qty of reinvestment token for government fee
@@ -348,7 +351,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         'bad limitSqrtP'
       );
     }
-
+    SwapCache memory cache;
     // continue swapping while specified input/output isn't satisfied or price limit not reached
     while (swapData.specifiedAmount != 0 && swapData.sqrtP != limitSqrtP) {
       // math calculations work with the assumption that the price diff is capped to 5%
@@ -398,54 +401,54 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
       // if tempNextTick is not next initialized tick
       if (tempNextTick != swapData.nextTick) continue;
 
-      if (swapData.rTotalSupply == 0) {
+      if (cache.rTotalSupply == 0) {
         // load variables that are only initialized when crossing a tick
-        swapData.reinvestLLast = poolData.reinvestLLast;
-        swapData.feeGrowthGlobal = poolData.feeGrowthGlobal;
-        swapData.rTotalSupply = totalSupply();
-        swapData.secondsPerLiquidityGlobal = _syncSecondsPerLiquidity(
+        cache.rTotalSupply = totalSupply();
+        cache.reinvestLLast = poolData.reinvestLLast;
+        cache.feeGrowthGlobal = poolData.feeGrowthGlobal;
+        cache.secondsPerLiquidityGlobal = _syncSecondsPerLiquidity(
           poolData.secondsPerLiquidityGlobal,
           swapData.baseL
         );
-        (swapData.feeTo, swapData.governmentFeeBps) = factory.feeConfiguration();
+        (cache.feeTo, cache.governmentFeeBps) = factory.feeConfiguration();
       }
       // update rTotalSupply, feeGrowthGlobal and reinvestL
       uint256 rMintQty = ReinvestmentMath.calcrMintQty(
         swapData.reinvestL,
-        swapData.reinvestLLast,
+        cache.reinvestLLast,
         swapData.baseL,
-        swapData.rTotalSupply
+        cache.rTotalSupply
       );
       if (rMintQty != 0) {
-        swapData.rTotalSupply += rMintQty;
+        cache.rTotalSupply += rMintQty;
         // overflow/underflow not possible bc governmentFeeBps < 2000
         unchecked {
-          uint256 governmentFee = (rMintQty * swapData.governmentFeeBps) / C.BPS;
-          swapData.governmentFee += governmentFee;
+          uint256 governmentFee = (rMintQty * cache.governmentFeeBps) / C.BPS;
+          cache.governmentFee += governmentFee;
 
           uint256 lpFee = rMintQty - governmentFee;
-          swapData.lpFee += lpFee;
+          cache.lpFee += lpFee;
 
-          swapData.feeGrowthGlobal += FullMath.mulDivFloor(lpFee, C.TWO_POW_96, swapData.baseL);
+          cache.feeGrowthGlobal += FullMath.mulDivFloor(lpFee, C.TWO_POW_96, swapData.baseL);
         }
       }
-      swapData.reinvestLLast = swapData.reinvestL;
+      cache.reinvestLLast = swapData.reinvestL;
 
       (swapData.baseL, swapData.nextTick) = _updateLiquidityAndCrossTick(
         swapData.nextTick,
         swapData.baseL,
-        swapData.feeGrowthGlobal,
-        swapData.secondsPerLiquidityGlobal,
+        cache.feeGrowthGlobal,
+        cache.secondsPerLiquidityGlobal,
         willUpTick
       );
     }
 
     // if the swap crosses at least 1 initalized tick
-    if (swapData.rTotalSupply != 0) {
-      if (swapData.governmentFee > 0) _mint(swapData.feeTo, swapData.governmentFee);
-      if (swapData.lpFee > 0) _mint(address(this), swapData.lpFee);
-      poolData.reinvestLLast = swapData.reinvestLLast;
-      poolData.feeGrowthGlobal = swapData.feeGrowthGlobal;
+    if (cache.rTotalSupply != 0) {
+      if (cache.governmentFee > 0) _mint(cache.feeTo, cache.governmentFee);
+      if (cache.lpFee > 0) _mint(address(this), cache.lpFee);
+      poolData.reinvestLLast = cache.reinvestLLast;
+      poolData.feeGrowthGlobal = cache.feeGrowthGlobal;
     }
 
     _updatePoolData(
