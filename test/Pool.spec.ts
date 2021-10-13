@@ -164,10 +164,11 @@ describe('Pool', () => {
       expect(liquidityState.baseL).to.be.eql(ZERO);
       expect(liquidityState.reinvestL).to.be.eql(MIN_LIQUIDITY);
       expect(liquidityState.reinvestLLast).to.be.eql(MIN_LIQUIDITY);
-      // expect(result2._poolFeeGrowthGlobal).to.be.eql(ZERO);
+      expect(await pool.getFeeGrowthGlobal()).to.be.eql(ZERO);
 
-      expect(await pool.secondsPerLiquidityGlobal()).to.be.eql(ZERO);
-      expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eql(0);
+      let secondsPerLiquidityData = await pool.getSecondsPerLiquidityData();
+      expect(secondsPerLiquidityData.secondsPerLiquidityGlobal).to.be.eql(ZERO);
+      expect(secondsPerLiquidityData.lastUpdateTime).to.be.eql(0);
     });
 
     it('#gas [ @skip-on-coverage ]', async () => {
@@ -425,9 +426,10 @@ describe('Pool', () => {
           it('should not have updated time data if initial pool liquidity is zero', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
+            let data = await pool.getSecondsPerLiquidityData();
 
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+            expect(data.secondsPerLiquidityGlobal).to.be.eq(ZERO);
+            expect(data.lastUpdateTime).to.be.eq(ZERO);
           });
 
           it('should update time data if initial pool liquidity is non-zero', async () => {
@@ -442,15 +444,15 @@ describe('Pool', () => {
               PRECISION,
               '0x'
             );
-            let secondsPerLiquidityGlobalBefore = await pool.secondsPerLiquidityGlobal();
-            let secondsPerLiquidityUpdateTimeBefore = await pool.secondsPerLiquidityUpdateTime();
-
+            let beforeData = await pool.getSecondsPerLiquidityData();
             // mint position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             // should have updated
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(secondsPerLiquidityGlobalBefore);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(secondsPerLiquidityUpdateTimeBefore);
+            let afterData = await pool.getSecondsPerLiquidityData();
+
+            expect(afterData.secondsPerLiquidityGlobal).to.be.gt(beforeData.secondsPerLiquidityGlobal);
+            expect(afterData.lastUpdateTime).to.be.gt(beforeData.lastUpdateTime);
           });
 
           it('should not change initialized ticks status for liquidity addition', async () => {
@@ -705,15 +707,17 @@ describe('Pool', () => {
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             // pool liquidity before update is zero, so no update occurs
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+            let data = await pool.getSecondsPerLiquidityData();
+            expect(data.secondsPerLiquidityGlobal).to.be.eq(ZERO);
+            expect(data.lastUpdateTime).to.be.eq(ZERO);
 
             // mint again
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             // pool liquidity before update is non-zero, should have updated
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(ZERO);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(ZERO);
+            data = await pool.getSecondsPerLiquidityData();
+            expect(data.secondsPerLiquidityGlobal).to.be.gt(ZERO);
+            expect(data.lastUpdateTime).to.be.gt(ZERO);
           });
 
           it('should instantiate tick lower feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
@@ -978,8 +982,9 @@ describe('Pool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.eq(ZERO);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.eq(ZERO);
+            let data = await pool.getSecondsPerLiquidityData();
+            expect(data.secondsPerLiquidityGlobal).to.be.eq(ZERO);
+            expect(data.lastUpdateTime).to.be.eq(ZERO);
           });
 
           it('should update time data if initial pool liquidity is non-zero', async () => {
@@ -994,15 +999,14 @@ describe('Pool', () => {
               PRECISION,
               '0x'
             );
-            let secondsPerLiquidityGlobalBefore = await pool.secondsPerLiquidityGlobal();
-            let secondsPerLiquidityUpdateTimeBefore = await pool.secondsPerLiquidityUpdateTime();
-
+            let beforeData = await pool.getSecondsPerLiquidityData();
             // mint position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             // should have updated
-            expect(await pool.secondsPerLiquidityGlobal()).to.be.gt(secondsPerLiquidityGlobalBefore);
-            expect(await pool.secondsPerLiquidityUpdateTime()).to.be.gt(secondsPerLiquidityUpdateTimeBefore);
+            let afterData = await pool.getSecondsPerLiquidityData();
+            expect(afterData.secondsPerLiquidityGlobal).to.be.gt(beforeData.secondsPerLiquidityGlobal);
+            expect(afterData.lastUpdateTime).to.be.gt(beforeData.lastUpdateTime);
           });
 
           it('should instantiate both tick lower and tick upper feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
@@ -1507,12 +1511,10 @@ describe('Pool', () => {
         // do a couple of small swaps so that lf is incremented but not lfLast
         await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
         let reinvestmentState = await pool.getLiquidityState();
+        let beforeFeeGrowth = await pool.getFeeGrowthGlobal();
         expect(reinvestmentState.reinvestL).to.be.gt(reinvestmentState.reinvestLLast);
         await expect(pool.connect(user).burnRTokens(userRTokenBalance, false)).to.emit(pool, 'Transfer');
-        // TODO: fix this
-        // expect((await pool.getReinvestmentState())._poolFeeGrowthGlobal).to.be.gt(
-        //   reinvestmentState._poolFeeGrowthGlobal
-        // );
+        expect(await pool.getFeeGrowthGlobal()).to.be.gt(beforeFeeGrowth);
       });
 
       it('should send a portion of collected fees to feeTo if rMintQty and govtFee > 0', async () => {

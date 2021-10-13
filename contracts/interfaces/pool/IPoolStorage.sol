@@ -3,7 +3,7 @@ pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IFactory} from './IFactory.sol';
+import {IFactory} from '../IFactory.sol';
 
 interface IPoolStorage {
   /// @notice The contract that deployed the pool, which must adhere to the IFactory interface
@@ -63,13 +63,6 @@ interface IPoolStorage {
     int24 tickUpper
   ) external view returns (uint128 liquidity, uint256 feeGrowthInsideLast);
 
-  /// @notice All-time seconds per unit of liquidity of the pool
-  /// @dev The value has been multiplied by 2^96
-  function secondsPerLiquidityGlobal() external view returns (uint128);
-
-  /// @notice The timestamp in which secondsPerLiquidity was last updated
-  function secondsPerLiquidityUpdateTime() external view returns (uint32);
-
   /// @notice Fetches the pool's current price, tick and nearestCurrentTick
   /// @return sqrtP sqrt of current price: sqrt(token1/token0)
   /// @return currentTick pool's current tick
@@ -98,7 +91,16 @@ interface IPoolStorage {
       uint128 reinvestLLast
     );
 
-  /// @notice Calculates and returns the active time per unit of liquidity
+  function getFeeGrowthGlobal() external view returns (uint256);
+
+  /// @return secondsPerLiquidityGlobal All-time seconds per unit of liquidity of the pool
+  /// @return lastUpdateTime The timestamp in which secondsPerLiquidityGlobal was last updated
+  function getSecondsPerLiquidityData()
+    external
+    view
+    returns (uint128 secondsPerLiquidityGlobal, uint32 lastUpdateTime);
+
+  /// @notice Calculates and returns the active time per unit of liquidity until current block.timestamp
   /// @param tickLower The lower tick (of a position)
   /// @param tickUpper The upper tick (of a position)
   /// @return secondsPerLiquidityInside active time (multiplied by 2^96)

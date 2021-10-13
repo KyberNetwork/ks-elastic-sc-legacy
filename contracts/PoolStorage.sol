@@ -8,7 +8,7 @@ import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 
 import {IFactory} from './interfaces/IFactory.sol';
-import {IPoolStorage} from './interfaces/IPoolStorage.sol';
+import {IPoolStorage} from './interfaces/pool/IPoolStorage.sol';
 
 abstract contract PoolStorage is IPoolStorage {
   using Clones for address;
@@ -112,14 +112,6 @@ abstract contract PoolStorage is IPoolStorage {
     return (positions[key].liquidity, positions[key].feeGrowthInsideLast);
   }
 
-  function secondsPerLiquidityGlobal() external view override returns (uint128) {
-    return poolData.secondsPerLiquidityGlobal;
-  }
-
-  function secondsPerLiquidityUpdateTime() external view override returns (uint32) {
-    return poolData.secondsPerLiquidityUpdateTime;
-  }
-
   /// @inheritdoc IPoolStorage
   function getPoolState()
     external
@@ -154,6 +146,20 @@ abstract contract PoolStorage is IPoolStorage {
     reinvestLLast = poolData.reinvestLLast;
   }
 
+  function getFeeGrowthGlobal() external view override returns (uint256) {
+    return poolData.feeGrowthGlobal;
+  }
+
+  function getSecondsPerLiquidityData()
+    external
+    view
+    override
+    returns (uint128 secondsPerLiquidityGlobal, uint32 lastUpdateTime)
+  {
+    secondsPerLiquidityGlobal = poolData.secondsPerLiquidityGlobal;
+    lastUpdateTime = poolData.secondsPerLiquidityUpdateTime;
+  }
+
   function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
     external
     view
@@ -161,25 +167,27 @@ abstract contract PoolStorage is IPoolStorage {
     returns (uint128 secondsPerLiquidityInside)
   {
     require(tickLower <= tickUpper, 'bad tick range');
-    int24 _poolTick = poolData.currentTick;
+    int24 currentTick = poolData.currentTick;
+    uint128 secondsPerLiquidityGlobal = poolData.secondsPerLiquidityGlobal;
+    uint32 lastUpdateTime = poolData.secondsPerLiquidityUpdateTime;
 
     uint128 lowerValue = ticks[tickLower].secondsPerLiquidityOutside;
     uint128 upperValue = ticks[tickUpper].secondsPerLiquidityOutside;
 
     unchecked {
-      if (tickLower < _poolTick) {
+      if (tickLower < currentTick) {
         secondsPerLiquidityInside = lowerValue - upperValue;
-      } else if (_poolTick >= tickUpper) {
+      } else if (currentTick >= tickUpper) {
         secondsPerLiquidityInside = upperValue - lowerValue;
       } else {
-        secondsPerLiquidityInside = poolData.secondsPerLiquidityGlobal - (lowerValue + upperValue);
+        secondsPerLiquidityInside = secondsPerLiquidityGlobal - (lowerValue + upperValue);
       }
     }
 
     // in the case where position is in range (tickLower <= _poolTick < tickUpper),
     // need to add timeElapsed per liquidity
-    if (tickLower <= _poolTick && _poolTick < tickUpper) {
-      uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
+    if (tickLower <= currentTick && currentTick < tickUpper) {
+      uint256 secondsElapsed = _blockTimestamp() - lastUpdateTime;
       uint128 baseL = poolData.baseL;
       if (secondsElapsed > 0 && baseL > 0) {
         unchecked {
