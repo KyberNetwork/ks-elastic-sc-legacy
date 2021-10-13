@@ -78,11 +78,12 @@ interface IPoolActions {
 
   /// @notice Swap token0 -> token1, or vice versa
   /// @dev This method's caller receives a callback in the form of ISwapCallback#swapCallback
+  /// @dev swaps will execute up to limitSqrtP or swapQty is fully used
   /// @param recipient The address to receive the swap output
   /// @param swapQty The swap quantity, which implicitly configures the swap as exact input (>0), or exact output (<0)
   /// @param isToken0 Whether the swapQty is specified in token0 (true) or token1 (false)
-  /// @param limitSqrtP For specified exact input token0 and exact output token1, this should be the minimum allowable price limit.
-  /// For specified exact input token1 and exact output token0, this should be the maximum allowable price limit.
+  /// @param limitSqrtP the limit of sqrt price after swapping
+  /// could be MAX_SQRT_RATIO-1 when swapping 1 -> 0 and  MIN_SQRT_RATIO+1 when swapping 0 -> 1 for no limit swap
   /// @param data Any data to be passed through to the callback
   /// @return qty0 Exact token0 qty sent to recipient if < 0. Minimally received quantity if > 0.
   /// @return qty1 Exact token1 qty sent to recipient if < 0. Minimally received quantity if > 0.

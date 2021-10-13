@@ -1,5 +1,5 @@
 import {BigNumber} from 'ethers';
-import {Pool} from '../../typechain';
+import {MockPool, Pool} from '../../typechain';
 export enum SwapTitle {
   BEFORE_SWAP,
   AFTER_SWAP,
@@ -9,14 +9,15 @@ let titleMap = {
   [SwapTitle.AFTER_SWAP]: 'AFTER SWAP',
 };
 
-export async function logSwapState(title: SwapTitle, pool: Pool) {
+export async function logSwapState(title: SwapTitle, pool: Pool | MockPool) {
   console.log(`=== ${titleMap[title]} ===`);
   let poolState = await pool.getPoolState();
-  let reinvestmentState = await pool.getReinvestmentState();
-  console.log(`current tick: ${poolState._poolTick.toString()}`);
-  console.log(`nearest current tick: ${poolState._nearestCurrentTick.toString()}`);
+  let reinvestmentState = await pool.getLiquidityState();
+  console.log(`current tick: ${poolState.currentTick.toString()}`);
+  console.log(`nearest current tick: ${poolState.nearestCurrentTick.toString()}`);
   console.log(`price: ${poolState.sqrtP.toString()}`);
-  console.log(`reinvestment: ${reinvestmentState._poolReinvestmentLiquidity.toString()}`);
+  console.log(`baseL: ${reinvestmentState.baseL.toString()}`);
+  console.log(`reinvestL: ${reinvestmentState.reinvestL.toString()}`);
 }
 
 export function logBalanceChange(token0Change: BigNumber, token1Change: BigNumber) {

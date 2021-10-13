@@ -149,7 +149,7 @@ describe('BasePositionManager', () => {
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let poolState = await poolContract.getPoolState();
       expect(poolState.sqrtP).to.be.eq(initialPrice);
-      expect(poolState._locked).to.be.eq(isLocked);
+      expect(poolState.locked).to.be.eq(isLocked);
     };
 
     it(`create new pool and unlock with tokens`, async () => {

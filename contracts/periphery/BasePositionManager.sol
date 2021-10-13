@@ -65,7 +65,7 @@ contract BasePositionManager is
       pool = IFactory(factory).createPool(token0, token1, fee);
     }
 
-    (uint160 sqrtP, , , , ) = IPool(pool).getPoolState();
+    (uint160 sqrtP, , , ) = IPool(pool).getPoolState();
     if (sqrtP == 0) {
       IPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
     }

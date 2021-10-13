@@ -105,21 +105,21 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
 
     // SLOAD variables into memory
     uint160 sqrtP = poolData.sqrtP;
-    int24 _poolTick = poolData.currentTick;
-    uint128 lp = poolData.liquidity;
-    uint128 lf = poolData.reinvestmentLiquidity;
-    CumulativesData memory cumulatives = CumulativesData({
-      feeGrowth: poolData.feeGrowthGlobal,
-      secondsPerLiquidity: _updateTimeData(poolData.secondsPerLiquidityGlobal, lp)
-    });
-
-    cumulatives.feeGrowth = _syncReinvestments(lp, lf, cumulatives.feeGrowth, true);
+    int24 currentTick = poolData.currentTick;
+    uint128 baseL = poolData.baseL;
+    uint128 reinvestL = poolData.reinvestL;
+    CumulativesData memory cumulatives;
+    cumulatives.feeGrowth = _syncFeeGrowth(baseL, reinvestL, poolData.feeGrowthGlobal, true);
+    cumulatives.secondsPerLiquidity = _syncSecondsPerLiquidity(
+      poolData.secondsPerLiquidityGlobal,
+      baseL
+    );
 
     uint256 feesClaimable;
-    (feesClaimable, feeGrowthInsideLast) = _updatePosition(posData, _poolTick, cumulatives);
+    (feesClaimable, feeGrowthInsideLast) = _updatePosition(posData, currentTick, cumulatives);
     if (feesClaimable != 0) _transfer(address(this), posData.owner, feesClaimable);
 
-    if (_poolTick < posData.tickLower) {
+    if (currentTick < posData.tickLower) {
       // current tick < position range
       // liquidity only comes in range when tick increases
       // which occurs when pool increases in token1, decreases in token0
@@ -135,7 +135,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         feeGrowthInsideLast
       );
     }
-    if (_poolTick >= posData.tickUpper) {
+    if (currentTick >= posData.tickUpper) {
       // current tick > position range
       // liquidity only comes in range when tick decreases
       // which occurs when pool decreases in token1, increases in token0
@@ -163,9 +163,9 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
       posData.liquidityDelta
     );
 
-    // in addition, add liquidityDelta to current poolData.liquidity
+    // in addition, add liquidityDelta to current poolData.baseL
     // since liquidity is in range
-    poolData.liquidity = LiqDeltaMath.addLiquidityDelta(lp, posData.liquidityDelta);
+    poolData.baseL = LiqDeltaMath.addLiquidityDelta(baseL, posData.liquidityDelta);
   }
 
   /// @inheritdoc IPoolActions
@@ -269,20 +269,20 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
       return (0, 0);
     }
     // SLOADs for gas optimizations
-    uint128 lf = poolData.reinvestmentLiquidity;
-    uint128 lp = poolData.liquidity;
+    uint128 baseL = poolData.baseL;
+    uint128 reinvestL = poolData.reinvestL;
     uint160 sqrtP = poolData.sqrtP;
-    _syncReinvestments(lp, lf, poolData.feeGrowthGlobal, false);
+    _syncFeeGrowth(baseL, reinvestL, poolData.feeGrowthGlobal, false);
 
     // totalSupply() is the reinvestment token supply after syncing, but before burning
-    uint256 lfDelta = FullMath.mulDivFloor(_qty, lf, totalSupply());
-    uint128 lfNew = (uint256(lf) - lfDelta).toUint128();
-    poolData.reinvestmentLiquidity = lfNew;
-    poolData.reinvestmentLiquidityLast = lfNew;
+    uint256 deltaL = FullMath.mulDivFloor(_qty, reinvestL, totalSupply());
+    reinvestL = reinvestL - deltaL.toUint128();
+    poolData.reinvestL = reinvestL;
+    poolData.reinvestLLast = reinvestL;
     // finally, calculate and send token quantities to user
-    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, lfDelta);
+    uint256 tokenQty = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, deltaL);
     if (tokenQty > 0) token0.safeTransfer(msg.sender, tokenQty);
-    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, lfDelta);
+    tokenQty = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, deltaL);
     if (tokenQty > 0) token1.safeTransfer(msg.sender, tokenQty);
 
     _burn(msg.sender, _qty);
@@ -300,21 +300,20 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     uint160 nextSqrtP; // the price of nextTick
     bool isToken0; // true if specifiedAmount is in token0, false if in token1
     bool isExactInput; // true = input qty, false = output qty
-    uint128 lp; // the current pool liquidity
-    uint128 lf; // the current reinvestment liquidity
+    uint128 baseL; // the cached base pool liquidity without reinvestment liquidity
+    uint128 reinvestL; // the cached reinvestment liquidity
     // variables below are loaded only when crossing a tick
     uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
-    uint128 lfLast; // collected liquidity
+    uint128 reinvestLLast; // collected liquidity
     uint256 rTotalSupply; // cache of total reinvestment token supply
     uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
     address feeTo; // recipient of govt fees
     uint16 governmentFeeBps; // governmentFeeBps to be charged
-    uint256 rGovtQty; // govt fee qty collected to be transferred to feeTo
-    uint256 lpFee;
+    uint256 governmentFee; // qty of reinvestment token for government fee
+    uint256 lpFee; // qty of reinvestment token for liquidity provider
   }
 
-  // see IPoolActions
-  // swaps will execute up to limitSqrtP, even if target swapQty is not reached
+  // @inheritdoc IPoolActions
   function swap(
     address recipient,
     int256 swapQty,
@@ -331,8 +330,8 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     // tick (token1Qty/token0Qty) will increase for swapping from token1 to token0
     bool willUpTick = (swapData.isExactInput != isToken0);
     (
-      swapData.lp,
-      swapData.lf,
+      swapData.baseL,
+      swapData.reinvestL,
       swapData.sqrtP,
       swapData.currentTick,
       swapData.nextTick
@@ -376,7 +375,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         int256 returnedAmount;
         uint256 deltaL;
         (usedAmount, returnedAmount, deltaL, swapData.sqrtP) = SwapMath.computeSwapStep(
-          swapData.lp + swapData.lf,
+          swapData.baseL + swapData.reinvestL,
           swapData.sqrtP,
           targetSqrtP,
           swapFeeBps,
@@ -387,7 +386,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
 
         swapData.specifiedAmount -= usedAmount;
         swapData.returnedAmount += returnedAmount;
-        swapData.lf += deltaL.toUint128();
+        swapData.reinvestL += deltaL.toUint128();
       }
 
       // if price has not reached the next sqrt price
@@ -401,40 +400,40 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
 
       if (swapData.rTotalSupply == 0) {
         // load variables that are only initialized when crossing a tick
-        swapData.lfLast = poolData.reinvestmentLiquidityLast;
+        swapData.reinvestLLast = poolData.reinvestLLast;
         swapData.feeGrowthGlobal = poolData.feeGrowthGlobal;
         swapData.rTotalSupply = totalSupply();
-        swapData.secondsPerLiquidityGlobal = _updateTimeData(
+        swapData.secondsPerLiquidityGlobal = _syncSecondsPerLiquidity(
           poolData.secondsPerLiquidityGlobal,
-          swapData.lp
+          swapData.baseL
         );
         (swapData.feeTo, swapData.governmentFeeBps) = factory.feeConfiguration();
       }
-      // update rTotalSupply, feeGrowthGlobal and lf
+      // update rTotalSupply, feeGrowthGlobal and reinvestL
       uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-        swapData.lf,
-        swapData.lfLast,
-        swapData.lp,
+        swapData.reinvestL,
+        swapData.reinvestLLast,
+        swapData.baseL,
         swapData.rTotalSupply
       );
       if (rMintQty != 0) {
         swapData.rTotalSupply += rMintQty;
         // overflow/underflow not possible bc governmentFeeBps < 2000
         unchecked {
-          uint256 rGovtQty = (rMintQty * swapData.governmentFeeBps) / C.BPS;
-          swapData.rGovtQty += rGovtQty;
+          uint256 governmentFee = (rMintQty * swapData.governmentFeeBps) / C.BPS;
+          swapData.governmentFee += governmentFee;
 
-          uint256 lpFee = rMintQty - rGovtQty;
+          uint256 lpFee = rMintQty - governmentFee;
           swapData.lpFee += lpFee;
 
-          swapData.feeGrowthGlobal += FullMath.mulDivFloor(lpFee, C.TWO_POW_96, swapData.lp);
+          swapData.feeGrowthGlobal += FullMath.mulDivFloor(lpFee, C.TWO_POW_96, swapData.baseL);
         }
       }
-      swapData.lfLast = swapData.lf;
+      swapData.reinvestLLast = swapData.reinvestL;
 
-      (swapData.lp, swapData.nextTick) = _updateLiquidityAndCrossTick(
+      (swapData.baseL, swapData.nextTick) = _updateLiquidityAndCrossTick(
         swapData.nextTick,
-        swapData.lp,
+        swapData.baseL,
         swapData.feeGrowthGlobal,
         swapData.secondsPerLiquidityGlobal,
         willUpTick
@@ -443,15 +442,15 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
 
     // if the swap crosses at least 1 initalized tick
     if (swapData.rTotalSupply != 0) {
-      if (swapData.rGovtQty > 0) _mint(swapData.feeTo, swapData.rGovtQty);
+      if (swapData.governmentFee > 0) _mint(swapData.feeTo, swapData.governmentFee);
       if (swapData.lpFee > 0) _mint(address(this), swapData.lpFee);
-      poolData.reinvestmentLiquidityLast = swapData.lfLast;
+      poolData.reinvestLLast = swapData.reinvestLLast;
       poolData.feeGrowthGlobal = swapData.feeGrowthGlobal;
     }
 
     _updatePoolData(
-      swapData.lp,
-      swapData.lf,
+      swapData.baseL,
+      swapData.reinvestL,
       swapData.sqrtP,
       swapData.currentTick,
       swapData.nextTick
@@ -488,7 +487,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
       deltaQty0,
       deltaQty1,
       swapData.sqrtP,
-      swapData.lp,
+      swapData.baseL,
       swapData.currentTick
     );
   }
@@ -535,16 +534,16 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   }
 
-  function _updateTimeData(uint128 _secondsPerLiquidityGlobal, uint128 lp)
+  /// @dev sync the value of secondsPerLiquidity data to current block.timestamp
+  /// @return new value of _secondsPerLiquidityGlobal
+  function _syncSecondsPerLiquidity(uint128 _secondsPerLiquidityGlobal, uint128 baseL)
     internal
-    returns (
-      uint128 //_secondsPerLiquidityGlobal
-    )
+    returns (uint128)
   {
     uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
     // update secondsPerLiquidityGlobal and secondsPerLiquidityUpdateTime if needed
-    if (secondsElapsed > 0 && lp > 0) {
-      _secondsPerLiquidityGlobal += uint128((secondsElapsed << C.RES_96) / lp);
+    if (secondsElapsed > 0 && baseL > 0) {
+      _secondsPerLiquidityGlobal += uint128((secondsElapsed << C.RES_96) / baseL);
       // write to storage
       poolData.secondsPerLiquidityGlobal = _secondsPerLiquidityGlobal;
       poolData.secondsPerLiquidityUpdateTime = _blockTimestamp();
@@ -552,30 +551,32 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     return _secondsPerLiquidityGlobal;
   }
 
+  /// @dev sync the value of feeGrowthGlobal and the value of each reinvestment token.
+  /// @dev update reinvestLLast to latest value if necessary
   /// @return the lastest value of _feeGrowthGlobal
-  function _syncReinvestments(
-    uint128 lp,
-    uint128 lf,
+  function _syncFeeGrowth(
+    uint128 baseL,
+    uint128 reinvestL,
     uint256 _feeGrowthGlobal,
-    bool updateLfLast
+    bool updateReinvestLLast
   ) internal returns (uint256) {
     uint256 rMintQty = ReinvestmentMath.calcrMintQty(
-      uint256(lf),
-      uint256(poolData.reinvestmentLiquidityLast),
-      lp,
+      uint256(reinvestL),
+      uint256(poolData.reinvestLLast),
+      baseL,
       totalSupply()
     );
     if (rMintQty != 0) {
       rMintQty = _deductGovermentFee(rMintQty);
       _mint(address(this), rMintQty);
-      // lp != 0 because lp = 0 => rMintQty = 0
+      // baseL != 0 because baseL = 0 => rMintQty = 0
       unchecked {
-        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, lp);
+        _feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
       }
       poolData.feeGrowthGlobal = _feeGrowthGlobal;
     }
-    // update poolData.reinvestmentLiquidityLast if required
-    if (updateLfLast) poolData.reinvestmentLiquidityLast = lf;
+    // update poolData.reinvestLLast if required
+    if (updateReinvestLLast) poolData.reinvestLLast = reinvestL;
     return _feeGrowthGlobal;
   }
 

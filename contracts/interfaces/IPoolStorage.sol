@@ -70,35 +70,32 @@ interface IPoolStorage {
   /// @notice The timestamp in which secondsPerLiquidity was last updated
   function secondsPerLiquidityUpdateTime() external view returns (uint32);
 
-  /// @notice Fetches the pool's current price, tick and liquidity
-  /// @return sqrtP pool's current price: sqrt(token1/token0)
-  /// @return poolTick pool's current tick
-  /// @return nearestCurrentTick pool's nearest initialized tick that is <= pool's current tick
+  /// @notice Fetches the pool's current price, tick and nearestCurrentTick
+  /// @return sqrtP sqrt of current price: sqrt(token1/token0)
+  /// @return currentTick pool's current tick
+  /// @return nearestCurrentTick pool's nearest initialized tick that is <= currentTick
   /// @return locked true if pool is locked, false otherwise
-  /// @return poolLiquidity pool's current liquidity that is in range
   function getPoolState()
     external
     view
     returns (
       uint160 sqrtP,
-      int24 poolTick,
+      int24 currentTick,
       int24 nearestCurrentTick,
-      bool locked,
-      uint128 poolLiquidity
+      bool locked
     );
 
   /// @notice Fetches the pool's feeGrowthGlobal, reinvestment liquidity and its last cached value
-  /// @return poolFeeGrowthGlobal pool's fee growth in LP fees (reinvestment tokens) collected per unit of liquidity since pool creation
-  /// @return poolReinvestmentLiquidity total liquidity from collected LP fees (reinvestment tokens) that are reinvested into the pool
-  /// @return poolReinvestmentLiquidityLast last cached total liquidity from collected fees
-  /// This value will differ from poolReinvestmentLiquidity when swaps that won't result in tick crossings occur
-  function getReinvestmentState()
+  /// @return baseL pool's base liquidity without reinvest liqudity
+  /// @return reinvestL the liquidity is reinvested into the pool
+  /// @return reinvestLLast last cached value of reinvestL, using for calculating reinvestment token qty
+  function getLiquidityState()
     external
     view
     returns (
-      uint256 poolFeeGrowthGlobal,
-      uint128 poolReinvestmentLiquidity,
-      uint128 poolReinvestmentLiquidityLast
+      uint128 baseL,
+      uint128 reinvestL,
+      uint128 reinvestLLast
     );
 
   /// @notice Calculates and returns the active time per unit of liquidity

@@ -18,16 +18,16 @@ abstract contract PoolStorage is IPoolStorage {
   uint128 internal constant MIN_LIQUIDITY = 100000;
 
   struct PoolData {
-    uint256 feeGrowthGlobal;
-    uint128 reinvestmentLiquidity;
-    uint128 reinvestmentLiquidityLast;
-    uint128 liquidity;
-    uint128 secondsPerLiquidityGlobal;
-    uint32 secondsPerLiquidityUpdateTime;
     uint160 sqrtP;
     int24 nearestCurrentTick;
     int24 currentTick;
     bool locked;
+    uint128 baseL;
+    uint128 reinvestL;
+    uint128 reinvestLLast;
+    uint256 feeGrowthGlobal;
+    uint128 secondsPerLiquidityGlobal;
+    uint32 secondsPerLiquidityUpdateTime;
   }
 
   // data stored for each initialized individual tick
@@ -92,8 +92,9 @@ abstract contract PoolStorage is IPoolStorage {
   }
 
   function _initPoolStorage(uint160 initialSqrtP, int24 initialTick) internal {
-    poolData.reinvestmentLiquidity = MIN_LIQUIDITY;
-    poolData.reinvestmentLiquidityLast = MIN_LIQUIDITY;
+    poolData.baseL = 0;
+    poolData.reinvestL = MIN_LIQUIDITY;
+    poolData.reinvestLLast = MIN_LIQUIDITY;
 
     poolData.sqrtP = initialSqrtP;
     poolData.currentTick = initialTick;
@@ -119,41 +120,38 @@ abstract contract PoolStorage is IPoolStorage {
     return poolData.secondsPerLiquidityUpdateTime;
   }
 
-  // TODO move _poolLiquidity to getReinvestmentState to save 1 slot
+  /// @inheritdoc IPoolStorage
   function getPoolState()
     external
     view
     override
     returns (
       uint160 sqrtP,
-      int24 _poolTick,
-      int24 _nearestCurrentTick,
-      bool _locked,
-      uint128 _poolLiquidity
+      int24 currentTick,
+      int24 nearestCurrentTick,
+      bool locked
     )
   {
     sqrtP = poolData.sqrtP;
-    _poolTick = poolData.currentTick;
-    _nearestCurrentTick = poolData.nearestCurrentTick;
-    _locked = poolData.locked;
-    _poolLiquidity = poolData.liquidity;
+    currentTick = poolData.currentTick;
+    nearestCurrentTick = poolData.nearestCurrentTick;
+    locked = poolData.locked;
   }
 
-  function getReinvestmentState()
+  /// @inheritdoc IPoolStorage
+  function getLiquidityState()
     external
     view
     override
     returns (
-      uint256 _poolFeeGrowthGlobal,
-      uint128 _poolReinvestmentLiquidity,
-      uint128 _poolReinvestmentLiquidityLast
+      uint128 baseL,
+      uint128 reinvestL,
+      uint128 reinvestLLast
     )
   {
-    return (
-      poolData.feeGrowthGlobal,
-      poolData.reinvestmentLiquidity,
-      poolData.reinvestmentLiquidityLast
-    );
+    baseL = poolData.baseL;
+    reinvestL = poolData.reinvestL;
+    reinvestLLast = poolData.reinvestLLast;
   }
 
   function getSecondsPerLiquidityInside(int24 tickLower, int24 tickUpper)
@@ -182,10 +180,10 @@ abstract contract PoolStorage is IPoolStorage {
     // need to add timeElapsed per liquidity
     if (tickLower <= _poolTick && _poolTick < tickUpper) {
       uint256 secondsElapsed = _blockTimestamp() - poolData.secondsPerLiquidityUpdateTime;
-      uint128 lp = poolData.liquidity;
-      if (secondsElapsed > 0 && lp > 0) {
+      uint128 baseL = poolData.baseL;
+      if (secondsElapsed > 0 && baseL > 0) {
         unchecked {
-          secondsPerLiquidityInside += uint128((secondsElapsed << 96) / lp);
+          secondsPerLiquidityInside += uint128((secondsElapsed << 96) / baseL);
         }
       }
     }
