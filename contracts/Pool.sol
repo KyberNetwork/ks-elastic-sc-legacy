@@ -129,7 +129,8 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         QtyDeltaMath.calcRequiredQty0(
           TickMath.getSqrtRatioAtTick(posData.tickLower),
           TickMath.getSqrtRatioAtTick(posData.tickUpper),
-          posData.liquidityDelta
+          posData.liquidityDelta,
+          posData.isAdd
         ),
         0,
         feeGrowthInsideLast
@@ -146,7 +147,8 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         QtyDeltaMath.calcRequiredQty1(
           TickMath.getSqrtRatioAtTick(posData.tickLower),
           TickMath.getSqrtRatioAtTick(posData.tickUpper),
-          posData.liquidityDelta
+          posData.liquidityDelta,
+          posData.isAdd
         ),
         feeGrowthInsideLast
       );
@@ -155,17 +157,23 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     qty0 = QtyDeltaMath.calcRequiredQty0(
       sqrtP,
       TickMath.getSqrtRatioAtTick(posData.tickUpper),
-      posData.liquidityDelta
+      posData.liquidityDelta,
+      posData.isAdd
     );
     qty1 = QtyDeltaMath.calcRequiredQty1(
       TickMath.getSqrtRatioAtTick(posData.tickLower),
       sqrtP,
-      posData.liquidityDelta
+      posData.liquidityDelta,
+      posData.isAdd
     );
 
     // in addition, add liquidityDelta to current poolData.baseL
     // since liquidity is in range
-    poolData.baseL = LiqDeltaMath.addLiquidityDelta(baseL, posData.liquidityDelta);
+    poolData.baseL = LiqDeltaMath.applyLiquidityDelta(
+      baseL,
+      posData.liquidityDelta,
+      posData.isAdd
+    );
   }
 
   /// @inheritdoc IPoolActions
@@ -197,7 +205,8 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         tickUpper: tickUpper,
         tickLowerPrevious: ticksPrevious[0],
         tickUpperPrevious: ticksPrevious[1],
-        liquidityDelta: int256(uint256(qty)).toInt128()
+        liquidityDelta: qty,
+        isAdd: true
       })
     );
     qty0 = uint256(qty0Int);
@@ -239,7 +248,8 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         tickUpper: tickUpper,
         tickLowerPrevious: 0, // no use as there is no insertion
         tickUpperPrevious: 0, // no use as there is no insertion
-        liquidityDelta: int256(type(uint256).max - uint256(qty) + 1).toInt128()
+        liquidityDelta: qty,
+        isAdd: false
       })
     );
 

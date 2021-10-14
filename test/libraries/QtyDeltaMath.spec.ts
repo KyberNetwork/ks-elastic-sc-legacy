@@ -19,29 +19,35 @@ describe('QtyDeltaMath', () => {
 
   describe('#calcRequiredQty0', async () => {
     it('should revert if price is 0', async () => {
-      await expect(qtyDeltaMath.calcRequiredQty0(ZERO, TWO_POW_96, ONE)).to.be.reverted;
-      await expect(qtyDeltaMath.calcRequiredQty0(TWO_POW_96, ZERO, ONE)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(ZERO, TWO_POW_96, ONE, true)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(ZERO, TWO_POW_96, ONE, false)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(TWO_POW_96, ZERO, ONE, true)).to.be.reverted;
+      await expect(qtyDeltaMath.calcRequiredQty0(TWO_POW_96, ZERO, ONE, false)).to.be.reverted;
     });
 
     it('should return 0 if liquidity is 0', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, true)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, false)).to.be.eql(ZERO);
     });
 
     it('should return 0 if prices are equal', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eql(ZERO);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {
       const amount0Up = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
-        PRECISION
+        PRECISION,
+        true
       );
       expect(amount0Up).to.eq('90909090909090910');
       const amount0Down = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
-        PRECISION.mul(NEGATIVE_ONE)
+        PRECISION,
+        false
       );
       expect(amount0Down.mul(NEGATIVE_ONE)).to.eq(amount0Up.sub(1));
     });
@@ -50,12 +56,14 @@ describe('QtyDeltaMath', () => {
       const amount0Up = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
-        PRECISION
+        PRECISION,
+        true
       );
       const amount0Down = await qtyDeltaMath.calcRequiredQty0(
         encodePriceSqrt(TWO.pow(90), 1),
         encodePriceSqrt(TWO_POW_96, 1),
-        PRECISION.mul(NEGATIVE_ONE)
+        PRECISION,
+        false
       );
       expect(amount0Down.mul(NEGATIVE_ONE)).to.eq(amount0Up.sub(1));
     });
@@ -83,29 +91,31 @@ describe('QtyDeltaMath', () => {
     // })
   });
 
-  describe('#getAmount1Delta', () => {
+  describe('#calcRequiredQty1', () => {
     it('returns 0 if liquidity is 0', async () => {
-      const amount1 = await qtyDeltaMath.calcRequiredQty1(ONE, TWO, 0);
-      expect(amount1).to.eq(0);
+      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, true)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, false)).to.be.eql(ZERO);
     });
 
-    it('returns 0 if prices are equal', async () => {
-      const amount1 = await qtyDeltaMath.calcRequiredQty1(ONE, ONE, 0);
-      expect(amount1).to.eq(0);
+    it('should return 0 if prices are equal', async () => {
+      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eql(ZERO);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {
       const amount1Up = await qtyDeltaMath.calcRequiredQty1(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
-        PRECISION
+        PRECISION,
+        true
       );
       expect(amount1Up).to.eq('100000000000000000');
 
       const amount1Down = await qtyDeltaMath.calcRequiredQty1(
         encodePriceSqrt(1, 1),
         encodePriceSqrt(121, 100),
-        PRECISION.mul(NEGATIVE_ONE)
+        PRECISION,
+        false
       );
       expect(amount1Down.mul(NEGATIVE_ONE)).to.eq(amount1Up.sub(1));
     });

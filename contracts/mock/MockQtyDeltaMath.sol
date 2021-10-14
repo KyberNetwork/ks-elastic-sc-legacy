@@ -7,17 +7,19 @@ contract MockQtyDeltaMath {
   function calcRequiredQty0(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
-    int128 liquidity
+    uint128 liquidity,
+    bool isAdd
   ) external pure returns (int256) {
-    return QtyDeltaMath.calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity);
+    return QtyDeltaMath.calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity, isAdd);
   }
 
   function calcRequiredQty1(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
-    int128 liquidity
+    uint128 liquidity,
+    bool isAdd
   ) external pure returns (int256) {
-    return QtyDeltaMath.calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity);
+    return QtyDeltaMath.calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity, isAdd);
   }
 
   function getQtyFromBurnRTokens(uint160 sqrtP, uint256 lfDelta)
