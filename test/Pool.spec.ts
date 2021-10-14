@@ -1418,7 +1418,7 @@ describe('Pool', () => {
 
         // do some random swaps to accumulate fees
         await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-        // do a couple of small swaps so that lf is incremented but not lfLast
+        // do a couple of small swaps so that reinvestL is incremented but not reinvestLLast
         await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION);
         // should have minted and sent rTokens to feeTo
@@ -1478,7 +1478,7 @@ describe('Pool', () => {
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, -100, 100, ticksPrevious, PRECISION, '0x');
-        // do swaps to increment lf
+        // do swaps to increment reinvestL
         await swapToUpTick(pool, user, 50);
         await swapToDownTick(pool, user, 0);
         // burn to mint rTokens
@@ -1493,7 +1493,7 @@ describe('Pool', () => {
         );
       });
 
-      it('should have decremented lf and lfLast, and sent token0 and token1 to user', async () => {
+      it('should have decremented reinvestL and reinvestLLast, and sent token0 and token1 to user', async () => {
         let beforeLiquidityState = await pool.getLiquidityState();
         let userRTokenBalance = await pool.balanceOf(user.address);
         let token0BalanceBefore = await token0.balanceOf(user.address);
@@ -1508,7 +1508,7 @@ describe('Pool', () => {
 
       it('should mint and increment pool fee growth global if rMintQty > 0', async () => {
         let userRTokenBalance = await pool.balanceOf(user.address);
-        // do a couple of small swaps so that lf is incremented but not lfLast
+        // do a couple of small swaps so that reinvestL is incremented but not reinvestLLast
         await doRandomSwaps(pool, user, 3, BN.from(10_000_000));
         let reinvestmentState = await pool.getLiquidityState();
         let beforeFeeGrowth = await pool.getFeeGrowthGlobal();
@@ -1521,7 +1521,7 @@ describe('Pool', () => {
         // set non-zero and feeTo in factory
         await factory.updateFeeConfiguration(configMaster.address, 1000);
         let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
-        // swap till lf > lfLast
+        // swap till reinvestL > reinvestLLast
         let result = await pool.getLiquidityState();
         while (result.reinvestL.eq(result.reinvestLLast)) {
           await doRandomSwaps(pool, user, 1, BN.from(10_000_000));
@@ -1550,7 +1550,7 @@ describe('Pool', () => {
         tickUpper = nearestTickToPrice + 1000;
 
         await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-        // do swaps to increment lf
+        // do swaps to increment reinvestL
         await swapToUpTick(pool, user, tickUpper);
         await swapToDownTick(pool, user, tickLower);
         // burn to mint rTokens
@@ -1578,7 +1578,7 @@ describe('Pool', () => {
         tickUpper = nearestTickToPrice + 1000;
 
         await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-        // do swaps to increment lf
+        // do swaps to increment reinvestL
         await swapToUpTick(pool, user, tickUpper);
         await swapToDownTick(pool, user, tickLower);
         // burn to mint rTokens
