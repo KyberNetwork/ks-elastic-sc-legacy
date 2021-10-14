@@ -27,7 +27,7 @@ contract PoolTicksState is PoolStorage {
     // any change in liquidity
     uint128 liquidityDelta;
     // true = adding liquidity, false = removing liquidity
-    bool isAdd;
+    bool isAddLiquidity;
   }
 
   function _updatePosition(
@@ -41,7 +41,7 @@ contract PoolTicksState is PoolStorage {
       currentTick,
       updateData.tickLowerPrevious,
       updateData.liquidityDelta,
-      updateData.isAdd,
+      updateData.isAddLiquidity,
       cumulatives,
       true
     );
@@ -51,7 +51,7 @@ contract PoolTicksState is PoolStorage {
       currentTick,
       updateData.tickUpperPrevious,
       updateData.liquidityDelta,
-      updateData.isAdd,
+      updateData.isAddLiquidity,
       cumulatives,
       false
     );
@@ -163,7 +163,7 @@ contract PoolTicksState is PoolStorage {
     positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
       prevLiquidity,
       _data.liquidityDelta,
-      _data.isAdd
+      _data.isAddLiquidity
     );
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }

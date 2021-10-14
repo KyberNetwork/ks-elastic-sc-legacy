@@ -7,8 +7,8 @@ contract MockLiqDeltaMath {
   function applyLiquidityDelta(
     uint128 liquidity,
     uint128 liquidityDelta,
-    bool isAdd
+    bool isAddLiquidity
   ) external pure returns (uint256) {
-    return LiqDeltaMath.applyLiquidityDelta(liquidity, liquidityDelta, isAdd);
+    return LiqDeltaMath.applyLiquidityDelta(liquidity, liquidityDelta, isAddLiquidity);
   }
 }

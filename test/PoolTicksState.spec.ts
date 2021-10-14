@@ -91,7 +91,7 @@ describe('PoolTicksState', () => {
             tickUpper: 200,
             tickLowerPrevious: MIN_TICK,
             tickUpperPrevious: MIN_TICK,
-            isAdd: true
+            isAddLiquidity: true
           },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
@@ -114,7 +114,7 @@ describe('PoolTicksState', () => {
             tickUpper: 100,
             tickLowerPrevious: MIN_TICK,
             tickUpperPrevious: MIN_TICK,
-            isAdd: true
+            isAddLiquidity: true
           },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
@@ -147,7 +147,7 @@ describe('PoolTicksState', () => {
           tickUpper: 200,
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
-          isAdd: true
+          isAddLiquidity: true
         },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
@@ -160,7 +160,7 @@ describe('PoolTicksState', () => {
           tickUpper: 100,
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
-          isAdd: true
+          isAddLiquidity: true
         },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
@@ -217,7 +217,7 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAdd: true
+          isAddLiquidity: true
         },
         0,
         {
@@ -237,7 +237,7 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAdd: true
+          isAddLiquidity: true
         },
         0,
         {
@@ -260,7 +260,7 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAdd: true
+          isAddLiquidity: true
         },
         0,
         {
@@ -276,7 +276,7 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAdd: true
+          isAddLiquidity: true
         },
         0,
         {
@@ -293,7 +293,7 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAdd: false
+          isAddLiquidity: false
         },
         0,
         {
@@ -325,7 +325,7 @@ describe('PoolTicksState', () => {
         tickLowerPrevious: MIN_TICK,
         tickUpperPrevious: MIN_TICK,
         liquidityDelta: 10,
-        isAdd: true
+        isAddLiquidity: true
       },
       0,
       {
@@ -343,7 +343,7 @@ describe('PoolTicksState', () => {
         tickLowerPrevious: MIN_TICK,
         tickUpperPrevious: MIN_TICK,
         liquidityDelta: 10,
-        isAdd: true
+        isAddLiquidity: true
       },
       0,
       {

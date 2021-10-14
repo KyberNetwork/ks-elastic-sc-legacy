@@ -8,7 +8,7 @@ exports[`Pool #mint after unlockPool successful mints position above current tic
 
 exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"280139"`;
 
-exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"163694"`;
+exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"163696"`;
 
 exports[`Pool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"234190"`;
 

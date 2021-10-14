@@ -130,7 +130,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
           TickMath.getSqrtRatioAtTick(posData.tickLower),
           TickMath.getSqrtRatioAtTick(posData.tickUpper),
           posData.liquidityDelta,
-          posData.isAdd
+          posData.isAddLiquidity
         ),
         0,
         feeGrowthInsideLast
@@ -148,7 +148,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
           TickMath.getSqrtRatioAtTick(posData.tickLower),
           TickMath.getSqrtRatioAtTick(posData.tickUpper),
           posData.liquidityDelta,
-          posData.isAdd
+          posData.isAddLiquidity
         ),
         feeGrowthInsideLast
       );
@@ -158,13 +158,13 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
       sqrtP,
       TickMath.getSqrtRatioAtTick(posData.tickUpper),
       posData.liquidityDelta,
-      posData.isAdd
+      posData.isAddLiquidity
     );
     qty1 = QtyDeltaMath.calcRequiredQty1(
       TickMath.getSqrtRatioAtTick(posData.tickLower),
       sqrtP,
       posData.liquidityDelta,
-      posData.isAdd
+      posData.isAddLiquidity
     );
 
     // in addition, add liquidityDelta to current poolData.baseL
@@ -172,7 +172,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     poolData.baseL = LiqDeltaMath.applyLiquidityDelta(
       baseL,
       posData.liquidityDelta,
-      posData.isAdd
+      posData.isAddLiquidity
     );
   }
 
@@ -206,7 +206,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         tickLowerPrevious: ticksPrevious[0],
         tickUpperPrevious: ticksPrevious[1],
         liquidityDelta: qty,
-        isAdd: true
+        isAddLiquidity: true
       })
     );
     qty0 = uint256(qty0Int);
@@ -249,7 +249,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
         tickLowerPrevious: 0, // no use as there is no insertion
         tickUpperPrevious: 0, // no use as there is no insertion
         liquidityDelta: qty,
-        isAdd: false
+        isAddLiquidity: false
       })
     );
 

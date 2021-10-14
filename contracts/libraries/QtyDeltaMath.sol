@@ -26,15 +26,16 @@ library QtyDeltaMath {
   /// @param lowerSqrtP The lower sqrt price
   /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
   /// @param liquidity Liquidity delta for which to compute the token0 delta
+  /// @param isAddLiquidity true = adding liquidity, false = removing liquidity
   /// @return token0 quantity corresponding to the liquidity between the two ticks
   function calcRequiredQty0(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
     uint128 liquidity,
-    bool isAdd
+    bool isAddLiquidity
   ) internal pure returns (int256) {
     return
-      isAdd
+      isAddLiquidity
         ? _calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity, true).toInt256()
         : _calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity, false).revToInt256();
   }
@@ -43,15 +44,16 @@ library QtyDeltaMath {
   /// @param lowerSqrtP The lower sqrt price
   /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
   /// @param liquidity Liquidity delta for which to compute the token1 delta
+  /// @param isAddLiquidity true = adding liquidity, false = removing liquidity
   /// @return token1 quantity corresponding to the liquidity between the two ticks
   function calcRequiredQty1(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
     uint128 liquidity,
-    bool isAdd
+    bool isAddLiquidity
   ) internal pure returns (int256) {
     return
-      isAdd
+      isAddLiquidity
         ? _calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity, true).toInt256()
         : _calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity, false).revToInt256();
   }
