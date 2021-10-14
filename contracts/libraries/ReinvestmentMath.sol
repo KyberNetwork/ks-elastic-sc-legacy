@@ -4,9 +4,7 @@ pragma solidity >=0.8.0;
 import {MathConstants as C} from './MathConstants.sol';
 import {FullMath} from './FullMath.sol';
 
-/// @title Contains helper functions for calculating
-/// reinvestment variables, like token amount to be minted (rMintQty),
-/// new reinvestment token supply and fee growth
+/// @title Contains helper function to calculate the number of reinvestment tokens to be minted
 library ReinvestmentMath {
   /// @dev calculate the mint amount with given reinvestL, reinvestLLast, baseL and rTotalSupply
   /// contribution of lp to the increment is calculated by the proportion of baseL with reinvestL + baseL

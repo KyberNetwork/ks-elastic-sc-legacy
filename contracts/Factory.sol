@@ -119,7 +119,7 @@ contract Factory is BaseSplitCodeFactory, IFactory {
   }
 
   // Removes a whitelisted NFT manager
-  // Returns true if addition was successful, that is if it was not already present
+  // Returns true if removal was successful, that is if it was not already present
   function removeNFTManager(address _nftManager) external onlyConfigMaster returns (bool removed) {
     removed = whitelistedNFTManagers.remove(_nftManager);
     emit NFTManagerRemoved(_nftManager, removed);

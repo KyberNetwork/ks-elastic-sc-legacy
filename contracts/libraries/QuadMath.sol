@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0;
 
 library QuadMath {
-  // our equation is ax^2 - 2bx + c = 0, b > 0
+  // our equation is ax^2 - 2bx + c = 0, where a, b and c > 0
   // the qudratic formula to obtain the smaller root is (2b - sqrt((2*b)^2 - 4ac)) / 2a
   // which can be simplified to (b - sqrt(b^2 - ac)) / a
   function getSmallerRootOfQuadEqn(

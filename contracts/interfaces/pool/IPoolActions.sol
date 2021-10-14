@@ -8,13 +8,13 @@ interface IPoolActions {
   /// implement the mint callback as well
   /// @param initialSqrtP the initial sqrt price of the pool
   /// @param data Data (if any) to be passed through to the callback
-  /// @param qty0 token0 quantity sent to the pool in exchange for the minted liquidity.
-  /// @param qty1 token1 quantity sent to the pool in exchange for the minted liquidity.
+  /// @param qty0 token0 quantity sent to and locked permanently in the pool
+  /// @param qty1 token1 quantity sent to and locked permanently in the pool
   function unlockPool(uint160 initialSqrtP, bytes calldata data)
     external
     returns (uint256 qty0, uint256 qty1);
 
-  /// @notice Adds liquidity for the specifient recipient/tickLower/tickUpper position
+  /// @notice Adds liquidity for the specified recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when
   /// the IMintCallback#mintCallback is called to this method's caller
   /// The quantity of token0/token1 to be sent depends on
@@ -46,15 +46,15 @@ interface IPoolActions {
       uint256 feeGrowthInside
     );
 
-  /// @notice Remove liquidity from the sender
-  /// Also sends reinvestment tokens (fees) to the recipient for any fees collected
+  /// @notice Remove liquidity from the caller
+  /// Also sends reinvestment tokens (fees) to the caller for any fees collected
   /// while the position is in range
   /// Reinvestment tokens have to be burnt via #burnRTokens in exchange for token0 and token1
   /// @param tickLower Position's lower tick for which to burn liquidity
   /// @param tickUpper Position's upper tick for which to burn liquidity
   /// @param qty Liquidity quantity to burn
-  /// @return qty0 token0 quantity sent to the recipient
-  /// @return qty1 token1 quantity sent to the recipient
+  /// @return qty0 token0 quantity sent to the caller
+  /// @return qty1 token1 quantity sent to the caller
   /// @return feeGrowthInside position's updated feeGrowthInside value
   function burn(
     int24 tickLower,
@@ -70,8 +70,8 @@ interface IPoolActions {
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1
   /// @param qty Reinvestment token quantity to burn
-  /// @return qty0 token0 quantity sent to the recipient for burnt reinvestment tokens
-  /// @return qty1 token1 quantity sent to the recipient for burnt reinvestment tokens
+  /// @return qty0 token0 quantity sent to the caller for burnt reinvestment tokens
+  /// @return qty1 token1 quantity sent to the caller for burnt reinvestment tokens
   function burnRTokens(uint256 qty, bool isLogicalBurn)
     external
     returns (uint256 qty0, uint256 qty1);
@@ -83,7 +83,7 @@ interface IPoolActions {
   /// @param swapQty The swap quantity, which implicitly configures the swap as exact input (>0), or exact output (<0)
   /// @param isToken0 Whether the swapQty is specified in token0 (true) or token1 (false)
   /// @param limitSqrtP the limit of sqrt price after swapping
-  /// could be MAX_SQRT_RATIO-1 when swapping 1 -> 0 and  MIN_SQRT_RATIO+1 when swapping 0 -> 1 for no limit swap
+  /// could be MAX_SQRT_RATIO-1 when swapping 1 -> 0 and MIN_SQRT_RATIO+1 when swapping 0 -> 1 for no limit swap
   /// @param data Any data to be passed through to the callback
   /// @return qty0 Exact token0 qty sent to recipient if < 0. Minimally received quantity if > 0.
   /// @return qty1 Exact token1 qty sent to recipient if < 0. Minimally received quantity if > 0.
@@ -98,8 +98,8 @@ interface IPoolActions {
   /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
   /// @dev The caller of this method receives a callback in the form of IFlashCallback#flashCallback
   /// @dev Fees collected are distributed to all rToken holders
-  /// since no rTokens minted from it
-  /// @param recipient The address which will receive the token0 and token1 amounts
+  /// since no rTokens are minted from it
+  /// @param recipient The address which will receive the token0 and token1 quantities
   /// @param qty0 token0 quantity to be loaned to the recipient
   /// @param qty1 token1 quantity to be loaned to the recipient
   /// @param data Any data to be passed through to the callback
