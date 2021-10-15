@@ -184,13 +184,7 @@ contract PoolTicksState is PoolStorage {
     bool isAdd,
     CumulativesData memory cumulatives,
     bool isLower
-  )
-    private
-    returns (
-      // tickPrevious,
-      uint256 feeGrowthOutside
-    )
-  {
+  ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
     uint128 liquidityGrossAfter = LiqDeltaMath.applyLiquidityDelta(
       liquidityGrossBefore,

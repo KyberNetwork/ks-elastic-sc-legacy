@@ -2,13 +2,13 @@
 
 exports[`Pool #flash after unlockPool #gas flash [ @skip-on-coverage ] 1`] = `"99940"`;
 
-exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"242467"`;
+exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"242395"`;
 
-exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"165398"`;
+exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"165326"`;
 
-exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"301730"`;
+exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"301586"`;
 
-exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"165627"`;
+exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"180444"`;
 
 exports[`Pool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"256319"`;
 
