@@ -11,7 +11,8 @@ import {Linkedlist} from './libraries/Linkedlist.sol';
 import {PoolStorage} from './PoolStorage.sol';
 
 contract PoolTicksState is PoolStorage {
-  using SafeCast for int256;
+  using SafeCast for int128;
+  using SafeCast for uint128;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
 
   struct UpdatePositionData {
@@ -24,7 +25,9 @@ contract PoolTicksState is PoolStorage {
     int24 tickLowerPrevious;
     int24 tickUpperPrevious;
     // any change in liquidity
-    int128 liquidityDelta;
+    uint128 liquidityDelta;
+    // true = adding liquidity, false = removing liquidity
+    bool isAddLiquidity;
   }
 
   function _updatePosition(
@@ -38,6 +41,7 @@ contract PoolTicksState is PoolStorage {
       currentTick,
       updateData.tickLowerPrevious,
       updateData.liquidityDelta,
+      updateData.isAddLiquidity,
       cumulatives,
       true
     );
@@ -47,6 +51,7 @@ contract PoolTicksState is PoolStorage {
       currentTick,
       updateData.tickUpperPrevious,
       updateData.liquidityDelta,
+      updateData.isAddLiquidity,
       cumulatives,
       false
     );
@@ -90,7 +95,11 @@ contract PoolTicksState is PoolStorage {
       newNextTick = initializedTicks[nextTick].previous;
       liquidityNet = -liquidityNet;
     }
-    newLiquidity = LiqDeltaMath.addLiquidityDelta(currentLiquidity, liquidityNet);
+    newLiquidity = LiqDeltaMath.applyLiquidityDelta(
+      currentLiquidity,
+      liquidityNet >= 0 ? uint128(liquidityNet) : liquidityNet.revToUint128(),
+      liquidityNet >= 0
+    );
   }
 
   function _updatePoolData(
@@ -151,7 +160,11 @@ contract PoolTicksState is PoolStorage {
     uint128 prevLiquidity = positions[key].liquidity;
     feesClaimable = FullMath.mulDivFloor(feeGrowth, prevLiquidity, MathConstants.TWO_POW_96);
     // update the position
-    positions[key].liquidity = LiqDeltaMath.addLiquidityDelta(prevLiquidity, _data.liquidityDelta);
+    positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
+      prevLiquidity,
+      _data.liquidityDelta,
+      _data.isAddLiquidity
+    );
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }
 
@@ -167,27 +180,25 @@ contract PoolTicksState is PoolStorage {
     int24 tick,
     int24 tickCurrent,
     int24 tickPrevious,
-    int128 liquidityDelta,
+    uint128 liquidityDelta,
+    bool isAdd,
     CumulativesData memory cumulatives,
     bool isLower
-  )
-    private
-    returns (
-      // tickPrevious,
-      uint256 feeGrowthOutside
-    )
-  {
+  ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
-    uint128 liquidityGrossAfter = LiqDeltaMath.addLiquidityDelta(
+    uint128 liquidityGrossAfter = LiqDeltaMath.applyLiquidityDelta(
       liquidityGrossBefore,
-      liquidityDelta
+      liquidityDelta,
+      isAdd
     );
     require(liquidityGrossAfter <= maxTickLiquidity, '> max liquidity');
+    int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
+
     // if lower tick, liquidityDelta should be added | removed when crossed up | down
     // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
     int128 liquidityNetAfter = isLower
-      ? ticks[tick].liquidityNet + liquidityDelta
-      : ticks[tick].liquidityNet - liquidityDelta;
+      ? ticks[tick].liquidityNet + signedLiquidityDelta
+      : ticks[tick].liquidityNet - signedLiquidityDelta;
 
     if (liquidityGrossBefore == 0) {
       // by convention, all growth before a tick was initialized is assumed to happen below it
@@ -206,7 +217,7 @@ contract PoolTicksState is PoolStorage {
     }
 
     if ((liquidityGrossBefore > 0) != (liquidityGrossAfter > 0)) {
-      _updateTickList(tick, tickPrevious, tickCurrent, liquidityDelta > 0);
+      _updateTickList(tick, tickPrevious, tickCurrent, isAdd);
     }
   }
 

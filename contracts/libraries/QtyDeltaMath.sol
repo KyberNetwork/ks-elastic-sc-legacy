@@ -25,79 +25,50 @@ library QtyDeltaMath {
   /// @notice Gets the qty0 delta between two prices
   /// @dev Calculates liquidity / sqrt(lower) - liquidity / sqrt(upper),
   /// i.e. liquidity * (sqrt(upper) - sqrt(lower)) / (sqrt(upper) * sqrt(lower))
+  /// rounds up if adding liquidity, rounds down if removing liquidity
   /// @param lowerSqrtP The lower sqrt price.
   /// @param upperSqrtP The upper sqrt price. Should be >= lowerSqrtP
   /// @param liquidity Liquidity quantity
-  /// @param roundUp Whether to round the result up or down
+  /// @param isAddLiquidity true = add liquidity, false = remove liquidity
   /// @return token0 qty required for position with liquidity between the 2 sqrt prices
   function calcRequiredQty0(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
     uint128 liquidity,
-    bool roundUp
-  ) internal pure returns (uint256) {
+    bool isAddLiquidity
+  ) internal pure returns (int256) {
     uint256 numerator1 = uint256(liquidity) << C.RES_96;
     uint256 numerator2;
     unchecked {
       numerator2 = upperSqrtP - lowerSqrtP;
     }
     return
-      roundUp
-        ? divCeiling(FullMath.mulDivCeiling(numerator1, numerator2, upperSqrtP), lowerSqrtP)
-        : FullMath.mulDivFloor(numerator1, numerator2, upperSqrtP) / lowerSqrtP;
+      isAddLiquidity
+        ? (divCeiling(FullMath.mulDivCeiling(numerator1, numerator2, upperSqrtP), lowerSqrtP))
+          .toInt256()
+        : (FullMath.mulDivFloor(numerator1, numerator2, upperSqrtP) / lowerSqrtP).revToInt256();
   }
 
   /// @notice Gets the token1 delta quantity between two prices
   /// @dev Calculates liquidity * (sqrt(upper) - sqrt(lower))
+  /// rounds up if adding liquidity, rounds down if removing liquidity
   /// @param lowerSqrtP The lower sqrt price.
   /// @param upperSqrtP The upper sqrt price. Should be >= lowerSqrtP
   /// @param liquidity Liquidity quantity
-  /// @param roundUp Whether to round the result up or down
+  /// @param isAddLiquidity true = add liquidity, false = remove liquidity
   /// @return token1 qty required for position with liquidity between the 2 sqrt prices
   function calcRequiredQty1(
     uint160 lowerSqrtP,
     uint160 upperSqrtP,
     uint128 liquidity,
-    bool roundUp
-  ) internal pure returns (uint256) {
+    bool isAddLiquidity
+  ) internal pure returns (int256) {
     unchecked {
       return
-        roundUp
-          ? FullMath.mulDivCeiling(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96)
-          : FullMath.mulDivFloor(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96);
+        isAddLiquidity
+          ? (FullMath.mulDivCeiling(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96)).toInt256()
+          : (FullMath.mulDivFloor(liquidity, upperSqrtP - lowerSqrtP, C.TWO_POW_96)).revToInt256();
     }
-  }
-
-  /// @notice Gets token0 qty required for liquidity between the two ticks
-  /// @param lowerSqrtP The lower sqrt price
-  /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
-  /// @param liquidity Liquidity delta for which to compute the token0 delta
-  /// @return token0 quantity corresponding to the liquidity between the two ticks
-  function calcRequiredQty0(
-    uint160 lowerSqrtP,
-    uint160 upperSqrtP,
-    int128 liquidity
-  ) internal pure returns (int256) {
-    return
-      (liquidity < 0)
-        ? calcRequiredQty0(lowerSqrtP, upperSqrtP, liquidity.revToUint128(), false).revToInt256()
-        : calcRequiredQty0(lowerSqrtP, upperSqrtP, uint128(liquidity), true).toInt256();
-  }
-
-  /// @notice Gets token0 qty required for liquidity between the two ticks
-  /// @param lowerSqrtP The lower sqrt price
-  /// @param upperSqrtP The upper sqrt price, assumed to be > lowerSqrtP
-  /// @param liquidity Liquidity delta for which to compute the token1 delta
-  /// @return token1 quantity corresponding to the liquidity between the two ticks
-  function calcRequiredQty1(
-    uint160 lowerSqrtP,
-    uint160 upperSqrtP,
-    int128 liquidity
-  ) internal pure returns (int256) {
-    return
-      liquidity < 0
-        ? calcRequiredQty1(lowerSqrtP, upperSqrtP, liquidity.revToUint128(), false).revToInt256()
-        : calcRequiredQty1(lowerSqrtP, upperSqrtP, uint128(liquidity), true).toInt256();
   }
 
   /// @notice Calculates the token0 quantity proportion to be sent to the user

@@ -74,70 +74,33 @@ describe('SafeCast', () => {
     });
   }
 
-  describe(`int256 -> toInt128`, async () => {
-    const minValue = MIN_INT_128;
-    const maxValue = MAX_INT_128;
+  [128, 256].forEach((bits) => testToInt(bits));
 
-    it('should downcast 0', async function () {
-      expect(await safeCast.toInt128(0)).to.be.eq(0);
+  function testToInt(bits: number) {
+    describe(`uint${bits} -> toInt${bits}`, async () => {
+      const maxValue = TWO.pow(bits - 1).sub(ONE);
+
+      it('should downcast 0', async function () {
+        expect(await safeCast[`toInt${bits}`](0)).to.be.eq(0);
+      });
+
+      it('should downcast 1', async function () {
+        expect(await safeCast[`toInt${bits}`](1)).to.be.eq(1);
+      });
+
+      it(`should downcast 2^255 - 1 (${maxValue})`, async () => {
+        expect(await safeCast[`toInt${bits}`](maxValue)).to.be.eq(maxValue);
+      });
+
+      it(`reverts when downcasting 2^255 (${maxValue.add(ONE)})`, async () => {
+        await expect(safeCast[`toInt${bits}`](maxValue.add(ONE))).to.be.reverted;
+      });
+
+      it(`reverts when downcasting 2^255 + 1 (${maxValue.add(TWO)})`, async () => {
+        await expect(safeCast[`toInt${bits}`](maxValue.add(TWO))).to.be.reverted;
+      });
     });
-
-    it('should downcast 1', async function () {
-      expect(await safeCast.toInt128(1)).to.be.eq(1);
-    });
-
-    it('should downcast -1', async function () {
-      expect(await safeCast.toInt128(-1)).to.be.eq(-1);
-    });
-
-    it(`should downcast -2^127 (${minValue})`, async function () {
-      expect(await safeCast.toInt128(minValue)).to.be.eq(minValue);
-    });
-
-    it(`should downcast 2^127 - 1 (${maxValue})`, async function () {
-      expect(await safeCast.toInt128(maxValue)).to.be.eq(maxValue);
-    });
-
-    it(`reverts when downcasting -2^127 - 1 (${minValue.sub(ONE)})`, async function () {
-      await expect(safeCast.toInt128(minValue.sub(ONE))).to.be.reverted;
-    });
-
-    it(`reverts when downcasting -2^127 - 2 (${minValue.sub(TWO)})`, async () => {
-      await expect(safeCast.toInt128(minValue.sub(TWO))).to.be.reverted;
-    });
-
-    it(`reverts when downcasting 2^127 (${maxValue.add(ONE)})`, async () => {
-      await expect(safeCast.toInt128(maxValue.add(ONE))).to.be.reverted;
-    });
-
-    it(`reverts when downcasting 2^127 + 1 (${maxValue.add(TWO)})`, async () => {
-      await expect(safeCast.toInt128(maxValue.add(TWO))).to.be.reverted;
-    });
-  });
-
-  describe(`uint256 -> toint256`, async () => {
-    const maxValue = TWO.pow(255).sub(ONE);
-
-    it('should downcast 0', async function () {
-      expect(await safeCast.toInt256(0)).to.be.eq(0);
-    });
-
-    it('should downcast 1', async function () {
-      expect(await safeCast.toInt256(1)).to.be.eq(1);
-    });
-
-    it(`should downcast 2^255 - 1 (${maxValue})`, async () => {
-      expect(await safeCast.toInt256(maxValue)).to.be.eq(maxValue);
-    });
-
-    it(`reverts when downcasting 2^255 (${maxValue.add(ONE)})`, async () => {
-      await expect(safeCast.toInt256(maxValue.add(ONE))).to.be.reverted;
-    });
-
-    it(`reverts when downcasting 2^255 + 1 (${maxValue.add(TWO)})`, async () => {
-      await expect(safeCast.toInt256(maxValue.add(TWO))).to.be.reverted;
-    });
-  });
+  }
 
   describe(`uint256 -> revToInt256`, async () => {
     const maxValue = TWO.pow(255).sub(ONE);
