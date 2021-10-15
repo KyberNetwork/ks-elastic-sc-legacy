@@ -75,7 +75,7 @@ describe('BasePositionManager', () => {
 
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
+      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
         await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
@@ -149,7 +149,7 @@ describe('BasePositionManager', () => {
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let poolState = await poolContract.getPoolState();
       expect(poolState.sqrtP).to.be.eq(initialPrice);
-      expect(poolState._locked).to.be.eq(isLocked);
+      expect(poolState.locked).to.be.eq(isLocked);
     };
 
     it(`create new pool and unlock with tokens`, async () => {

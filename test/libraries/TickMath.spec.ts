@@ -56,28 +56,6 @@ describe('TickMath', () => {
     it('max tick', async () => {
       expect(await tickMath.getSqrtRatioAtTick(MAX_TICK)).to.eq('1461446703485210103287273052203988822378723970342');
     });
-
-    // TODO: review gas cost later
-    // for (const absTick of [
-    //   50, 100, 250, 500, 1_000, 2_500, 3_000, 4_000, 5_000, 50_000, 150_000, 250_000, 500_000, 738_203,
-    // ]) {
-    //   for (const tick of [-absTick, absTick]) {
-    //     describe(`tick ${tick}`, () => {
-    //       it('is at most off by 1/100th of a bips', async () => {
-    //         const jsResult = new Decimal(1.0001).pow(tick).sqrt().mul(new Decimal(2).pow(96));
-    //         const result = await tickMath.getSqrtRatioAtTick(tick);
-    //         const absDiff = new Decimal(result.toString()).sub(jsResult).abs();
-    //         expect(absDiff.div(jsResult).toNumber()).to.be.lt(0.000001);
-    //       });
-    //       it('result', async () => {
-    //         expect((await tickMath.getSqrtRatioAtTick(tick)).toString()).to.matchSnapshot();
-    //       });
-    //       it('gas', async () => {
-    //         await snapshotGasCost(tickMath.getGasCostOfGetSqrtRatioAtTick(tick));
-    //       });
-    //     });
-    //   }
-    // }
   });
 
   describe('#MIN_SQRT_RATIO', async () => {

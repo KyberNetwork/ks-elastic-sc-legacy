@@ -7,6 +7,7 @@ import {
   MockToken,
   Pool__factory,
   MockCallbacks2,
+  MockPool,
 } from '../../typechain';
 import {ethers} from 'hardhat';
 import {BigNumberish, BigNumber as BN} from 'ethers';
@@ -69,7 +70,7 @@ export async function setupPoolWithLiquidity(
  * @return lower nearest ticks to the tickLower and tickUpper
  */
 export async function getTicksPrevious(
-  pool: Pool,
+  pool: Pool | MockPool,
   tickLower: BigNumberish,
   tickUpper: BigNumberish
 ): Promise<[BN, BN]> {

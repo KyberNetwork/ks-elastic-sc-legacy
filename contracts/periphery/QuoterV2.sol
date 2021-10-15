@@ -55,7 +55,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
     (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
     IPool pool = _getPool(tokenIn, tokenOut, feeBps);
     require(address(pool) == msg.sender, 'invalid sender');
-    (uint160 afterSqrtP, , int24 nearestCurrentTickAfter, , ) = pool.getPoolState();
+    (uint160 afterSqrtP, , int24 nearestCurrentTickAfter, ) = pool.getPoolState();
 
     (bool isExactInput, uint256 amountToPay, uint256 amountReceived) = amount0Delta > 0
       ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
@@ -112,7 +112,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
   ) private view returns (QuoteOutput memory output) {
     int24 nearestCurrentTickBefore;
     int24 nearestCurrentTickAfter;
-    (, , nearestCurrentTickBefore, , ) = pool.getPoolState();
+    (, , nearestCurrentTickBefore, ) = pool.getPoolState();
     (
       output.usedAmount,
       output.returnedAmount,

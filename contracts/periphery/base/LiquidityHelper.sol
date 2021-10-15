@@ -73,7 +73,7 @@ abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
 
     // compute the liquidity amount
     {
-      (uint160 currentSqrtP, , , , ) = pool.getPoolState();
+      (uint160 currentSqrtP, , , ) = pool.getPoolState();
       uint160 lowerSqrtP = TickMath.getSqrtRatioAtTick(params.tickLower);
       uint160 upperSqrtP = TickMath.getSqrtRatioAtTick(params.tickUpper);
 

@@ -3,7 +3,7 @@ pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IFactory} from './IFactory.sol';
+import {IFactory} from '../IFactory.sol';
 
 interface IPoolStorage {
   /// @notice The contract that deployed the pool, which must adhere to the IFactory interface
@@ -63,45 +63,44 @@ interface IPoolStorage {
     int24 tickUpper
   ) external view returns (uint128 liquidity, uint256 feeGrowthInsideLast);
 
-  /// @notice All-time seconds per unit of liquidity of the pool
-  /// @dev The value has been multiplied by 2^96
-  function secondsPerLiquidityGlobal() external view returns (uint128);
-
-  /// @notice The timestamp in which secondsPerLiquidity was last updated
-  function secondsPerLiquidityUpdateTime() external view returns (uint32);
-
-  /// @notice Fetches the pool's current price, tick and liquidity
-  /// @return sqrtP pool's current price: sqrt(token1/token0)
-  /// @return poolTick pool's current tick
-  /// @return nearestCurrentTick pool's nearest initialized tick that is <= pool's current tick
+  /// @notice Fetches the pool's current price, tick and nearestCurrentTick
+  /// @return sqrtP sqrt of current price: sqrt(token1/token0)
+  /// @return currentTick pool's current tick
+  /// @return nearestCurrentTick pool's nearest initialized tick that is <= currentTick
   /// @return locked true if pool is locked, false otherwise
-  /// @return poolLiquidity pool's current liquidity that is in range
   function getPoolState()
     external
     view
     returns (
       uint160 sqrtP,
-      int24 poolTick,
+      int24 currentTick,
       int24 nearestCurrentTick,
-      bool locked,
-      uint128 poolLiquidity
+      bool locked
     );
 
   /// @notice Fetches the pool's feeGrowthGlobal, reinvestment liquidity and its last cached value
-  /// @return poolFeeGrowthGlobal pool's fee growth in LP fees (reinvestment tokens) collected per unit of liquidity since pool creation
-  /// @return poolReinvestmentLiquidity total liquidity from collected LP fees (reinvestment tokens) that are reinvested into the pool
-  /// @return poolReinvestmentLiquidityLast last cached total liquidity from collected fees
-  /// This value will differ from poolReinvestmentLiquidity when swaps that won't result in tick crossings occur
-  function getReinvestmentState()
+  /// @return baseL pool's base liquidity without reinvest liqudity
+  /// @return reinvestL the liquidity is reinvested into the pool
+  /// @return reinvestLLast last cached value of reinvestL, using for calculating reinvestment token qty
+  function getLiquidityState()
     external
     view
     returns (
-      uint256 poolFeeGrowthGlobal,
-      uint128 poolReinvestmentLiquidity,
-      uint128 poolReinvestmentLiquidityLast
+      uint128 baseL,
+      uint128 reinvestL,
+      uint128 reinvestLLast
     );
 
-  /// @notice Calculates and returns the active time per unit of liquidity
+  function getFeeGrowthGlobal() external view returns (uint256);
+
+  /// @return secondsPerLiquidityGlobal All-time seconds per unit of liquidity of the pool
+  /// @return lastUpdateTime The timestamp in which secondsPerLiquidityGlobal was last updated
+  function getSecondsPerLiquidityData()
+    external
+    view
+    returns (uint128 secondsPerLiquidityGlobal, uint32 lastUpdateTime);
+
+  /// @notice Calculates and returns the active time per unit of liquidity until current block.timestamp
   /// @param tickLower The lower tick (of a position)
   /// @param tickUpper The upper tick (of a position)
   /// @return secondsPerLiquidityInside active time (multiplied by 2^96)

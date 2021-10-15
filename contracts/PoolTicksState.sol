@@ -94,46 +94,46 @@ contract PoolTicksState is PoolStorage {
   }
 
   function _updatePoolData(
-    uint128 newLiquidity,
-    uint128 newRLiquidity,
-    uint160 newSqrtP,
-    int24 newCurrentTick,
+    uint128 baseL,
+    uint128 reinvestL,
+    uint160 sqrtP,
+    int24 currentTick,
     int24 nextTick
   ) internal {
-    poolData.liquidity = newLiquidity;
-    poolData.reinvestmentLiquidity = newRLiquidity;
-    poolData.sqrtP = newSqrtP;
-    poolData.currentTick = newCurrentTick;
-    poolData.nearestCurrentTick = nextTick > newCurrentTick
+    poolData.baseL = baseL;
+    poolData.reinvestL = reinvestL;
+    poolData.sqrtP = sqrtP;
+    poolData.currentTick = currentTick;
+    poolData.nearestCurrentTick = nextTick > currentTick
       ? initializedTicks[nextTick].previous
       : nextTick;
   }
 
   /// @dev Return initial data before swapping
   /// @param willUpTick whether is up/down tick
-  /// @return poolLiquidity current pool liquidity
-  /// @return poolReinvestmentLiquidity current pool reinvestment liquidity
+  /// @return baseL current pool base liquidity without reinvestment liquidity
+  /// @return reinvestL current pool reinvestment liquidity
   /// @return sqrtP current pool sqrt price
-  /// @return poolCurrentTick current pool tick
-  /// @return poolNextTick next tick to calculate data
+  /// @return currentTick current pool tick
+  /// @return nextTick next tick to calculate data
   function _getInitialSwapData(bool willUpTick)
     internal
     view
     returns (
-      uint128 poolLiquidity,
-      uint128 poolReinvestmentLiquidity,
+      uint128 baseL,
+      uint128 reinvestL,
       uint160 sqrtP,
-      int24 poolCurrentTick,
-      int24 poolNextTick
+      int24 currentTick,
+      int24 nextTick
     )
   {
-    poolLiquidity = poolData.liquidity;
-    poolReinvestmentLiquidity = poolData.reinvestmentLiquidity;
+    baseL = poolData.baseL;
+    reinvestL = poolData.reinvestL;
     sqrtP = poolData.sqrtP;
-    poolCurrentTick = poolData.currentTick;
-    poolNextTick = poolData.nearestCurrentTick;
+    currentTick = poolData.currentTick;
+    nextTick = poolData.nearestCurrentTick;
     if (willUpTick) {
-      poolNextTick = initializedTicks[poolNextTick].next;
+      nextTick = initializedTicks[nextTick].next;
     }
   }
 
