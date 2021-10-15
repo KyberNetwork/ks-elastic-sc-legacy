@@ -53,7 +53,7 @@ interface IFactory {
   /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
   /// @param swapFeeBps The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee
   /// @return The tick distance
-  function feeAmountTickSpacing(uint16 swapFeeBps) external view returns (int24);
+  function feeAmountTickDistance(uint16 swapFeeBps) external view returns (int24);
 
   /// @notice Returns the address which can update the fee configuration
   function configMaster() external view returns (address);

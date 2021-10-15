@@ -49,7 +49,7 @@ describe('LiquidityHelper', () => {
 
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickSpacing(swapFeeBpsArray[i])) == 0) {
+      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
         await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
       }
     }
