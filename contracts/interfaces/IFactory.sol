@@ -50,9 +50,9 @@ interface IFactory {
   function vestingPeriod() external view returns (uint32);
 
   /// @notice Returns the tick distance for a specified fee.
-  /// @dev A fee amount can never be removed, so this value should be hard coded or cached in the calling context
-  /// @param swapFeeBps The enabled fee, denominated in hundredths of a bip. Returns 0 in case of unenabled fee
-  /// @return The tick distance
+  /// @dev Once added, cannot be updated or removed.
+  /// @param swapFeeBps Swap fee, in basis points.
+  /// @return The tick distance. Returns 0 if fee has not been added.
   function feeAmountTickDistance(uint16 swapFeeBps) external view returns (int24);
 
   /// @notice Returns the address which can update the fee configuration

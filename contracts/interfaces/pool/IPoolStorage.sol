@@ -18,30 +18,29 @@ interface IPoolStorage {
   /// @return The token contract address
   function token1() external view returns (IERC20);
 
-  /// @notice The pool's fee in basis points
-  /// @return The fee in basis points
+  /// @notice The fee to be charged for a swap in basis points
+  /// @return The swap fee in basis points
   function swapFeeBps() external view returns (uint16);
 
   /// @notice The pool tick distance
-  /// @dev Tick can only be initialized and used at multiples of this value
+  /// @dev Ticks can only be initialized and used at multiples of this value
   /// It remains an int24 to avoid casting even though it is >= 1.
   /// e.g: a tickDistance of 5 means ticks can be initialized every 5th tick, i.e., ..., -10, -5, 0, 5, 10, ...
   /// @return The tick distance
   function tickDistance() external view returns (int24);
 
-  /// @notice The maximum amount of position liquidity that can use any tick in the range
-  /// @dev This parameter is enforced per tick to prevent liquidity from overflowing a uint128 at any point, and
+  /// @notice Maximum gross liquidity that an initialized tick can have
+  /// @dev This is to prevent overflow the pool's active base liquidity (uint128)
   /// also prevents out-of-range liquidity from being used to prevent adding in-range liquidity to a pool
   /// @return The max amount of liquidity per tick
   function maxTickLiquidity() external view returns (uint128);
 
   /// @notice Look up information about a specific tick in the pool
   /// @param tick The tick to look up
-  /// @return liquidityGross the total amount of position liquidity
-  /// that uses the pool either as tick lower or tick upper
+  /// @return liquidityGross total liquidity amount from positions that uses this tick as a lower or upper tick
   /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
-  /// feeGrowthOutside the fee growth on the other side of the tick from the current tick
-  /// secondsPerLiquidityOutside the seconds spent on the other side of the tick from the current tick
+  /// feeGrowthOutside the fee growth on the other side of the tick relative to the current tick
+  /// secondsPerLiquidityOutside the seconds spent on the other side of the tick relative to the current tick
   function ticks(int24 tick)
     external
     view
@@ -52,6 +51,9 @@ interface IPoolStorage {
       uint128 secondsPerLiquidityOutside
     );
 
+  /// @notice Returns the previous and next initialized ticks of a specific tick
+  /// @dev If specified tick is uninitialized, the returned values are zero.
+  /// @param tick The tick to look up
   function initializedTicks(int24 tick) external view returns (int24 previous, int24 next);
 
   /// @notice Returns the information about a position by the position's key
@@ -63,7 +65,7 @@ interface IPoolStorage {
     int24 tickUpper
   ) external view returns (uint128 liquidity, uint256 feeGrowthInsideLast);
 
-  /// @notice Fetches the pool's current price, tick and nearestCurrentTick
+  /// @notice Fetches the pool's prices, ticks and lock status
   /// @return sqrtP sqrt of current price: sqrt(token1/token0)
   /// @return currentTick pool's current tick
   /// @return nearestCurrentTick pool's nearest initialized tick that is <= currentTick
@@ -78,10 +80,10 @@ interface IPoolStorage {
       bool locked
     );
 
-  /// @notice Fetches the pool's feeGrowthGlobal, reinvestment liquidity and its last cached value
+  /// @notice Fetches the pool's liquidity values
   /// @return baseL pool's base liquidity without reinvest liqudity
   /// @return reinvestL the liquidity is reinvested into the pool
-  /// @return reinvestLLast last cached value of reinvestL, using for calculating reinvestment token qty
+  /// @return reinvestLLast last cached value of reinvestL, used for calculating reinvestment token qty
   function getLiquidityState()
     external
     view
@@ -91,6 +93,7 @@ interface IPoolStorage {
       uint128 reinvestLLast
     );
 
+  /// @return feeGrowthGlobal All-time fee growth per unit of liquidity of the pool
   function getFeeGrowthGlobal() external view returns (uint256);
 
   /// @return secondsPerLiquidityGlobal All-time seconds per unit of liquidity of the pool

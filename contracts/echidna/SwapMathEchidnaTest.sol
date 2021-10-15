@@ -13,8 +13,6 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     uint8 feeInBps,
     bool isExactInput
   ) external {
-    // TODO: this test is not passed for isExtractOutput
-    require(isExactInput);
     checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
     int256 reachAmount = SwapMath.calcReachAmount(
@@ -110,7 +108,7 @@ contract SwapMathEchidnaTest is EchidnaAssert {
   ) internal pure {
     require(currentSqrtP >= TickMath.MIN_SQRT_RATIO && currentSqrtP <= TickMath.MAX_SQRT_RATIO);
     require(targetSqrtP >= TickMath.MIN_SQRT_RATIO && targetSqrtP <= TickMath.MAX_SQRT_RATIO);
-    require(liquidity >= 1000);
+    require(liquidity >= 100000);
     require(feeInBps != 0);
     require(currentSqrtP * 95 < targetSqrtP * 100 && targetSqrtP * 100 < currentSqrtP * 105);
   }

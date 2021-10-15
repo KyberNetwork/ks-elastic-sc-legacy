@@ -25,7 +25,9 @@ library SafeCast {
     require((z = uint128(y)) == y);
   }
 
-  /// @dev assume y < 0, return z = (-y)
+  /// @notice Cast a int128 to a uint128 and reverses the sign.
+  /// @param y The int128 to be casted
+  /// @return z = -y, now type uint128
   function revToUint128(int128 y) internal pure returns (uint128 z) {
     unchecked {
       return type(uint128).max - uint128(y) + 1;
@@ -47,7 +49,7 @@ library SafeCast {
     z = int256(y);
   }
 
-  /// @notice Cast a uint256 to a int256 and revert the sign, revert on overflow
+  /// @notice Cast a uint256 to a int256 and reverses the sign, revert on overflow
   /// @param y The uint256 to be casted
   /// @return z = -y, now type int256
   function revToInt256(uint256 y) internal pure returns (int256 z) {
@@ -55,7 +57,9 @@ library SafeCast {
     z = -int256(y);
   }
 
-  /// @dev assume y < 0, return z = (-y)
+  /// @notice Cast a int256 to a uint256 and reverses the sign.
+  /// @param y The int256 to be casted
+  /// @return z = -y, now type uint256
   function revToUint256(int256 y) internal pure returns (uint256 z) {
     unchecked {
       return type(uint256).max - uint256(y) + 1;

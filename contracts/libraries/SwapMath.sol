@@ -19,8 +19,8 @@ library SwapMath {
   /// @param targetSqrtP sqrt price limit the new sqrt price can take
   /// @param feeInBps swap fee in basis points
   /// @param specifiedAmount the amount remaining to be used for the swap
-  /// @param isExactInput true if usedAmount refers to input amount, false if usedAmount refers to output amount
-  /// @param isToken0 true if usedAmount is in token0 qty, false if usedAmount is in token1 qty
+  /// @param isExactInput true if specifiedAmount refers to input amount, false if specifiedAmount refers to output amount
+  /// @param isToken0 true if specifiedAmount is in token0, false if specifiedAmount is in token1
   /// @return usedAmount actual amount to be used for the swap
   /// @return returnedAmount output qty to be accumulated if isExactInput = true, input qty if isExactInput = false
   /// @return deltaL collected swap fee, to be incremented to reinvest liquidity
@@ -155,7 +155,7 @@ library SwapMath {
     }
   }
 
-  /// @dev estimates deltaL, the swap fee to be collected based on amountSpecified
+  /// @dev estimates deltaL, the swap fee to be collected based on amount specified
   /// for the final swap step to be performed,
   /// where the next (temporary) tick will not be crossed
   function estimateIncrementalLiquidity(
@@ -236,6 +236,8 @@ library SwapMath {
     }
   }
 
+  /// @dev calculates the sqrt price of the final swap step
+  /// where the next (temporary) tick will not be crossed
   function calcFinalPrice(
     uint256 absDelta,
     uint256 liquidity,
