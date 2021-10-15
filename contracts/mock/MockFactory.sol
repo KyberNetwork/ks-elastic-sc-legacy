@@ -36,7 +36,7 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
   uint32 public override vestingPeriod;
 
   /// @inheritdoc IFactory
-  mapping(uint16 => int24) public override feeAmountTickSpacing;
+  mapping(uint16 => int24) public override feeAmountTickDistance;
   /// @inheritdoc IFactory
   mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
 
@@ -61,9 +61,9 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
     configMaster = msg.sender;
     emit ConfigMasterUpdated(address(0), configMaster);
 
-    feeAmountTickSpacing[5] = 10;
+    feeAmountTickDistance[5] = 10;
     emit SwapFeeEnabled(5, 10);
-    feeAmountTickSpacing[30] = 60;
+    feeAmountTickDistance[30] = 60;
     emit SwapFeeEnabled(30, 60);
   }
 
@@ -76,7 +76,7 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
     require(tokenA != tokenB, 'identical tokens');
     (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     require(token0 != address(0), 'null address');
-    int24 tickDistance = feeAmountTickSpacing[swapFeeBps];
+    int24 tickDistance = feeAmountTickDistance[swapFeeBps];
     require(tickDistance != 0, 'invalid fee');
     require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
 
@@ -137,8 +137,8 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
     // 16384 ticks represents a >5x price change with ticks of 1 bips
     require(tickDistance > 0 && tickDistance < 16384, 'invalid tickDistance');
-    require(feeAmountTickSpacing[swapFeeBps] == 0, 'existing tickDistance');
-    feeAmountTickSpacing[swapFeeBps] = tickDistance;
+    require(feeAmountTickDistance[swapFeeBps] == 0, 'existing tickDistance');
+    feeAmountTickDistance[swapFeeBps] = tickDistance;
     emit SwapFeeEnabled(swapFeeBps, tickDistance);
   }
 

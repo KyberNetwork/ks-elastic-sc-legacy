@@ -44,8 +44,8 @@ describe('Factory', () => {
 
   it('should have initialized with the expected settings', async () => {
     expect(await factory.configMaster()).to.eql(admin.address);
-    expect(await factory.feeAmountTickSpacing(5)).to.eql(10);
-    expect(await factory.feeAmountTickSpacing(30)).to.eql(60);
+    expect(await factory.feeAmountTickDistance(5)).to.eql(10);
+    expect(await factory.feeAmountTickDistance(30)).to.eql(60);
     let result = await factory.feeConfiguration();
     expect(result._feeTo).to.eql(ZERO_ADDRESS);
     expect(result._governmentFeeBps).to.eql(0);
@@ -264,7 +264,7 @@ describe('Factory', () => {
       await expect(factory.connect(admin).enableSwapFee(swapFeeBps, tickDistance))
         .to.emit(factory, 'SwapFeeEnabled')
         .withArgs(swapFeeBps, tickDistance);
-      expect(await factory.feeAmountTickSpacing(swapFeeBps)).to.be.eql(tickDistance);
+      expect(await factory.feeAmountTickDistance(swapFeeBps)).to.be.eql(tickDistance);
     });
 
     it('should be able to utilise new tickDistance for pool creation', async () => {
