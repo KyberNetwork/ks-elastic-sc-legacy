@@ -1,27 +1,27 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Pool #flash after unlockPool #gas flash [ @skip-on-coverage ] 1`] = `"99956"`;
+exports[`Pool #flash after unlockPool #gas flash [ @skip-on-coverage ] 1`] = `"99940"`;
 
-exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"226476"`;
+exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 1`] = `"242467"`;
 
-exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"166507"`;
+exports[`Pool #mint after unlockPool successful mints position above current tick #gas [ @skip-on-coverage ] 2`] = `"165398"`;
 
-exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"280139"`;
+exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 1`] = `"301730"`;
 
-exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"163696"`;
+exports[`Pool #mint after unlockPool successful mints position includes current tick #gas [ @skip-on-coverage ] 2`] = `"165627"`;
 
-exports[`Pool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"234190"`;
+exports[`Pool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"256319"`;
 
 exports[`Pool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"81731"`;
 
-exports[`Pool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"212031"`;
+exports[`Pool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"213650"`;
 
-exports[`Pool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"177823"`;
+exports[`Pool swap init at reasonable tick #gas token0 exactInput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"179448"`;
 
-exports[`Pool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"97931"`;
+exports[`Pool swap init at reasonable tick #gas token0 exactInput - within a tick [ @skip-on-coverage ] 1`] = `"95549"`;
 
-exports[`Pool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"222722"`;
+exports[`Pool swap init at reasonable tick #gas token1 exactOutput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"224341"`;
 
-exports[`Pool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"188751"`;
+exports[`Pool swap init at reasonable tick #gas token1 exactOutput - cross an initiated tick [ @skip-on-coverage ] 1`] = `"190376"`;
 
-exports[`Pool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"108878"`;
+exports[`Pool swap init at reasonable tick #gas token1 exactOutput - within a tick [ @skip-on-coverage ] 1`] = `"106496"`;

@@ -10,7 +10,7 @@ contract MockSafeCast {
     return y.toUint32();
   }
 
-  function toInt128(int256 y) external pure returns (int128) {
+  function toInt128(uint128 y) external pure returns (int128) {
     return y.toInt128();
   }
 

@@ -12,7 +12,7 @@ import {PoolStorage} from './PoolStorage.sol';
 
 contract PoolTicksState is PoolStorage {
   using SafeCast for int128;
-  using SafeCast for int256;
+  using SafeCast for uint128;
   using Linkedlist for mapping(int24 => Linkedlist.Data);
 
   struct UpdatePositionData {
@@ -198,9 +198,7 @@ contract PoolTicksState is PoolStorage {
       isAdd
     );
     require(liquidityGrossAfter <= maxTickLiquidity, '> max liquidity');
-    int128 signedLiquidityDelta = isAdd
-      ? int256(uint256(liquidityDelta)).toInt128()
-      : int256(type(uint256).max - uint256(liquidityDelta) + 1).toInt128();
+    int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
 
     // if lower tick, liquidityDelta should be added | removed when crossed up | down
     // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
