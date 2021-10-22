@@ -73,6 +73,7 @@ task('deployDmmV2', 'deploy router, factory and position manager')
       await descriptor.deployed();
       baseDescriptor = descriptor.address;
       console.log(`descriptor address: ${baseDescriptor}`);
+      outputData['mockDescriptor'] = baseDescriptor;
     }
 
     enableWhitelist = vestingPeriod != 0;
