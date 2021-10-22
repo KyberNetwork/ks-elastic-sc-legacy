@@ -98,7 +98,7 @@ const config: HardhatUserConfig = {
 const INFURA_API_KEY: string = process.env.INFURA_API_KEY || '';
 const PRIVATE_KEY: string = process.env.PRIVATE_KEY || '';
 const ETHERSCAN_KEY: string = process.env.ETHERSCAN_KEY || '';
-const POLYGONSCAN_KEY: string = process.env.POLYGONSCAN_KEY || '';
+const BSCSCAN_KEY: string = process.env.BSCSCAN_KEY || '';
 
 if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   config.networks!.kovan = {
@@ -124,11 +124,17 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     accounts: [PRIVATE_KEY],
     timeout: 20000
   };
+
+  config.networks!.bsc_testnet = {
+    url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000,
+  };
 }
 
-if (ETHERSCAN_KEY != '' || POLYGONSCAN_KEY != '') {
+if (ETHERSCAN_KEY != '' || BSCSCAN_KEY != '') {
   config.etherscan = {
-    apiKey: ETHERSCAN_KEY == '' ? POLYGONSCAN_KEY : ETHERSCAN_KEY,
+    apiKey: ETHERSCAN_KEY == '' ? BSCSCAN_KEY : ETHERSCAN_KEY,
   };
 }
 
