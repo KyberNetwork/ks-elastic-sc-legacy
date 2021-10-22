@@ -1,4 +1,5 @@
 import '@nomiclabs/hardhat-waffle';
+import '@nomiclabs/hardhat-etherscan';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-typechain';
@@ -9,6 +10,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+import './deployment/deploy.js';
 import {accounts} from './test-wallets';
 
 const solcConfig: SolcUserConfig = {
@@ -96,6 +98,7 @@ const config: HardhatUserConfig = {
 const INFURA_API_KEY: string = process.env.INFURA_API_KEY || '';
 const PRIVATE_KEY: string = process.env.PRIVATE_KEY || '';
 const ETHERSCAN_KEY: string = process.env.ETHERSCAN_KEY || '';
+const POLYGONSCAN_KEY: string = process.env.POLYGONSCAN_KEY || '';
 
 if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   config.networks!.kovan = {
@@ -120,6 +123,12 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
     timeout: 20000
+  };
+}
+
+if (ETHERSCAN_KEY != '' || POLYGONSCAN_KEY != '') {
+  config.etherscan = {
+    apiKey: ETHERSCAN_KEY == '' ? POLYGONSCAN_KEY : ETHERSCAN_KEY,
   };
 }
 
