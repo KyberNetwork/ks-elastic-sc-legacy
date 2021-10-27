@@ -1532,6 +1532,13 @@ describe('Pool', () => {
         expect(await pool.balanceOf(configMaster.address)).to.be.gt(feeToRTokenBalanceBefore);
       });
 
+      it('should only burn tokens without any fees received in return if isLogicalBurn = true', async () => {
+        let userRTokenBalance = await pool.balanceOf(user.address);
+        await expect(pool.connect(user).burnRTokens(userRTokenBalance, true))
+          .to.emit(pool, 'BurnRTokens')
+          .withArgs(user.address, userRTokenBalance, ZERO, ZERO);
+      });
+
       it('#gas [ @skip-on-coverage ]', async () => {
         let tx = await pool.connect(user).burnRTokens(await pool.balanceOf(user.address), false);
         await snapshotGasCost(tx);

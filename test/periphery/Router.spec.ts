@@ -7,7 +7,7 @@ chai.use(solidity);
 
 import {Router, Router__factory} from '../../typechain';
 import {Factory, Pool} from '../../typechain';
-import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
+import {MockToken, MockToken__factory, MockWeth, MockWeth__factory, MockEncoder} from '../../typechain';
 import {MockCallbacks, MockCallbacks__factory} from '../../typechain';
 
 import {deployFactory} from '../helpers/setup';
@@ -748,6 +748,19 @@ describe('Router', () => {
       await expect(router.connect(user).swapCallback(0, 0, '0x')).to.be.revertedWith('Router: invalid delta qties');
       await expect(router.connect(user).swapCallback(-1, 0, '0x')).to.be.revertedWith('Router: invalid delta qties');
       await expect(router.connect(user).swapCallback(0, -1, '0x')).to.be.revertedWith('Router: invalid delta qties');
+    });
+
+    it('callback: invalid caller', async () => {
+      let mockEncoder = (await (await ethers.getContractFactory('MockEncoder')).deploy()) as MockEncoder;
+      await expect(
+        router
+          .connect(user)
+          .swapCallback(
+            PRECISION,
+            PRECISION,
+            await mockEncoder.encodeSwapCallbackData(tokenA.address, 1000, tokenB.address)
+          )
+      ).to.be.revertedWith('Router: invalid callback sender');
     });
 
     it('swap: expiry', async () => {

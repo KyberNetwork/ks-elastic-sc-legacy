@@ -5,11 +5,20 @@ import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
 
-import {MockToken, MockToken__factory, MockWeth, MockWeth__factory} from '../../typechain';
-import {BasePositionManager, BasePositionManager__factory} from '../../typechain';
-import {Router__factory, Router} from '../../typechain';
-import {Factory, Pool} from '../../typechain';
-import {MockTokenPositionDescriptor, MockTokenPositionDescriptor__factory} from '../../typechain';
+import {
+  MockToken,
+  MockToken__factory,
+  MockWeth,
+  MockWeth__factory,
+  BasePositionManager,
+  BasePositionManager__factory,
+  Router__factory,
+  Router,
+  Factory,
+  Pool,
+  MockTokenPositionDescriptor,
+  MockTokenPositionDescriptor__factory,
+} from '../../typechain';
 
 import {deployFactory, getTicksPrevious} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
