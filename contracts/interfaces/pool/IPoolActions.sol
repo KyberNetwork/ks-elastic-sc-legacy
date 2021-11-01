@@ -2,17 +2,13 @@
 pragma solidity >=0.8.0;
 
 interface IPoolActions {
-  /// @notice Adds initial liquidity and sets initial price for the pool
-  /// @dev Function calls IMintCallback#mintCallback to receive
-  /// required tokens from the caller. Hence, the caller is required to
-  /// implement the mint callback as well
+  /// @notice Sets the initial price for the pool and seeds reinvestment liquidity
+  /// @dev Assumes the caller has sent the necessary token amounts
+  /// required for initializing reinvestment liquidity prior to calling this function
   /// @param initialSqrtP the initial sqrt price of the pool
-  /// @param data Data (if any) to be passed through to the callback
   /// @param qty0 token0 quantity sent to and locked permanently in the pool
   /// @param qty1 token1 quantity sent to and locked permanently in the pool
-  function unlockPool(uint160 initialSqrtP, bytes calldata data)
-    external
-    returns (uint256 qty0, uint256 qty1);
+  function unlockPool(uint160 initialSqrtP) external returns (uint256 qty0, uint256 qty1);
 
   /// @notice Adds liquidity for the specified recipient/tickLower/tickUpper position
   /// @dev Any token0 or token1 owed for the liquidity provision have to be paid for when

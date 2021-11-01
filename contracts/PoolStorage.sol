@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
+import {MathConstants as C} from './libraries/MathConstants.sol';
 
 import {IFactory} from './interfaces/IFactory.sol';
 import {IPoolStorage} from './interfaces/pool/IPoolStorage.sol';
@@ -15,7 +16,6 @@ abstract contract PoolStorage is IPoolStorage {
   using Linkedlist for mapping(int24 => Linkedlist.Data);
 
   address internal constant LIQUIDITY_LOCKUP_ADDRESS = 0xD444422222222222222222222222222222222222;
-  uint128 internal constant MIN_LIQUIDITY = 100000;
 
   struct PoolData {
     uint160 sqrtP;
@@ -93,8 +93,8 @@ abstract contract PoolStorage is IPoolStorage {
 
   function _initPoolStorage(uint160 initialSqrtP, int24 initialTick) internal {
     poolData.baseL = 0;
-    poolData.reinvestL = MIN_LIQUIDITY;
-    poolData.reinvestLLast = MIN_LIQUIDITY;
+    poolData.reinvestL = C.MIN_LIQUIDITY;
+    poolData.reinvestLLast = C.MIN_LIQUIDITY;
 
     poolData.sqrtP = initialSqrtP;
     poolData.currentTick = initialTick;

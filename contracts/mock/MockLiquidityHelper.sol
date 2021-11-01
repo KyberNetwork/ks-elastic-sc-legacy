@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.8.0;
 
+import {QtyDeltaMath} from '../libraries/QtyDeltaMath.sol';
+
 import '../periphery/base/LiquidityHelper.sol';
 import '../periphery/base/Multicall.sol';
 
@@ -14,11 +16,11 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
     uint160 initialSqrtP
   ) external payable returns (IPool pool) {
     pool = _getPool(token0, token1, fee);
-    if (token0 < token1) {
-      pool.unlockPool(initialSqrtP, _callbackData(token0, token1, fee));
-    } else {
-      pool.unlockPool(initialSqrtP, _callbackData(token1, token0, fee));
-    }
+    (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtP);
+    _transferTokens(token0, msg.sender, address(pool), qty0);
+    _transferTokens(token1, msg.sender, address(pool), qty1);
+    pool.unlockPool(initialSqrtP);
   }
 
   function testAddLiquidity(AddLiquidityParams memory params)
