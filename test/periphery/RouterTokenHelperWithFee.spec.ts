@@ -26,7 +26,7 @@ let factory: Factory;
 let tokens: [MockToken, MockToken, MockWeth];
 let feeBps = 100;
 
-describe('LiquidityHelper', () => {
+describe('RouterTokenHelperWithFee', () => {
   const [user, admin, feeRecipient] = waffle.provider.getWallets();
 
   async function fixture() {
