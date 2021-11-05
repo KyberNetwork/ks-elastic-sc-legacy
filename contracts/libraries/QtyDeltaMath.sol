@@ -13,7 +13,7 @@ library QtyDeltaMath {
   using SafeCast for uint256;
   using SafeCast for int128;
 
-  function getQtysForInitialLockup(uint160 initialSqrtP)
+  function calcUnlockQtys(uint160 initialSqrtP)
     internal
     pure
     returns (uint256 qty0, uint256 qty1)

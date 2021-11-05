@@ -68,10 +68,9 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     returns (uint256 qty0, uint256 qty1)
   {
     require(poolData.sqrtP == 0, 'already inited');
-    poolData.locked = false; // unlock the pool
     // initial tick bounds (min & max price limits) are checked in this function
     int24 initialTick = TickMath.getTickAtSqrtRatio(initialSqrtP);
-    (qty0, qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtP);
+    (qty0, qty1) = QtyDeltaMath.calcUnlockQtys(initialSqrtP);
     // because of price bounds, qty0 and qty1 >= 1
     require(qty0 <= _poolBalToken0(), 'lacking qty0');
     require(qty1 <= _poolBalToken1(), 'lacking qty1');

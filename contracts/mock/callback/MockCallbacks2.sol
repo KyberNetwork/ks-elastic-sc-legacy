@@ -32,7 +32,7 @@ contract MockCallbacks2 is IMintCallback {
   function unlockPool(IPool pool, uint160 sqrtP) external {
     IERC20 token0 = pool.token0();
     IERC20 token1 = pool.token1();
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(sqrtP);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(sqrtP);
     token0.transferFrom(msg.sender, address(pool), qty0);
     token1.transferFrom(msg.sender, address(pool), qty1);
     pool.unlockPool(sqrtP);

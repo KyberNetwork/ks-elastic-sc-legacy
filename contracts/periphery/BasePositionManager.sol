@@ -68,7 +68,7 @@ contract BasePositionManager is
 
     (uint160 sqrtP, , , ) = IPool(pool).getPoolState();
     if (sqrtP == 0) {
-      (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(currentSqrtP);
+      (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(currentSqrtP);
       _transferTokens(token0, msg.sender, pool, qty0);
       _transferTokens(token1, msg.sender, pool, qty1);
       IPool(pool).unlockPool(currentSqrtP);

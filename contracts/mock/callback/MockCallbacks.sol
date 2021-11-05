@@ -20,7 +20,7 @@ contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
   }
 
   function unlockPool(IPoolActions pool, uint160 sqrtP) external {
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(sqrtP);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(sqrtP);
     token0.transferFrom(user, address(pool), qty0);
     token1.transferFrom(user, address(pool), qty1);
     pool.unlockPool(sqrtP);
@@ -64,7 +64,7 @@ contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
     bool sendLess0,
     bool sendLess1
   ) external {
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(sqrtP);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(sqrtP);
     token0.transferFrom(user, address(pool), sendLess0 ? qty0 - 1 : qty0);
     token1.transferFrom(user, address(pool), sendLess1 ? qty1 - 1 : qty1);
     pool.unlockPool(sqrtP);

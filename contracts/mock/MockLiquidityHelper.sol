@@ -17,7 +17,7 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
   ) external payable returns (IPool pool) {
     pool = _getPool(token0, token1, fee);
     (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);
-    (uint256 qty0, uint256 qty1) = QtyDeltaMath.getQtysForInitialLockup(initialSqrtP);
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(initialSqrtP);
     _transferTokens(token0, msg.sender, address(pool), qty0);
     _transferTokens(token1, msg.sender, address(pool), qty1);
     pool.unlockPool(initialSqrtP);
