@@ -117,30 +117,31 @@ describe('Pool', () => {
     });
 
     it('should only be able to call unlockPool once', async () => {
-      await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
+      await callback.connect(user).unlockPool(pool.address, initialPrice);
 
-      await expect(callback.unlockPool(pool.address, initialPrice, '0x')).to.be.revertedWith('already inited');
+      await expect(callback.unlockPool(pool.address, initialPrice)).to.be.revertedWith('already inited');
     });
 
     it('should fail to unlockPool for non-compliant ERC20 tokens', async () => {
       const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
       await factory.createPool(user.address, admin.address, swapFeeBps);
       let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
-      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
+      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
 
       // use valid token0 so that poolBalToken1() will revert
       let badAddress = '0xffffffffffffffffffffffffffffffffffffffff';
       await factory.createPool(token0.address, badAddress, swapFeeBps);
       badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
-      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice, '0x')).to.be.reverted;
+      await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
     });
 
     it('should fail if initial tick is outside of min and max ticks', async () => {
       // initial tick < lower tick
-      await expect(callback.unlockPool(pool.address, ZERO, '0x')).to.be.revertedWith('R');
-      await expect(callback.unlockPool(pool.address, MIN_SQRT_RATIO.sub(ONE), '0x')).to.be.revertedWith('R');
+      await expect(callback.unlockPool(pool.address, ZERO)).to.be.revertedWith('0 denom');
+      await expect(callback.unlockPool(pool.address, ONE)).to.be.revertedWith('R');
+      await expect(callback.unlockPool(pool.address, MIN_SQRT_RATIO.sub(ONE))).to.be.revertedWith('R');
       // initial tick > upper tick
-      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK), '0x')).to.be.revertedWith('R');
+      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK))).to.be.revertedWith('R');
     });
 
     it('should fail to mint liquidity if callback fails to send enough qty to pool', async () => {
@@ -152,7 +153,7 @@ describe('Pool', () => {
     });
 
     it('should have initialized the pool and created first position', async () => {
-      await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
+      await callback.connect(user).unlockPool(pool.address, initialPrice);
 
       let poolState = await pool.getPoolState();
       expect(poolState.sqrtP).to.be.eql(initialPrice);
@@ -172,24 +173,24 @@ describe('Pool', () => {
     });
 
     it('#gas [ @skip-on-coverage ]', async () => {
-      const tx = await callback.connect(user).unlockPool(pool.address, initialPrice, '0x');
+      const tx = await callback.connect(user).unlockPool(pool.address, initialPrice);
       await snapshotGasCost(tx);
     });
 
     it('should have emitted Initialize event', async () => {
-      await expect(callback.connect(user).unlockPool(pool.address, initialPrice, '0x'))
+      await expect(callback.connect(user).unlockPool(pool.address, initialPrice))
         .to.emit(pool, 'Initialize')
         .withArgs(initialPrice, 10);
     });
 
     it('should init if initial tick is equal to the lower tick', async () => {
       // initial tick = lower tick
-      await expect(callback.unlockPool(pool.address, MIN_SQRT_RATIO, '0x')).to.not.be.reverted;
+      await expect(callback.unlockPool(pool.address, MIN_SQRT_RATIO)).to.not.be.reverted;
     });
 
     it('should init if initial tick is equal to the upper tick - 1', async () => {
       // initial tick = upper tick
-      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK.sub(ONE)), '0x')).to.not.be
+      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK.sub(ONE)))).to.not.be
         .reverted;
     });
   });
@@ -203,7 +204,7 @@ describe('Pool', () => {
 
     describe('after unlockPool', async () => {
       beforeEach('unlock pool with initial price of 2:1', async () => {
-        await callback.unlockPool(pool.address, encodePriceSqrt(TWO, ONE), '0x');
+        await callback.unlockPool(pool.address, encodePriceSqrt(TWO, ONE));
         // whitelist callback as NFT manager
         await factory.connect(admin).addNFTManager(callback.address);
       });
@@ -1182,7 +1183,7 @@ describe('Pool', () => {
         // mint 1 position
         tickLower = nearestTickToPrice - 100 * tickDistance;
         tickUpper = nearestTickToPrice + 100 * tickDistance;
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION.mul(BPS), '0x');
@@ -1323,7 +1324,7 @@ describe('Pool', () => {
       initialPrice = encodePriceSqrt(ONE, ONE);
       // whitelist callback for minting position
       await factory.connect(admin).addNFTManager(callback.address);
-      await callback.unlockPool(pool.address, initialPrice, '0x');
+      await callback.unlockPool(pool.address, initialPrice);
       await callback.mint(
         pool.address,
         user.address,
@@ -1430,7 +1431,7 @@ describe('Pool', () => {
   describe('limit orders', async () => {
     beforeEach('unlock pool with initial price of 1:1 (tick 0)', async () => {
       initialPrice = encodePriceSqrt(ONE, ONE);
-      await callback.unlockPool(pool.address, initialPrice, '0x');
+      await callback.unlockPool(pool.address, initialPrice);
       // whitelist callback for minting position
       await factory.connect(admin).addNFTManager(callback.address);
     });
@@ -1474,7 +1475,7 @@ describe('Pool', () => {
     describe('init at 0 tick', async () => {
       beforeEach('mint rTokens for user', async () => {
         initialPrice = encodePriceSqrt(ONE, ONE);
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, -100, 100, ticksPrevious, PRECISION, '0x');
@@ -1542,7 +1543,7 @@ describe('Pool', () => {
       it('should only send token1 to user when he burns rTokens when price is at MAX_SQRT_RATIO', async () => {
         // init price at 1e18 : 1
         initialPrice = encodePriceSqrt(PRECISION, ONE);
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
@@ -1570,7 +1571,7 @@ describe('Pool', () => {
       it('should only send token0 to user when he burns rTokens when price is at MIN_SQRT_RATIO', async () => {
         // init price at 1 : 1e18
         initialPrice = encodePriceSqrt(ONE, PRECISION);
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
@@ -1601,7 +1602,7 @@ describe('Pool', () => {
     describe('init at reasonable tick', async () => {
       beforeEach('unlock pool with initial price of 2:1', async () => {
         initialPrice = encodePriceSqrt(TWO, ONE);
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         // whitelist callback for minting position
         await factory.connect(admin).addNFTManager(callback.address);
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
@@ -1931,7 +1932,7 @@ describe('Pool', () => {
     describe('init and test swaps near price boundaries', async () => {
       it('pool will not send any token0 at / near MAX_TICK', async () => {
         initialPrice = await getPriceFromTick(MAX_TICK.sub(2));
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         let token0BalanceBefore = await token0.balanceOf(pool.address);
         // swap uptick to MAX_TICK - 1
         await swapToUpTick(pool, user, MAX_TICK.toNumber() - 1);
@@ -1941,7 +1942,7 @@ describe('Pool', () => {
       });
 
       it('pool will not send any token1 at / near MIN_TICK', async () => {
-        await callback.unlockPool(pool.address, await getPriceFromTick(MIN_TICK.add(2)), '0x');
+        await callback.unlockPool(pool.address, await getPriceFromTick(MIN_TICK.add(2)));
         let token1BalanceBefore = await token1.balanceOf(pool.address);
         // swap downtick to MIN_TICK + 1
         await swapToDownTick(pool, user, MIN_TICK.toNumber() + 1);
@@ -1964,7 +1965,7 @@ describe('Pool', () => {
     });
 
     it('should return 0 for 0 pool liquidity', async () => {
-      await callback.connect(user).unlockPool(pool.address, encodePriceSqrt(ONE, ONE), '0x');
+      await callback.connect(user).unlockPool(pool.address, encodePriceSqrt(ONE, ONE));
       expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
       // forward time, should have no effect
       await pool.forwardTime(10);
@@ -1983,7 +1984,7 @@ describe('Pool', () => {
         nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
         tickLower = nearestTickToPrice - 100 * tickDistance;
         tickUpper = nearestTickToPrice + 100 * tickDistance;
-        await callback.unlockPool(pool.address, initialPrice, '0x');
+        await callback.unlockPool(pool.address, initialPrice);
         await factory.connect(admin).addNFTManager(callback.address);
         await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION.mul(BPS), '0x');
       });

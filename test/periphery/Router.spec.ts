@@ -90,7 +90,7 @@ describe('Router', () => {
     // whitelist callback
     await factory.connect(admin).addNFTManager(callback.address);
     let pool = (await ethers.getContractAt('Pool', await factory.getPool(token0, token1, fee))) as Pool;
-    await callback.connect(user).unlockPool(pool.address, sqrtP, '0x');
+    await callback.connect(user).unlockPool(pool.address, sqrtP);
     await callback
       .connect(user)
       .mint(pool.address, user.address, ticks[0], ticks[1], ticksPrevious, PRECISION.mul(BN.from(10)), '0x');

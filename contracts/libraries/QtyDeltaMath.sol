@@ -13,13 +13,13 @@ library QtyDeltaMath {
   using SafeCast for uint256;
   using SafeCast for int128;
 
-  function getQtysForInitialLockup(uint160 initialSqrtP, uint128 liquidity)
+  function calcUnlockQtys(uint160 initialSqrtP)
     internal
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = FullMath.mulDivCeiling(liquidity, C.TWO_POW_96, initialSqrtP);
-    qty1 = FullMath.mulDivCeiling(liquidity, initialSqrtP, C.TWO_POW_96);
+    qty0 = FullMath.mulDivCeiling(C.MIN_LIQUIDITY, C.TWO_POW_96, initialSqrtP);
+    qty1 = FullMath.mulDivCeiling(C.MIN_LIQUIDITY, initialSqrtP, C.TWO_POW_96);
   }
 
   /// @notice Gets the qty0 delta between two prices

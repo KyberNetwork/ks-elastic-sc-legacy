@@ -7,6 +7,8 @@ import {ISwapCallback} from '../../interfaces/callback/ISwapCallback.sol';
 import {IFlashCallback} from '../../interfaces/callback/IFlashCallback.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+import {QtyDeltaMath} from '../../libraries/QtyDeltaMath.sol';
+
 contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
   IERC20 public immutable token0;
   IERC20 public immutable token1;
@@ -17,12 +19,11 @@ contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
     user = msg.sender;
   }
 
-  function unlockPool(
-    IPoolActions pool,
-    uint160 sqrtP,
-    bytes calldata data
-  ) external {
-    pool.unlockPool(sqrtP, data);
+  function unlockPool(IPoolActions pool, uint160 sqrtP) external {
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(sqrtP);
+    token0.transferFrom(user, address(pool), qty0);
+    token1.transferFrom(user, address(pool), qty1);
+    pool.unlockPool(sqrtP);
   }
 
   function mint(
@@ -63,7 +64,10 @@ contract MockCallbacks is IMintCallback, ISwapCallback, IFlashCallback {
     bool sendLess0,
     bool sendLess1
   ) external {
-    pool.unlockPool(sqrtP, abi.encode(sendLess0, sendLess1));
+    (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(sqrtP);
+    token0.transferFrom(user, address(pool), sendLess0 ? qty0 - 1 : qty0);
+    token1.transferFrom(user, address(pool), sendLess1 ? qty1 - 1 : qty1);
+    pool.unlockPool(sqrtP);
   }
 
   function badMint(

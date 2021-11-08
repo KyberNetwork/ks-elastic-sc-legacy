@@ -8,6 +8,7 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {PoolAddress} from './libraries/PoolAddress.sol';
 import {MathConstants as C} from '../libraries/MathConstants.sol';
 import {FullMath} from '../libraries/FullMath.sol';
+import {QtyDeltaMath} from '../libraries/QtyDeltaMath.sol';
 
 import {IPool} from '../interfaces/IPool.sol';
 import {IFactory} from '../interfaces/IFactory.sol';
@@ -67,7 +68,10 @@ contract BasePositionManager is
 
     (uint160 sqrtP, , , ) = IPool(pool).getPoolState();
     if (sqrtP == 0) {
-      IPool(pool).unlockPool(currentSqrtP, _callbackData(token0, token1, fee));
+      (uint256 qty0, uint256 qty1) = QtyDeltaMath.calcUnlockQtys(currentSqrtP);
+      _transferTokens(token0, msg.sender, pool, qty0);
+      _transferTokens(token1, msg.sender, pool, qty1);
+      IPool(pool).unlockPool(currentSqrtP);
     }
   }
 
