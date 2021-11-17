@@ -66,6 +66,8 @@ interface IPoolActions {
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1
   /// @param qty Reinvestment token quantity to burn
+  /// @param isLogicalBurn true if burning rTokens without returning any token0/token1
+  ///         otherwise should transfer token0/token1 to sender
   /// @return qty0 token0 quantity sent to the caller for burnt reinvestment tokens
   /// @return qty1 token1 quantity sent to the caller for burnt reinvestment tokens
   function burnRTokens(uint256 qty, bool isLogicalBurn)
