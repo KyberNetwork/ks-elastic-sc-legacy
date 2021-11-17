@@ -35,7 +35,7 @@ describe('Factory', () => {
   });
 
   it('should return the contract creation code storage addresses', async () => {
-    const { contractA, contractB } = await factory.getCreationCodeContracts();
+    const {contractA, contractB} = await factory.getCreationCodeContracts();
     const codeA = await ethers.provider.getCode(contractA);
     const codeB = await ethers.provider.getCode(contractB);
     let factoryBytecode = await factory.getCreationCode();

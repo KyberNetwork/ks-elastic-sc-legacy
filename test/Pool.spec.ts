@@ -43,7 +43,7 @@ let tickUpperData: any;
 let positionData: any;
 
 class Fixtures {
-  constructor (
+  constructor(
     public factory: MockFactory,
     public poolArray: MockPool[],
     public token0: MockToken,
@@ -56,7 +56,7 @@ class Fixtures {
 describe('Pool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
-  async function fixture (): Promise<Fixtures> {
+  async function fixture(): Promise<Fixtures> {
     let factory = await deployMockFactory(admin, vestingPeriod);
     const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
     // add any newly defined tickDistance apart from default ones
@@ -190,8 +190,7 @@ describe('Pool', () => {
 
     it('should init if initial tick is equal to the upper tick - 1', async () => {
       // initial tick = upper tick
-      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK.sub(ONE)))).to.not.be
-        .reverted;
+      await expect(callback.unlockPool(pool.address, await getPriceFromTick(MAX_TICK.sub(ONE)))).to.not.be.reverted;
     });
   });
 
@@ -1685,7 +1684,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
           await callback.swap(pool.address, user.address, quoteResult.usedAmount, true, MIN_SQRT_RATIO.add(ONE), '0x')
@@ -1701,7 +1700,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1718,7 +1717,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1756,7 +1755,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1780,7 +1779,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -1804,7 +1803,7 @@ describe('Pool', () => {
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
           feeBps: swapFeeBps,
-          limitSqrtP: priceLimit
+          limitSqrtP: priceLimit,
         });
 
         await snapshotGasCost(
@@ -2110,7 +2109,7 @@ describe('Pool', () => {
   });
 });
 
-async function isTickCleared (tick: number): Promise<boolean> {
+async function isTickCleared(tick: number): Promise<boolean> {
   const {liquidityGross, feeGrowthOutside, liquidityNet} = await pool.ticks(tick);
   if (!feeGrowthOutside.eq(ZERO)) return false;
   if (!liquidityNet.eq(ZERO)) return false;
@@ -2118,7 +2117,7 @@ async function isTickCleared (tick: number): Promise<boolean> {
   return true;
 }
 
-async function doRandomSwaps (pool: MockPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
+async function doRandomSwaps(pool: MockPool, user: Wallet, iterations: number, maxSwapQty?: BN) {
   for (let i = 0; i < iterations; i++) {
     let isToken0 = Math.random() < 0.5;
     let isExactInput = Math.random() < 0.5;
@@ -2145,7 +2144,7 @@ async function doRandomSwaps (pool: MockPool, user: Wallet, iterations: number, 
   }
 }
 
-async function swapToUpTick (pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToUpTick(pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState()).currentTick < targetTick) {
     // either specify exactInputToken1 or exactOutputToken0
     let isToken0 = Math.random() < 0.5;
@@ -2166,7 +2165,7 @@ async function swapToUpTick (pool: MockPool, user: Wallet, targetTick: number, m
   }
 }
 
-async function swapToDownTick (pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
+async function swapToDownTick(pool: MockPool, user: Wallet, targetTick: number, maxSwapQty?: BN) {
   while ((await pool.getPoolState()).currentTick > targetTick) {
     // either specify exactInputToken0 or exactOutputToken1
     let isToken0 = Math.random() < 0.5;
