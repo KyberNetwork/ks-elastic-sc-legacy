@@ -1,4 +1,5 @@
 import '@nomiclabs/hardhat-waffle';
+import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
@@ -10,7 +11,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-import './deployment/deploy.js';
+import './deployment/deploy.ts';
 import {accounts} from './test-wallets';
 
 const solcConfig: SolcUserConfig = {
@@ -18,12 +19,12 @@ const solcConfig: SolcUserConfig = {
   settings: {
     optimizer: {
       enabled: true,
-      runs: 100000
+      runs: 100000,
     },
     metadata: {
-      bytecodeHash: 'none'
-    }
-  }
+      bytecodeHash: 'none',
+    },
+  },
 };
 
 const lowRunSolcConfig = {
@@ -32,9 +33,9 @@ const lowRunSolcConfig = {
     ...solcConfig.settings,
     optimizer: {
       enabled: true,
-      runs: 8000
-    }
-  }
+      runs: 8000,
+    },
+  },
 };
 
 const veryLowRunSolcConfig = {
@@ -53,7 +54,7 @@ const config: HardhatUserConfig = {
 
   gasReporter: {
     currency: 'USD',
-    gasPrice: 100
+    gasPrice: 100,
   },
 
   networks: {
@@ -61,8 +62,8 @@ const config: HardhatUserConfig = {
       accounts: accounts,
       allowUnlimitedContractSize: true,
       initialBaseFeePerGas: 0,
-      gas: 15000000
-    }
+      gas: 15000000,
+    },
   },
 
   solidity: {
@@ -72,27 +73,27 @@ const config: HardhatUserConfig = {
       'contracts/periphery/AntiSnipAttackPositionManager.sol': veryLowRunSolcConfig,
       'contracts/Factory.sol': veryLowRunSolcConfig,
       'contracts/Pool.sol': veryLowRunSolcConfig,
-      'contracts/mock/MockPool.sol': veryLowRunSolcConfig
-    }
+      'contracts/mock/MockPool.sol': veryLowRunSolcConfig,
+    },
   },
 
   paths: {
     sources: './contracts',
-    tests: './test'
+    tests: './test',
   },
 
   mocha: {
-    timeout: 0
+    timeout: 0,
   },
 
   typechain: {
-    target: 'ethers-v5'
+    target: 'ethers-v5',
   },
 
   contractSizer: {
     runOnCompile: true,
-    disambiguatePaths: false
-  }
+    disambiguatePaths: false,
+  },
 };
 
 const INFURA_API_KEY: string = process.env.INFURA_API_KEY || '';
@@ -104,31 +105,33 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   config.networks!.kovan = {
     url: `https://kovan.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.rinkeby = {
     url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
+    blockGasLimit: 30000000
   };
 
   config.networks!.ropsten = {
     url: `https://ropsten.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.mainnet = {
     url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.bsc_testnet = {
     url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
     accounts: [PRIVATE_KEY],
     timeout: 20000,
+    blockGasLimit: 30000000
   };
 }
 
