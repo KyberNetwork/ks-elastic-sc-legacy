@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: agpl-3.0
-pragma solidity >=0.8.0;
+pragma solidity 0.8.9;
 
 import {MathConstants as C} from '../../libraries/MathConstants.sol';
 import {FullMath} from '../../libraries/FullMath.sol';

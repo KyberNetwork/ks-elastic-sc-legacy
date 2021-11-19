@@ -364,7 +364,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     while (swapData.specifiedAmount != 0 && swapData.sqrtP != limitSqrtP) {
       // math calculations work with the assumption that the price diff is capped to 5%
       // since tick distance is uncapped between currentTick and nextTick
-      // we use tempNextTick to satisfy our assumption
+      // we use tempNextTick to satisfy our assumption with MAX_TICK_DISTANCE is set to be matched this condition
       int24 tempNextTick = swapData.nextTick;
       if (willUpTick && tempNextTick > C.MAX_TICK_DISTANCE + swapData.currentTick) {
         tempNextTick = swapData.currentTick + C.MAX_TICK_DISTANCE;
