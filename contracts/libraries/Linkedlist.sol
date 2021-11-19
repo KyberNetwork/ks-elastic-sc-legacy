@@ -42,11 +42,15 @@ library Linkedlist {
   function insert(
     mapping(int24 => Linkedlist.Data) storage self,
     int24 newValue,
-    int24 lowerValue
+    int24 lowerValue,
+    int24 nextValue
   ) internal {
-    int24 nextValue = self[lowerValue].next;
     require(nextValue != self[lowerValue].previous, 'lower value is not initialized');
-    require(lowerValue < newValue && nextValue > newValue, 'invalid lower value');
+    require(lowerValue < newValue && self[lowerValue].next > newValue, 'invalid lower value');
+    require(
+      nextValue == self[lowerValue].next && lowerValue == self[nextValue].previous,
+      'invalid next value'
+    );
     self[newValue].next = nextValue;
     self[newValue].previous = lowerValue;
     self[nextValue].previous = newValue;

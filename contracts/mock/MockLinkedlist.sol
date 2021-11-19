@@ -13,8 +13,12 @@ contract MockLinkedlist {
     values.init(minValue, maxValue);
   }
 
-  function insert(int24 newValue, int24 nearestLower) external {
-    values.insert(newValue, nearestLower);
+  function insert(
+    int24 newValue,
+    int24 nearestLower,
+    int24 nearestNext
+  ) external {
+    values.insert(newValue, nearestLower, nearestNext);
   }
 
   function remove(int24 value) external {
