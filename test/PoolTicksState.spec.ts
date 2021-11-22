@@ -9,13 +9,13 @@ import {
   MockPoolTicksState,
   MockPoolTicksStateFactory,
   MockPoolTicksStateFactory__factory,
-  MockPoolTicksState__factory
+  MockPoolTicksState__factory,
 } from '../typechain';
 import {BigNumberish} from '@ethersproject/bignumber';
 
 const tickSpacing = 50;
 
-async function assertTicksData (
+async function assertTicksData(
   mockPoolTicksState: MockPoolTicksState,
   tick: BigNumberish,
   expectedLiquidityGross: BigNumberish,
@@ -28,7 +28,7 @@ async function assertTicksData (
   expect(feeGrowthOutside).to.be.eq(expectedFeeGrowthOutside);
 }
 
-async function assertLinkedListData (
+async function assertLinkedListData(
   mockPoolTicksState: MockPoolTicksState,
   tick: BigNumberish,
   expectedPrevTick: BigNumberish,
@@ -39,7 +39,7 @@ async function assertLinkedListData (
   expect(next).to.be.eq(expectedNextTick);
 }
 
-async function verifyInitializedData (mockPoolTicksState: MockPoolTicksState, initializedTicks: BigNumberish[]) {
+async function verifyInitializedData(mockPoolTicksState: MockPoolTicksState, initializedTicks: BigNumberish[]) {
   for (let i = 0; i < initializedTicks.length; i++) {
     await assertLinkedListData(
       mockPoolTicksState,
@@ -91,7 +91,7 @@ describe('PoolTicksState', () => {
             tickUpper: 200,
             tickLowerPrevious: MIN_TICK,
             tickUpperPrevious: MIN_TICK,
-            isAddLiquidity: true
+            isAddLiquidity: true,
           },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
@@ -114,7 +114,7 @@ describe('PoolTicksState', () => {
             tickUpper: 100,
             tickLowerPrevious: MIN_TICK,
             tickUpperPrevious: MIN_TICK,
-            isAddLiquidity: true
+            isAddLiquidity: true,
           },
           150,
           {feeGrowth: feeGrowth1, secondsPerLiquidity: ZERO}
@@ -147,7 +147,7 @@ describe('PoolTicksState', () => {
           tickUpper: 200,
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
@@ -160,7 +160,7 @@ describe('PoolTicksState', () => {
           tickUpper: 100,
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         150,
         {feeGrowth: ZERO, secondsPerLiquidity: ZERO}
@@ -217,12 +217,12 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
 
@@ -237,12 +237,12 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
 
@@ -260,12 +260,12 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       await mockPoolTicksState.externalUpdatePosition(
@@ -276,12 +276,12 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAddLiquidity: true
+          isAddLiquidity: true,
         },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       // remove liquidity at [-10, 20]
@@ -293,12 +293,12 @@ describe('PoolTicksState', () => {
           tickLowerPrevious: MIN_TICK,
           tickUpperPrevious: MIN_TICK,
           liquidityDelta: 10,
-          isAddLiquidity: false
+          isAddLiquidity: false,
         },
         0,
         {
           feeGrowth: 0,
-          secondsPerLiquidity: 0
+          secondsPerLiquidity: 0,
         }
       );
       await assertLinkedListData(mockPoolTicksState, -10, 0, 0); // empty data
@@ -325,12 +325,12 @@ describe('PoolTicksState', () => {
         tickLowerPrevious: MIN_TICK,
         tickUpperPrevious: MIN_TICK,
         liquidityDelta: 10,
-        isAddLiquidity: true
+        isAddLiquidity: true,
       },
       0,
       {
         feeGrowth: 0,
-        secondsPerLiquidity: 0
+        secondsPerLiquidity: 0,
       }
     );
     await verifyInitializedData(mockPoolTicksState, [MIN_TICK, 100, MAX_TICK]);
@@ -343,12 +343,12 @@ describe('PoolTicksState', () => {
         tickLowerPrevious: MIN_TICK,
         tickUpperPrevious: MIN_TICK,
         liquidityDelta: 10,
-        isAddLiquidity: true
+        isAddLiquidity: true,
       },
       0,
       {
         feeGrowth: 0,
-        secondsPerLiquidity: 0
+        secondsPerLiquidity: 0,
       }
     );
     await verifyInitializedData(mockPoolTicksState, [MIN_TICK, -100, 100, MAX_TICK]);
@@ -461,7 +461,7 @@ describe('PoolTicksState', () => {
         MIN_TICK,
         nearestCurrentTick + 10,
         nearestCurrentTick + 100,
-        MAX_TICK
+        MAX_TICK,
       ]);
       await mockPoolTicksState.externalUpdateTickList(nearestCurrentTick + 100, MIN_TICK, 100, false);
       await verifyInitializedData(mockPoolTicksState, [MIN_TICK, nearestCurrentTick + 10, MAX_TICK]);
