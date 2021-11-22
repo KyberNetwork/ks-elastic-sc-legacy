@@ -45,7 +45,9 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
       uint256 additionalRTokenOwed
     )
   {
-    Position storage pos = _positions[params.tokenId];
+    Position memory pos = _positions[params.tokenId];
+    Position storage posStorage = _positions[params.tokenId];
+
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IPool pool;
     uint256 feeGrowthInsideLast;
@@ -82,11 +84,11 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
         FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
         IFactory(factory).vestingPeriod()
       );
-      pos.rTokenOwed += additionalRTokenOwed;
-      pos.feeGrowthInsideLast = feeGrowthInsideLast;
+      posStorage.rTokenOwed = pos.rTokenOwed + additionalRTokenOwed;
+      posStorage.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
-    pos.liquidity += liquidity;
+    posStorage.liquidity = pos.liquidity + liquidity;
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -100,7 +102,8 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
       uint256 additionalRTokenOwed
     )
   {
-    Position storage pos = _positions[params.tokenId];
+    Position memory pos = _positions[params.tokenId];
+    Position storage posStorage = _positions[params.tokenId];
     require(pos.liquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
@@ -129,11 +132,11 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
         FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
         IFactory(factory).vestingPeriod()
       );
-      pos.rTokenOwed += additionalRTokenOwed;
-      pos.feeGrowthInsideLast = feeGrowthInsideLast;
+      posStorage.rTokenOwed = pos.rTokenOwed + additionalRTokenOwed;
+      posStorage.feeGrowthInsideLast = feeGrowthInsideLast;
       if (feesBurnable > 0) pool.burnRTokens(feesBurnable, true);
     }
 
-    pos.liquidity -= params.liquidity;
+    posStorage.liquidity = pos.liquidity - params.liquidity;
   }
 }
