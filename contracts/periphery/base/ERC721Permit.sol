@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.8.0;
+pragma solidity 0.8.9;
 
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {ERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
