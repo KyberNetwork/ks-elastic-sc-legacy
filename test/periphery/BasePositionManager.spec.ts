@@ -615,8 +615,8 @@ describe('BasePositionManager', () => {
           ticksPrevious: _ticksPrevious,
           amount0Desired: amount,
           amount1Desired: amount,
-          amount0Min: BN.from(0),
-          amount1Min: BN.from(0),
+          amount0Min: 0,
+          amount1Min: 0,
           recipient: recipients[i],
           deadline: PRECISION,
         };
@@ -720,8 +720,8 @@ describe('BasePositionManager', () => {
     // call to burn rTokens
     let burnRTokenParams = {
       tokenId: tokenId,
-      amount0Min: 0,
-      amount1Min: 0,
+      amount0Min: 1,
+      amount1Min: 1,
       deadline: PRECISION,
     };
     let multicallData = [positionManager.interface.encodeFunctionData('burnRTokens', [burnRTokenParams])];
@@ -1234,8 +1234,8 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(other).burnRTokens({
           tokenId: nextTokenId,
-          amount0Min: 0,
-          amount1Min: 0,
+          amount0Min: 1,
+          amount1Min: 1,
           deadline: PRECISION,
         })
       ).to.be.revertedWith('Not approved');
@@ -1246,8 +1246,8 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).burnRTokens({
           tokenId: nextTokenId,
-          amount0Min: 0,
-          amount1Min: 0,
+          amount0Min: 1,
+          amount1Min: 1,
           deadline: 0,
         })
       ).to.be.revertedWith('Expired');
@@ -1258,8 +1258,8 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).burnRTokens({
           tokenId: nextTokenId,
-          amount0Min: 0,
-          amount1Min: 0,
+          amount0Min: 1,
+          amount1Min: 1,
           deadline: PRECISION,
         })
       ).to.be.revertedWith('No rToken to burn');
@@ -1278,14 +1278,14 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).burnRTokens({
           tokenId: nextTokenId,
           amount0Min: PRECISION,
-          amount1Min: 0,
+          amount1Min: 1,
           deadline: PRECISION,
         })
       ).to.be.revertedWith('Low return amounts');
       await expect(
         positionManager.connect(user).burnRTokens({
           tokenId: nextTokenId,
-          amount0Min: 0,
+          amount0Min: 1,
           amount1Min: PRECISION,
           deadline: PRECISION,
         })

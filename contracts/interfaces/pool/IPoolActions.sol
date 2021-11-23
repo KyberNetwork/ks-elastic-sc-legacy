@@ -66,6 +66,8 @@ interface IPoolActions {
 
   /// @notice Burns reinvestment tokens in exchange to receive the fees collected in token0 and token1
   /// @param qty Reinvestment token quantity to burn
+  /// @param isLogicalBurn true if burning rTokens without returning any token0/token1
+  ///         otherwise should transfer token0/token1 to sender
   /// @return qty0 token0 quantity sent to the caller for burnt reinvestment tokens
   /// @return qty1 token1 quantity sent to the caller for burnt reinvestment tokens
   function burnRTokens(uint256 qty, bool isLogicalBurn)
@@ -93,8 +95,7 @@ interface IPoolActions {
 
   /// @notice Receive token0 and/or token1 and pay it back, plus a fee, in the callback
   /// @dev The caller of this method receives a callback in the form of IFlashCallback#flashCallback
-  /// @dev Fees collected are distributed to all rToken holders
-  /// since no rTokens are minted from it
+  /// @dev Fees collected are sent to the feeTo address if it is set in Factory
   /// @param recipient The address which will receive the token0 and token1 quantities
   /// @param qty0 token0 quantity to be loaned to the recipient
   /// @param qty1 token1 quantity to be loaned to the recipient

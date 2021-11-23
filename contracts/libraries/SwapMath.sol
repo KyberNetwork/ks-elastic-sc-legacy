@@ -259,7 +259,7 @@ library SwapMath {
       // if isExactInput: swap 1 -> 0, sqrtP increases, we round down
       // else swap: 0 -> 1, sqrtP decreases, we round up
       if (isExactInput) {
-        uint256 tmp = FullMath.mulDivCeiling(absDelta, C.TWO_POW_96, currentSqrtP);
+        uint256 tmp = FullMath.mulDivFloor(absDelta, C.TWO_POW_96, currentSqrtP);
         return FullMath.mulDivFloor(liquidity + tmp, currentSqrtP, liquidity + deltaL);
       } else {
         uint256 tmp = FullMath.mulDivFloor(absDelta, C.TWO_POW_96, currentSqrtP);

@@ -10,7 +10,7 @@ exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 3`] = `"1114
 
 exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 4`] = `"106899"`;
 
-exports[`Router #swapExactOutput #gas 2 pool [ @skip-on-coverage ] 1`] = `"189808"`;
+exports[`Router #swapExactOutput #gas 2 pool [ @skip-on-coverage ] 1`] = `"189838"`;
 
 exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 1`] = `"118675"`;
 
