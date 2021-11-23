@@ -46,11 +46,7 @@ library Linkedlist {
     int24 nextValue
   ) internal {
     require(nextValue != self[lowerValue].previous, 'lower value is not initialized');
-    require(lowerValue < newValue && self[lowerValue].next > newValue, 'invalid lower value');
-    require(
-      nextValue == self[lowerValue].next && lowerValue == self[nextValue].previous,
-      'invalid next value'
-    );
+    require(lowerValue < newValue && nextValue > newValue, 'invalid lower value');
     self[newValue].next = nextValue;
     self[newValue].previous = lowerValue;
     self[nextValue].previous = newValue;

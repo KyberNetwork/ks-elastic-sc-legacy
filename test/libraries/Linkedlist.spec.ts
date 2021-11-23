@@ -51,24 +51,25 @@ describe('Linkedlist', () => {
   });
 
   it('revert - insert invalid lower value', async () => {
+    // we assume that passed lower value and next value are compatible with each other: lowerValue.next = nextVale
     await linkedlist.insert(100, MIN_VALUE, MAX_VALUE);
     realValues.splice(1, 0, 100);
-    await expect(linkedlist.insert(1200, MIN_VALUE, MAX_VALUE)).to.be.revertedWith('invalid lower value');
+    await expect(linkedlist.insert(1200, MIN_VALUE, 100)).to.be.revertedWith('invalid lower value');
     await linkedlist.insert(1200, 100, MAX_VALUE);
     realValues.splice(2, 0, 1200);
     await validateValues();
   });
 
-  it('revert - insert invalid next value', async () => {
-    await linkedlist.insert(100, MIN_VALUE, MAX_VALUE);
-    realValues.splice(1, 0, 100);
-    await expect(linkedlist.insert(1200, 100, 1000)).to.be.revertedWith('invalid next value');
-    await linkedlist.insert(1200, 100, MAX_VALUE);
-    realValues.splice(2, 0, 1200);
-    await validateValues();
-  });
+  // it('revert - insert invalid next value', async () => {
+  //   await linkedlist.insert(100, MIN_VALUE, MAX_VALUE);
+  //   realValues.splice(1, 0, 100);
+  //   await expect(linkedlist.insert(1200, 100, 1000)).to.be.revertedWith('invalid next value');
+  //   await linkedlist.insert(1200, 100, MAX_VALUE);
+  //   realValues.splice(2, 0, 1200);
+  //   await validateValues();
+  // });
 
-  it.only('correct record insert data', async () => {
+  it('correct record insert data', async () => {
     for (let i = 0; i < 50; i++) {
       let t = genRandomSeed(realValues.length - 1);
       let x = realValues[t] + genRandomSeed(realValues[t + 1] - realValues[t]);
