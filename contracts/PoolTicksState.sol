@@ -246,7 +246,7 @@ contract PoolTicksState is PoolStorage {
         nextTick = initializedTicks[previousTick].next;
         iteration++;
       }
-      initializedTicks.insert(tick, previousTick);
+      initializedTicks.insert(tick, previousTick, nextTick);
       if (poolData.nearestCurrentTick < tick && tick <= currentTick) {
         poolData.nearestCurrentTick = tick;
       }
