@@ -71,7 +71,7 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721Enumerable, IERC721P
     uint8 v,
     bytes32 r,
     bytes32 s
-  ) external payable override onlyNotExpired(deadline) {
+  ) external override onlyNotExpired(deadline) {
     bytes32 digest = keccak256(
       abi.encodePacked(
         '\x19\x01',
