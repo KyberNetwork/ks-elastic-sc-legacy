@@ -71,30 +71,19 @@ library QtyDeltaMath {
     }
   }
 
-  /// @notice Calculates the token0 quantity proportion to be sent to the user
+  /// @notice Calculates the token0 and token1 quantities to be sent to the user
   /// for burning reinvestment tokens
   /// @param sqrtP Current pool sqrt price
   /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
-  /// @return token0 quantity to be sent to the user
-  function getQty0FromBurnRTokens(uint160 sqrtP, uint256 liquidity)
+  /// @return qty0 token0 quantity to be sent to the user
+  /// @return qty1 token1 quantity to be sent to the user
+  function getQtiesFromBurnRTokens(uint160 sqrtP, uint256 liquidity)
     internal
     pure
-    returns (uint256)
+    returns (uint256 qty0, uint256 qty1)
   {
-    return FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtP);
-  }
-
-  /// @notice Calculates the token1 quantity proportion to be sent to the user
-  /// for burning reinvestment tokens
-  /// @param sqrtP Current pool sqrt price
-  /// @param liquidity Difference in reinvestment liquidity due to reinvestment token burn
-  /// @return token1 quantity to be sent to the user
-  function getQty1FromBurnRTokens(uint160 sqrtP, uint256 liquidity)
-    internal
-    pure
-    returns (uint256)
-  {
-    return FullMath.mulDivFloor(liquidity, sqrtP, C.TWO_POW_96);
+    qty0 = FullMath.mulDivFloor(liquidity, C.TWO_POW_96, sqrtP);
+    qty1 = FullMath.mulDivFloor(liquidity, sqrtP, C.TWO_POW_96);
   }
 
   /// @notice Returns ceil(x / y)

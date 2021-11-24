@@ -27,7 +27,6 @@ contract MockQtyDeltaMath {
     pure
     returns (uint256 qty0, uint256 qty1)
   {
-    qty0 = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, lfDelta);
-    qty1 = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, lfDelta);
+    return QtyDeltaMath.getQtiesFromBurnRTokens(sqrtP, lfDelta);
   }
 }

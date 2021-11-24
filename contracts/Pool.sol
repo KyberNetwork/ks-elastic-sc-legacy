@@ -288,8 +288,7 @@ contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2
     poolData.reinvestL = reinvestL;
     poolData.reinvestLLast = reinvestL;
     // finally, calculate and send token quantities to user
-    qty0 = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, deltaL);
-    qty1 = QtyDeltaMath.getQty1FromBurnRTokens(sqrtP, deltaL);
+    (qty0, qty1) = QtyDeltaMath.getQtiesFromBurnRTokens(sqrtP, deltaL);
 
     _burn(msg.sender, _qty);
 

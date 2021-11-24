@@ -143,7 +143,7 @@ describe('QtyDeltaMath', () => {
     // })
   });
 
-  describe('getQty0FromBurnRTokens && getQty1FromBurnRTokens', () => {
+  describe('getQtiesFromBurnRTokens', () => {
     it('liquidity = 0', async () => {
       const result = await qtyDeltaMath.getQtyFromBurnRTokens(TWO_POW_96, ZERO);
       expect(result.qty0).to.equal(0);
