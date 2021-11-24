@@ -56,7 +56,13 @@ library AntiSnipAttack {
     uint256 vestingPeriod
   ) internal returns (uint256 feesClaimable, uint256 feesBurnable) {
     Data memory _self = self;
-    if (vestingPeriod == 0) return (feesSinceLastAction, 0);
+    if (vestingPeriod == 0) {
+      // no locked fees, return
+      if (_self.feesLocked == 0) return (feesSinceLastAction, 0);
+      // unlock any locked fees
+      self.feesLocked = 0;
+      return (_self.feesLocked + feesSinceLastAction, 0);
+    }
 
     // scoping of fee proportions to avoid stack too deep
     {
