@@ -12,7 +12,7 @@ exports[`Pool #mint after unlockPool successful mints position includes current 
 
 exports[`Pool #unlockPool #gas [ @skip-on-coverage ] 1`] = `"254996"`;
 
-exports[`Pool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"81731"`;
+exports[`Pool burnRTokens init at 0 tick #gas [ @skip-on-coverage ] 1`] = `"81726"`;
 
 exports[`Pool swap init at reasonable tick #gas token0 exactInput - cross 2 initiated ticks [ @skip-on-coverage ] 1`] = `"213659"`;
 
