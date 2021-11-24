@@ -286,6 +286,22 @@ contract BasePositionManager is
     return _positions[tokenId].operator;
   }
 
+  /**
+   * @dev See {IERC165-supportsInterface}.
+   */
+  function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    virtual
+    override(ERC721Permit, IBasePositionManager)
+    returns (bool)
+  {
+    return
+      interfaceId == type(ERC721Permit).interfaceId ||
+      interfaceId == type(IBasePositionManager).interfaceId ||
+      super.supportsInterface(interfaceId);
+  }
+
   function _storePoolInfo(
     address pool,
     address token0,

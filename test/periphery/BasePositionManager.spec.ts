@@ -1557,6 +1557,20 @@ describe('BasePositionManager', () => {
       expect(await positionManager.getApproved(nextTokenId)).to.be.eq(other.address);
     });
   });
+
+  describe(`#supports interface`, async () => {
+    it('support interface', async () => {
+      expect(await positionManager.supportsInterface('0x01ffc9a7')).to.be.eq(true); // ERC165
+      expect(await positionManager.supportsInterface('0x80ac58cd')).to.be.eq(true); // ERC721
+      expect(await positionManager.supportsInterface('0x5b5e139f')).to.be.eq(true); // ERC721Metadata
+      expect(await positionManager.supportsInterface('0x780e9d63')).to.be.eq(true); // ERC721Enumerable
+    });
+
+    it('un-support interface', async () => {
+      expect(await positionManager.supportsInterface('0x8462151c')).to.be.eq(false);
+      expect(await positionManager.supportsInterface('0x80ac583d')).to.be.eq(false);
+    });
+  });
 });
 
 function logMessage(message: string) {
