@@ -29,5 +29,5 @@ interface IERC721Permit is IERC721, IERC721Enumerable {
     uint8 v,
     bytes32 r,
     bytes32 s
-  ) external payable;
+  ) external;
 }
