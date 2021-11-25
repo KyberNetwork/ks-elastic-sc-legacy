@@ -108,4 +108,20 @@ abstract contract ERC721Permit is DeadlineValidation, ERC721Enumerable, IERC721P
       chainId := chainid()
     }
   }
+
+  /**
+   * @dev See {IERC165-supportsInterface}.
+   */
+  function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    virtual
+    override(ERC721Enumerable, IERC721Permit)
+    returns (bool)
+  {
+    return
+      interfaceId == type(ERC721Enumerable).interfaceId ||
+      interfaceId == type(IERC721Permit).interfaceId ||
+      super.supportsInterface(interfaceId);
+  }
 }
