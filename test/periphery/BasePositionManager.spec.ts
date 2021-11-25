@@ -1558,12 +1558,14 @@ describe('BasePositionManager', () => {
     });
   });
 
-  describe(`#supports interface`, async () => {
+  describe.only(`#supports interface`, async () => {
     it('support interface', async () => {
       expect(await positionManager.supportsInterface('0x01ffc9a7')).to.be.eq(true); // ERC165
       expect(await positionManager.supportsInterface('0x80ac58cd')).to.be.eq(true); // ERC721
       expect(await positionManager.supportsInterface('0x5b5e139f')).to.be.eq(true); // ERC721Metadata
       expect(await positionManager.supportsInterface('0x780e9d63')).to.be.eq(true); // ERC721Enumerable
+      expect(await positionManager.supportsInterface('0x7dd42bd6')).to.be.eq(true); // ERC721Permit
+      expect(await positionManager.supportsInterface('0xfad9ce15')).to.be.eq(true); // IBasePositionManager
     });
 
     it('un-support interface', async () => {
