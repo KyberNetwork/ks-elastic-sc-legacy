@@ -129,47 +129,29 @@ describe('RouterTokenHelperWithFee', () => {
     });
 
     it('should transfer ETH to both recipient and fee recipient', async () => {
-      let recipientBalBefore = await ethers.provider.getBalance(admin.address);
-      let feeRecipientBalBefore = await ethers.provider.getBalance(feeRecipient.address);
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      await tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeBps, feeRecipient.address);
-
-      let recipientBalAfter = await ethers.provider.getBalance(admin.address);
-      let feeRecipientBalAfter = await ethers.provider.getBalance(feeRecipient.address);
-
       let feeAmt = contractBal.mul(feeBps).div(BPS);
-      expect(recipientBalAfter.sub(recipientBalBefore)).to.be.eq(contractBal.sub(feeAmt));
-      expect(feeRecipientBalAfter.sub(feeRecipientBalBefore)).to.be.eq(feeAmt);
+      await expect(() =>
+        tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeBps, feeRecipient.address)
+      ).to.changeEtherBalances([admin, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
     });
 
     it('should have ETH remain in RouterTokenHelper if it is the recipient', async () => {
       // tokenHelper is recipient
-      let recipientBalBefore = await ethers.provider.getBalance(tokenHelper.address);
-      let feeRecipientBalBefore = await ethers.provider.getBalance(feeRecipient.address);
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      await tokenHelper.unwrapWethWithFee(PRECISION, tokenHelper.address, feeBps, feeRecipient.address);
-
-      let recipientBalAfter = await ethers.provider.getBalance(tokenHelper.address);
-      let feeRecipientBalAfter = await ethers.provider.getBalance(feeRecipient.address);
-
       let feeAmt = contractBal.mul(feeBps).div(BPS);
-      expect(recipientBalAfter.sub(recipientBalBefore)).to.be.eq(contractBal.sub(feeAmt));
-      expect(feeRecipientBalAfter.sub(feeRecipientBalBefore)).to.be.eq(feeAmt);
+      await expect(() =>
+        tokenHelper.unwrapWethWithFee(PRECISION, tokenHelper.address, feeBps, feeRecipient.address)
+      ).to.changeEtherBalances([tokenHelper, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
     });
 
     it('should have ETH remain in RouterTokenHelper if it is the fee recipient', async () => {
       // tokenHelper is fee recipient
-      let recipientBalBefore = await ethers.provider.getBalance(admin.address);
-      let feeRecipientBalBefore = await ethers.provider.getBalance(tokenHelper.address);
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      await tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeBps, tokenHelper.address);
-
-      let recipientBalAfter = await ethers.provider.getBalance(admin.address);
-      let feeRecipientBalAfter = await ethers.provider.getBalance(tokenHelper.address);
-
       let feeAmt = contractBal.mul(feeBps).div(BPS);
-      expect(recipientBalAfter.sub(recipientBalBefore)).to.be.eq(contractBal.sub(feeAmt));
-      expect(feeRecipientBalAfter.sub(feeRecipientBalBefore)).to.be.eq(feeAmt);
+      await expect(() =>
+        tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeBps, tokenHelper.address)
+      ).to.changeEtherBalances([admin, tokenHelper], [contractBal.sub(feeAmt), feeAmt]);
     });
 
     it('should revert if either recipient or fee recipient cannot receive ETH', async () => {
@@ -184,24 +166,12 @@ describe('RouterTokenHelperWithFee', () => {
 
     it('should transfer tokens to both recipient and fee recipient', async () => {
       tokens.forEach(async (token) => {
-        let recipientBalBefore = await token.balanceOf(admin.address);
-        let feeRecipientBalBefore = await token.balanceOf(feeRecipient.address);
         let contractBal = await token.balanceOf(tokenHelper.address);
-
-        await tokenHelper.transferAllTokensWithFee(
-          token.address,
-          PRECISION,
-          admin.address,
-          feeBps,
-          feeRecipient.address
-        );
-
-        let recipientBalAfter = await token.balanceOf(admin.address);
-        let feeRecipientBalAfter = await token.balanceOf(feeRecipient.address);
-
         let feeAmt = contractBal.mul(feeBps).div(BPS);
-        expect(recipientBalAfter.sub(recipientBalBefore)).to.be.eq(contractBal.sub(feeAmt));
-        expect(feeRecipientBalAfter.sub(feeRecipientBalBefore)).to.be.eq(feeAmt);
+
+        await expect(() =>
+          tokenHelper.transferAllTokensWithFee(token.address, PRECISION, admin.address, feeBps, feeRecipient.address)
+        ).to.changeTokenBalances(token, [admin, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
       });
     });
   });
