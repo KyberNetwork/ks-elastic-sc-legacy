@@ -39,10 +39,10 @@ describe('LiquidityHelper', () => {
     weth = await WETHContract.deploy();
 
     // use liquidity helper
-    const LiquidityHelpeContract = (await ethers.getContractFactory(
+    const LiquidityHelperContract = (await ethers.getContractFactory(
       'MockLiquidityHelper'
     )) as MockLiquidityHelper__factory;
-    liquidityHelper = await LiquidityHelpeContract.deploy(factory.address, weth.address);
+    liquidityHelper = await LiquidityHelperContract.deploy(factory.address, weth.address);
 
     // whitelist liquidity helper
     await factory.connect(admin).addNFTManager(liquidityHelper.address);
@@ -152,8 +152,8 @@ describe('LiquidityHelper', () => {
           token1: token1,
           fee: fee,
           recipient: user.address,
-          tickLower: -100 * tickDistanceArray[index],
-          tickUpper: 100 * tickDistanceArray[index],
+          tickLower: (50 - i * 100) * tickDistanceArray[index],
+          tickUpper: (150 - i * 100) * tickDistanceArray[index],
           ticksPrevious: [MIN_TICK, MIN_TICK],
           amount0Desired: PRECISION,
           amount1Desired: PRECISION,
@@ -204,6 +204,35 @@ describe('LiquidityHelper', () => {
 
       expect(userBefore[0].sub(userAfter[0])).to.be.eq(poolAfter[1].sub(poolBefore[1]));
       expect(userBefore[2].sub(userAfter[2])).to.be.eq(poolAfter[2].sub(poolBefore[2]));
+    });
+  });
+
+  describe('mintCallback', async () => {
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+    });
+
+    it(`reverts token0 > token1`, async () => {
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
+      let encodedData = ethers.utils.defaultAbiCoder.encode(
+        ['tuple(address, address, uint16, address)'],
+        [[token1, token0, swapFeeBpsArray[0], user.address]]
+      );
+      await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(
+        'LiquidityHelper: wrong token order'
+      );
+    });
+
+    it(`reverts for bad caller`, async () => {
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
+      let encodedData = ethers.utils.defaultAbiCoder.encode(
+        ['tuple(address, address, uint16, address)'],
+        [[token0, token1, swapFeeBpsArray[0], user.address]]
+      );
+      await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(
+        'LiquidityHelper: invalid callback sender'
+      );
     });
   });
 });

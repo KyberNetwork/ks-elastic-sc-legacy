@@ -36,4 +36,12 @@ contract MockLiquidityHelper is LiquidityHelper, Multicall {
   {
     return _addLiquidity(params);
   }
+
+  function callbackData(
+    address token0,
+    address token1,
+    uint16 fee
+  ) external view returns (bytes memory) {
+    return _callbackData(token0, token1, fee);
+  }
 }

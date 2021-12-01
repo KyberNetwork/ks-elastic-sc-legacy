@@ -338,6 +338,46 @@ describe('AntiSnipAttack', () => {
       expect((await antiSnipAttack.data()).feesLocked).to.be.eq(ZERO);
     });
   });
+
+  describe('non-zero -> zero vesting period', async () => {
+    it('should unlock any locked fees if vesting period is changed to 0', async () => {
+      vestingPeriod = 100;
+      await antiSnipAttack.initialize(currentTime);
+      // increment time within vesting period to lock fees
+      incrementTime(genRandomBN(BN.from(1), BN.from(vestingPeriod)).toNumber());
+      // update for fees
+      await antiSnipAttack.update(
+        currentLiquidity,
+        liquidityDelta,
+        currentTime,
+        true,
+        feesSinceLastAction,
+        vestingPeriod
+      );
+      // locked fees should be non-zero
+      let data = await antiSnipAttack.data();
+      let lockedFees = data.feesLocked;
+      expect(lockedFees).to.be.gt(ZERO);
+      // update with 0 vesting period
+      vestingPeriod = 0;
+      await antiSnipAttack.update(
+        currentLiquidity,
+        liquidityDelta,
+        currentTime,
+        true,
+        feesSinceLastAction,
+        vestingPeriod
+      );
+      data = await antiSnipAttack.data();
+      // should be set to zero
+      expect(data.feesLocked).to.be.eql(ZERO);
+      // fees claimed should be equal to feesSinceLastAction + feesLocked
+      let result = await antiSnipAttack.fees();
+      expect(result.feesClaimable).to.be.eql(lockedFees.add(feesSinceLastAction));
+      // zero fees burnable
+      expect(result.feesBurnable).to.be.eql(ZERO);
+    });
+  });
 });
 
 function incrementTime(timeIncrement: number) {
