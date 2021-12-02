@@ -159,21 +159,20 @@ contract BasePositionManager is
       })
     );
 
-    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
+    uint128 tmpLiquidity = pos.liquidity;
+    uint256 tmpFeeGrowthInsideLast = pos.feeGrowthInsideLast;
+
+    if (feeGrowthInsideLast != tmpFeeGrowthInsideLast) {
       uint256 feeGrowthInsideDiff;
       unchecked {
-        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+        feeGrowthInsideDiff = feeGrowthInsideLast - tmpFeeGrowthInsideLast;
       }
-      additionalRTokenOwed = FullMath.mulDivFloor(
-        pos.liquidity,
-        feeGrowthInsideDiff,
-        C.TWO_POW_96
-      );
+      additionalRTokenOwed = FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96);
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
-    pos.liquidity += liquidity;
+    pos.liquidity = tmpLiquidity + liquidity;
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -189,7 +188,9 @@ contract BasePositionManager is
     )
   {
     Position storage pos = _positions[params.tokenId];
-    require(pos.liquidity >= params.liquidity, 'Insufficient liquidity');
+    uint128 tmpLiquidity = pos.liquidity;
+    uint256 tmpFeeGrowthInsideLast = pos.feeGrowthInsideLast;
+    require(tmpLiquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
@@ -202,21 +203,17 @@ contract BasePositionManager is
     );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
+    if (feeGrowthInsideLast != tmpFeeGrowthInsideLast) {
       uint256 feeGrowthInsideDiff;
       unchecked {
-        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
+        feeGrowthInsideDiff = feeGrowthInsideLast - tmpFeeGrowthInsideLast;
       }
-      additionalRTokenOwed = FullMath.mulDivFloor(
-        pos.liquidity,
-        feeGrowthInsideDiff,
-        C.TWO_POW_96
-      );
+      additionalRTokenOwed = FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96);
       pos.rTokenOwed += additionalRTokenOwed;
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
-    pos.liquidity -= params.liquidity;
+    pos.liquidity = tmpLiquidity - params.liquidity;
   }
 
   function burnRTokens(BurnRTokenParams calldata params)
@@ -231,12 +228,12 @@ contract BasePositionManager is
     )
   {
     Position storage pos = _positions[params.tokenId];
-    require(pos.rTokenOwed > 0, 'No rToken to burn');
+    rTokenQty = pos.rTokenOwed;
+    require(rTokenQty > 0, 'No rToken to burn');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
-    rTokenQty = pos.rTokenOwed;
     pos.rTokenOwed = 0;
     (amount0, amount1) = pool.burnRTokens(rTokenQty, false);
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');

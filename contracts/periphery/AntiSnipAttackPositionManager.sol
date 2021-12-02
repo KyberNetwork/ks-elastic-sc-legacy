@@ -21,7 +21,6 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     public
     payable
     override
-    onlyNotExpired(params.deadline)
     returns (
       uint256 tokenId,
       uint128 liquidity,
@@ -67,6 +66,8 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
       })
     );
 
+    uint128 tmpLiquidity = pos.liquidity;
+
     if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
       uint256 feeGrowthInsideDiff;
       unchecked {
@@ -75,11 +76,11 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
       // zero fees burnable when adding liquidity
       (additionalRTokenOwed, ) = AntiSnipAttack.update(
         antiSnipAttackData[params.tokenId],
-        pos.liquidity,
+        tmpLiquidity,
         liquidity,
         block.timestamp.toUint32(),
         true,
-        FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
+        FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96),
         IFactory(factory).vestingPeriod()
       );
       pos.rTokenOwed += additionalRTokenOwed;
@@ -101,7 +102,8 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     )
   {
     Position storage pos = _positions[params.tokenId];
-    require(pos.liquidity >= params.liquidity, 'Insufficient liquidity');
+    uint128 tmpLiquidity = pos.liquidity;
+    require(tmpLiquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
     IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
@@ -114,26 +116,26 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    if (feeGrowthInsideLast != pos.feeGrowthInsideLast) {
-      uint256 feesBurnable;
-      uint256 feeGrowthInsideDiff;
-      unchecked {
-        feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
-      }
-      (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
-        antiSnipAttackData[params.tokenId],
-        pos.liquidity,
-        params.liquidity,
-        block.timestamp.toUint32(),
-        false,
-        FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96),
-        IFactory(factory).vestingPeriod()
-      );
-      pos.rTokenOwed += additionalRTokenOwed;
-      pos.feeGrowthInsideLast = feeGrowthInsideLast;
-      if (feesBurnable > 0) pool.burnRTokens(feesBurnable, true);
+    // call update() function regardless of fee growth difference
+    // to calculate burnable fees
+    uint256 feesBurnable;
+    uint256 feeGrowthInsideDiff;
+    unchecked {
+      feeGrowthInsideDiff = feeGrowthInsideLast - pos.feeGrowthInsideLast;
     }
+    (additionalRTokenOwed, feesBurnable) = AntiSnipAttack.update(
+      antiSnipAttackData[params.tokenId],
+      tmpLiquidity,
+      params.liquidity,
+      block.timestamp.toUint32(),
+      false,
+      FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96),
+      IFactory(factory).vestingPeriod()
+    );
+    pos.rTokenOwed += additionalRTokenOwed;
+    pos.feeGrowthInsideLast = feeGrowthInsideLast;
+    if (feesBurnable > 0) pool.burnRTokens(feesBurnable, true);
 
-    pos.liquidity -= params.liquidity;
+    pos.liquidity = tmpLiquidity - params.liquidity;
   }
 }
