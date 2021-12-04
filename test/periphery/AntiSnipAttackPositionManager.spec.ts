@@ -158,6 +158,26 @@ describe('AntiSnipAttackPositionManager', () => {
       expect(antiSnipAttackData.unlockTime).to.be.gt(ZERO);
       expect(antiSnipAttackData.feesLocked).to.be.eq(ZERO);
     });
+
+    it('revert expired', async () => {
+      let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
+      await expect(
+        positionManager.connect(user).mint({
+          token0: token0,
+          token1: token1,
+          fee: swapFeeBpsArray[0],
+          tickLower: 0,
+          tickUpper: 0,
+          ticksPrevious: ticksPrevious,
+          amount0Desired: 0,
+          amount1Desired: 0,
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: user.address,
+          deadline: 0,
+        })
+      ).to.be.revertedWith('Expired');
+    });
   });
 
   const initLiquidity = async (user: Wallet, token0: string, token1: string) => {
@@ -471,7 +491,7 @@ describe('AntiSnipAttackPositionManager', () => {
       }
     });
 
-    it('should have burnt all tokens for snipping attack', async () => {
+    it('should have burnt all tokens for snipping attack 1', async () => {
       const SnipAttack = (await ethers.getContractFactory('MockSnipAttack')) as MockSnipAttack__factory;
       let snipAttack = (await SnipAttack.deploy()) as MockSnipAttack;
 
@@ -482,15 +502,42 @@ describe('AntiSnipAttackPositionManager', () => {
       await tokenA.connect(user).approve(snipAttack.address, BIG_AMOUNT);
       await tokenB.connect(user).approve(snipAttack.address, BIG_AMOUNT);
 
-      await snipAttack.snip(positionManager.address, await factory.getPool(token0, token1, swapFeeBpsArray[0]), {
+      await snipAttack.snip1(await factory.getPool(token0, token1, swapFeeBpsArray[0]), positionManager.address, {
         token0: token0,
         token1: token1,
         fee: swapFeeBpsArray[0],
         tickLower: -1000 * tickDistanceArray[0],
         tickUpper: 1000 * tickDistanceArray[0],
         ticksPrevious: ticksPrevious,
-        amount0Desired: BN.from(1000000),
-        amount1Desired: BN.from(1000000),
+        amount0Desired: PRECISION,
+        amount1Desired: PRECISION,
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: snipAttack.address,
+        deadline: PRECISION,
+      });
+    });
+
+    it('should have burnt all tokens for snipping attack 2', async () => {
+      const SnipAttack = (await ethers.getContractFactory('MockSnipAttack')) as MockSnipAttack__factory;
+      let snipAttack = (await SnipAttack.deploy()) as MockSnipAttack;
+
+      await tokenA.transfer(snipAttack.address, PRECISION.mul(2000000));
+      await tokenB.transfer(snipAttack.address, PRECISION.mul(2000000));
+
+      await weth.connect(user).approve(snipAttack.address, BIG_AMOUNT);
+      await tokenA.connect(user).approve(snipAttack.address, BIG_AMOUNT);
+      await tokenB.connect(user).approve(snipAttack.address, BIG_AMOUNT);
+
+      await snipAttack.snip2(positionManager.address, await factory.getPool(token0, token1, swapFeeBpsArray[0]), {
+        token0: token0,
+        token1: token1,
+        fee: swapFeeBpsArray[0],
+        tickLower: -1000 * tickDistanceArray[0],
+        tickUpper: 1000 * tickDistanceArray[0],
+        ticksPrevious: ticksPrevious,
+        amount0Desired: PRECISION,
+        amount1Desired: PRECISION,
         amount0Min: 0,
         amount1Min: 0,
         recipient: snipAttack.address,
