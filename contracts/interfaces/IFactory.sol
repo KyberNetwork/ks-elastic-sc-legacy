@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-/// @title KyberDMM v2 factory
-/// @notice Deploys KyberDMM v2 pools and manages control over government fees
+/// @title KyberSwap v2 factory
+/// @notice Deploys KyberSwap v2 pools and manages control over government fees
 interface IFactory {
   /// @notice Emitted when a pool is created
   /// @param token0 First pool token by address sort order
