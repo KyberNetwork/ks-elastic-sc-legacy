@@ -1,10 +1,10 @@
-# KyberDMM v2
+# KyberSwap v2
 
-Main smart contract repo for KyberDMM v2
+Main smart contract repo for KyberSwap v2
 
 ## Whitepaper
 
-Check out **audit_docs/Dynamic_Market_Making_v2_whitepaper.pdf** file for the latest KyberDMM v2 whitepaper.
+Check out **audit_docs/Dynamic_Market_Making_v2_whitepaper.pdf** file for the latest KyberSwap v2 whitepaper.
 
 ## Technical documentation
 

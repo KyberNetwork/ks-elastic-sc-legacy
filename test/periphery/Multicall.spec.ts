@@ -19,8 +19,8 @@ describe('Multicall', async () => {
 
   it('returns revert messages', async () => {
     await expect(
-      multicall.multicall([multicall.interface.encodeFunctionData('revertWithInputError', ['kyberDMMv2'])])
-    ).to.be.revertedWith('kyberDMMv2');
+      multicall.multicall([multicall.interface.encodeFunctionData('revertWithInputError', ['KyberSwap2'])])
+    ).to.be.revertedWith('KyberSwap2');
   });
 
   it('returns reverts without messages', async () => {

@@ -25,7 +25,7 @@ import {ERC721Permit} from './base/ERC721Permit.sol';
 contract BasePositionManager is
   IBasePositionManager,
   Multicall,
-  ERC721Permit('DMM v2 NFT Positions Manager', 'DMM2-PM', '1'),
+  ERC721Permit('KyberSwap v2 NFT Positions Manager', 'KS2-NPM', '1'),
   LiquidityHelper
 {
   address internal immutable _tokenDescriptor;
