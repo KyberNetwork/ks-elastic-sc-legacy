@@ -18,7 +18,7 @@ import {DeadlineValidation} from './base/DeadlineValidation.sol';
 import {Multicall} from './base/Multicall.sol';
 import {RouterTokenHelperWithFee} from './base/RouterTokenHelperWithFee.sol';
 
-/// @title KyberDMM V2 Swap Router
+/// @title KyberSwap V2 Swap Router
 contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidation {
   using PathHelper for bytes;
   using SafeCast for uint256;

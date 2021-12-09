@@ -6,8 +6,6 @@ import '../libraries/TickMath.sol';
 import '../periphery/AntiSnipAttackPositionManager.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-// import 'hardhat/console.sol';
-
 contract MockSnipAttack {
   function snip1(
     IPool pool,
@@ -19,17 +17,9 @@ contract MockSnipAttack {
     (uint256 tokenId, uint128 liquidity, , ) = posManager.mint(params);
     (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
     uint256 feeGrowthInsideLastBefore = pos.feeGrowthInsideLast;
-    // console.log(feeGrowthInsideLastBefore);
 
     // do swap to increase fees
-    pool.swap(
-      address(this),
-      5e19,
-      true,
-      TickMath.MIN_SQRT_RATIO + 1,
-      abi.encode(msg.sender, params.token0, params.token1)
-    );
-
+    _doSwap(pool, params);
     // remove all liquidity
     posManager.removeLiquidity(
       IBasePositionManager.RemoveLiquidityParams({
@@ -43,7 +33,6 @@ contract MockSnipAttack {
     (pos, ) = posManager.positions(tokenId);
     // fee growth should be different
     // using require instead of assert because of coverage error
-    // console.log(pos.feeGrowthInsideLast);
     require(feeGrowthInsideLastBefore != pos.feeGrowthInsideLast, 'same fee growth');
     // should owe no rTokens
     require(pos.rTokenOwed == 0, 'diff rTokens owed');
@@ -59,16 +48,9 @@ contract MockSnipAttack {
     (uint256 tokenId, uint128 liquidity, , ) = posManager.mint(params);
     (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
     uint256 feeGrowthInsideLastBefore = pos.feeGrowthInsideLast;
-    // console.log(feeGrowthInsideLastBefore);
 
     // do swap to increase fees
-    pool.swap(
-      address(this),
-      5e19,
-      true,
-      TickMath.MIN_SQRT_RATIO + 1,
-      abi.encode(msg.sender, params.token0, params.token1)
-    );
+    _doSwap(pool, params);
 
     // add small liquidity to lock fees
     (uint128 addedLiquidity, , , ) = posManager.addLiquidity(
@@ -85,7 +67,8 @@ contract MockSnipAttack {
     // fee growth should be different
     // using require instead of assert because of coverage error
     (pos, ) = posManager.positions(tokenId);
-    // console.log(pos.feeGrowthInsideLast);
+    // fee growth should be different
+    // using require instead of assert because of coverage error
     require(feeGrowthInsideLastBefore != pos.feeGrowthInsideLast, 'same fee growth');
 
     // remove all liquidity
@@ -114,5 +97,15 @@ contract MockSnipAttack {
     (address user, address token0, address token1) = abi.decode(data, (address, address, address));
     if (deltaQty0 > 0) IERC20(token0).transferFrom(user, msg.sender, uint256(deltaQty0));
     if (deltaQty1 > 0) IERC20(token1).transferFrom(user, msg.sender, uint256(deltaQty1));
+  }
+
+  function _doSwap(IPool pool, IBasePositionManager.MintParams calldata params) internal {
+    pool.swap(
+      address(this),
+      10e19,
+      true,
+      TickMath.MIN_SQRT_RATIO + 1,
+      abi.encode(msg.sender, params.token0, params.token1)
+    );
   }
 }

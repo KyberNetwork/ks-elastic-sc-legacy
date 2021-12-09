@@ -23,7 +23,7 @@ import {IFlashCallback} from './interfaces/callback/IFlashCallback.sol';
 
 import {PoolTicksState} from './PoolTicksState.sol';
 
-contract Pool is IPool, PoolTicksState, ERC20('DMM v2 reinvestment token', 'DMM2-RT') {
+contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token', 'KS2-RT') {
   using SafeCast for uint256;
   using SafeCast for int256;
   using SafeERC20 for IERC20;

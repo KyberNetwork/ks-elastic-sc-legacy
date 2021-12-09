@@ -10,8 +10,8 @@ import {IFactory} from './interfaces/IFactory.sol';
 
 import {Pool} from './Pool.sol';
 
-/// @title KyberDMM v2 factory
-/// @notice Deploys KyberDMM v2 pools and manages control over government fees
+/// @title KyberSwap v2 factory
+/// @notice Deploys KyberSwap v2 pools and manages control over government fees
 contract Factory is BaseSplitCodeFactory, IFactory {
   using EnumerableSet for EnumerableSet.AddressSet;
 
