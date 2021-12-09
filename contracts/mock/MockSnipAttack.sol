@@ -15,8 +15,6 @@ contract MockSnipAttack {
     IERC20(params.token0).approve(address(posManager), type(uint256).max);
     IERC20(params.token1).approve(address(posManager), type(uint256).max);
     (uint256 tokenId, uint128 liquidity, , ) = posManager.mint(params);
-    (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
-    uint256 feeGrowthInsideLastBefore = pos.feeGrowthInsideLast;
 
     // do swap to increase fees
     _doSwap(pool, params);
@@ -30,10 +28,7 @@ contract MockSnipAttack {
         deadline: block.timestamp
       })
     );
-    (pos, ) = posManager.positions(tokenId);
-    // fee growth should be different
-    // using require instead of assert because of coverage error
-    require(feeGrowthInsideLastBefore != pos.feeGrowthInsideLast, 'same fee growth');
+    (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
     // should owe no rTokens
     require(pos.rTokenOwed == 0, 'diff rTokens owed');
   }
@@ -46,8 +41,6 @@ contract MockSnipAttack {
     IERC20(params.token0).approve(address(posManager), type(uint256).max);
     IERC20(params.token1).approve(address(posManager), type(uint256).max);
     (uint256 tokenId, uint128 liquidity, , ) = posManager.mint(params);
-    (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
-    uint256 feeGrowthInsideLastBefore = pos.feeGrowthInsideLast;
 
     // do swap to increase fees
     _doSwap(pool, params);
@@ -64,13 +57,6 @@ contract MockSnipAttack {
       })
     );
 
-    // fee growth should be different
-    // using require instead of assert because of coverage error
-    (pos, ) = posManager.positions(tokenId);
-    // fee growth should be different
-    // using require instead of assert because of coverage error
-    require(feeGrowthInsideLastBefore != pos.feeGrowthInsideLast, 'same fee growth');
-
     // remove all liquidity
     posManager.removeLiquidity(
       IBasePositionManager.RemoveLiquidityParams({
@@ -81,7 +67,7 @@ contract MockSnipAttack {
         deadline: block.timestamp
       })
     );
-    (pos, ) = posManager.positions(tokenId);
+    (IBasePositionManager.Position memory pos, ) = posManager.positions(tokenId);
     // should owe no rTokens
     require(pos.rTokenOwed == 0, 'diff rTokens owed');
     // should have zero fees locked (burnt all)
