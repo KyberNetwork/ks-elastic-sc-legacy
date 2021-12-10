@@ -133,6 +133,72 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     timeout: 20000,
     blockGasLimit: 30000000
   };
+
+  config.networks!.bsc = {
+    url: `https://bsc-dataseed1.ninicoin.io/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.cronos_testnet = {
+    url: `https://cronos-testnet-3.crypto.org:8545/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.cronos = {
+    url: `https://evm-cronos.crypto.org/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.aurora_testnet = {
+    url: `https://testnet.aurora.dev/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.aurora = {
+    url: `https://mainnet.aurora.dev/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+  
+  config.networks!.polygon_testnet = {
+    url: `https://rpc-mumbai.maticvigil.com/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.polygon = {
+    url: `https://polygon-rpc.com/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.avax_testnet = {
+    url: `https://api.avax-test.network/ext/bc/C/rpc`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.avax = {
+    url: `https://api.avax.network/ext/bc/C/rpc`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.fantom_testnet = {
+    url: `https://rpc.testnet.fantom.network/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.fantom = {
+    url: `https://rpc.ftm.tools/`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
 }
 
 if (ETHERSCAN_KEY != '' || BSCSCAN_KEY != '') {
