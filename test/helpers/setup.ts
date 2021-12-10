@@ -1,0 +1,96 @@
+import {
+  MockFactory__factory,
+  Factory__factory,
+  Factory,
+  Pool,
+  MockFactory,
+  MockToken,
+  Pool__factory,
+  MockCallbacks2,
+  MockPool,
+} from '../../typechain';
+import {ethers} from 'hardhat';
+import {BigNumberish, BigNumber as BN} from 'ethers';
+import {getNearestSpacedTickAtPrice} from './utils';
+import {PRECISION, MIN_TICK, MAX_INT, MAX_TICK, ZERO} from './helper';
+
+export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockFactory> {
+  const FactoryContract = (await ethers.getContractFactory('MockFactory')) as MockFactory__factory;
+  return await FactoryContract.connect(admin).deploy(vestingPeriod);
+}
+
+export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<Factory> {
+  const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
+  return await FactoryContract.connect(admin).deploy(vestingPeriod);
+}
+
+export async function createPool(
+  factory: Factory,
+  tokenA: MockToken,
+  tokenB: MockToken,
+  feeBps: BigNumberish
+): Promise<Pool> {
+  await factory.createPool(tokenA.address, tokenB.address, feeBps);
+  const addr = await factory.getPool(tokenA.address, tokenB.address, feeBps);
+  const PoolContract = (await ethers.getContractFactory('Pool')) as Pool__factory;
+  return PoolContract.attach(addr);
+}
+
+/**
+ * @returns [pool, nearestTickToPrice]
+ */
+export async function setupPoolWithLiquidity(
+  factory: Factory,
+  mockCallback: MockCallbacks2,
+  recipient: string,
+  tokenA: MockToken,
+  tokenB: MockToken,
+  feeBps: BigNumberish,
+  initialPrice: BN
+): Promise<[Pool, number]> {
+  const pool = await createPool(factory, tokenA, tokenB, feeBps);
+  await mockCallback.unlockPool(pool.address, initialPrice);
+  let tickDistance = await pool.tickDistance();
+
+  const nearestTickToPrice = (await getNearestSpacedTickAtPrice(initialPrice, tickDistance)).toNumber();
+
+  await mockCallback.mint(
+    pool.address,
+    recipient,
+    nearestTickToPrice - 20 * tickDistance,
+    nearestTickToPrice + 20 * tickDistance,
+    [MIN_TICK, MIN_TICK],
+    PRECISION.div(10)
+  );
+
+  return [pool, nearestTickToPrice];
+}
+
+/**
+ * @return lower nearest ticks to the tickLower and tickUpper
+ */
+export async function getTicksPrevious(
+  pool: Pool | MockPool,
+  tickLower: BigNumberish,
+  tickUpper: BigNumberish
+): Promise<[BN, BN]> {
+  // fetch all initialized ticks
+  let initializedTicks = [MIN_TICK];
+  let currentTick = MIN_TICK;
+  while (!currentTick.eq(MAX_TICK)) {
+    let {next} = await pool.initializedTicks(currentTick);
+    currentTick = BN.from(next);
+    initializedTicks.push(currentTick);
+  }
+  let ticksPrevious: [BN, BN] = [ZERO, ZERO];
+  for (let i = 0; i < initializedTicks.length - 1; i++) {
+    if (initializedTicks[i + 1].gt(tickLower) && ticksPrevious[0].eq(ZERO)) {
+      ticksPrevious[0] = initializedTicks[i];
+    }
+    if (initializedTicks[i + 1].gt(tickUpper) && ticksPrevious[1].eq(ZERO)) {
+      ticksPrevious[1] = initializedTicks[i];
+      break;
+    }
+  }
+  return ticksPrevious;
+}
