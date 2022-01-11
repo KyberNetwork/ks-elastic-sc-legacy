@@ -66,6 +66,18 @@ const config: HardhatUserConfig = {
     },
   },
 
+  etherscan: {
+    apiKey: {
+      bscTestnet: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
+      bsc: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
+      mainnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      ropsten: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      rinkeby: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      goerli: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      kovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+    }
+  },
+
   solidity: {
     compilers: [solcConfig],
     overrides: {
@@ -98,8 +110,6 @@ const config: HardhatUserConfig = {
 
 const INFURA_API_KEY: string = process.env.INFURA_API_KEY || '';
 const PRIVATE_KEY: string = process.env.PRIVATE_KEY || '';
-const ETHERSCAN_KEY: string = process.env.ETHERSCAN_KEY || '';
-const BSCSCAN_KEY: string = process.env.BSCSCAN_KEY || '';
 
 if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   config.networks!.kovan = {
@@ -198,12 +208,6 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     url: `https://rpc.ftm.tools/`,
     accounts: [PRIVATE_KEY],
     timeout: 20000
-  };
-}
-
-if (ETHERSCAN_KEY != '' || BSCSCAN_KEY != '') {
-  config.etherscan = {
-    apiKey: ETHERSCAN_KEY == '' ? BSCSCAN_KEY : ETHERSCAN_KEY,
   };
 }
 

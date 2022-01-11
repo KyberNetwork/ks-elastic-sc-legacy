@@ -17,12 +17,13 @@ import {
   AntiSnipAttackPositionManager,
   BasePositionManager__factory,
   BasePositionManager,
+  InitializedTicksFetcher__factory,
+  InitializedTicksFetcher
 } from '../typechain';
 
 let gasPrice;
 
 async function verifyContract(hre: HardhatRuntimeEnvironment, contractAddress: string, ctorArgs: any[]) {
-  if (![1, 3, 4, 5, 6].includes(hre?.network?.config?.chainId as number)) return; // Check the current network is available for etherscan
   await hre.run('verify:verify', {
     address: contractAddress,
     constructorArguments: ctorArgs,
@@ -43,6 +44,7 @@ let router: Router;
 let quoter: QuoterV2;
 let descriptor: MockTokenPositionDescriptor;
 let posManager: AntiSnipAttackPositionManager | BasePositionManager;
+let ticksFetcher: InitializedTicksFetcher;
 
 task('deployDmmV2', 'deploy router, factory and position manager')
   .addParam('gasprice', 'The gas price (in gwei) for all transactions')
@@ -124,6 +126,15 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     console.log(`updating config master...`);
     await factory.updateConfigMaster(admin, {gasPrice: gasPrice});
 
+    console.log(`deploying tick reader...`);
+    const TicksFetcher = (await hre.ethers.getContractFactory(
+      'InitializedTicksFetcher'
+    )) as InitializedTicksFetcher__factory;
+    ticksFetcher = await TicksFetcher.deploy();
+    await ticksFetcher.deployed();
+    console.log(`ticksFetcher address: ${ticksFetcher.address}`);
+    outputData['ticksFetcher'] = ticksFetcher.address;
+
     exportAddresses(outputData);
 
     // verify addresses
@@ -133,6 +144,7 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     if (descriptor) await verifyContract(hre, descriptor.address, []);
     if (deployQuoter) await verifyContract(hre, quoter.address, [factory.address]);
     await verifyContract(hre, posManager.address, [factory.address, weth, baseDescriptor]);
+    await verifyContract(hre, ticksFetcher.address, []);
 
     console.log('setup completed');
     process.exit(0);
