@@ -17,8 +17,8 @@ import {
   AntiSnipAttackPositionManager,
   BasePositionManager__factory,
   BasePositionManager,
-  InitializedTicksFetcher__factory,
-  InitializedTicksFetcher
+  TicksFeesReader__factory,
+  TicksFeesReader
 } from '../typechain';
 
 let gasPrice;
@@ -44,7 +44,7 @@ let router: Router;
 let quoter: QuoterV2;
 let descriptor: MockTokenPositionDescriptor;
 let posManager: AntiSnipAttackPositionManager | BasePositionManager;
-let ticksFetcher: InitializedTicksFetcher;
+let ticksFeesReader: TicksFeesReader;
 
 task('deployDmmV2', 'deploy router, factory and position manager')
   .addParam('gasprice', 'The gas price (in gwei) for all transactions')
@@ -126,14 +126,14 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     console.log(`updating config master...`);
     await factory.updateConfigMaster(admin, {gasPrice: gasPrice});
 
-    console.log(`deploying tick reader...`);
-    const TicksFetcher = (await hre.ethers.getContractFactory(
-      'InitializedTicksFetcher'
-    )) as InitializedTicksFetcher__factory;
-    ticksFetcher = await TicksFetcher.deploy();
-    await ticksFetcher.deployed();
-    console.log(`ticksFetcher address: ${ticksFetcher.address}`);
-    outputData['ticksFetcher'] = ticksFetcher.address;
+    console.log(`deploying tick and fees helper...`);
+    const TicksFeesReader = (await hre.ethers.getContractFactory(
+      'TicksFeesReader'
+    )) as TicksFeesReader__factory;
+    ticksFeesReader = await TicksFeesReader.deploy();
+    await ticksFeesReader.deployed();
+    console.log(`ticksFeesReader address: ${ticksFeesReader.address}`);
+    outputData['ticksFeesReader'] = ticksFeesReader.address;
 
     exportAddresses(outputData);
 
@@ -144,7 +144,7 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     if (descriptor) await verifyContract(hre, descriptor.address, []);
     if (deployQuoter) await verifyContract(hre, quoter.address, [factory.address]);
     await verifyContract(hre, posManager.address, [factory.address, weth, baseDescriptor]);
-    await verifyContract(hre, ticksFetcher.address, []);
+    await verifyContract(hre, ticksFeesReader.address, []);
 
     console.log('setup completed');
     process.exit(0);
