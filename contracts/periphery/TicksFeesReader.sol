@@ -123,12 +123,11 @@ contract TicksFeesReader {
       'tokenId and pool dont match'
     );
     // sync pool fee growth and rTotalSupply
-    (uint256 feeGrowthGlobal, uint256 rTotalSupply) = _syncFeeGrowthGlobal(pool);
+    (, uint256 rTotalSupply) = _syncFeeGrowthGlobal(pool);
     uint256 rTokensOwed = getTotalRTokensOwedToPosition(posManager, pool, tokenId);
 
     (, uint128 reinvestL, ) = pool.getLiquidityState();
     uint256 deltaL = FullMath.mulDivFloor(rTokensOwed, reinvestL, rTotalSupply);
-    reinvestL = reinvestL - deltaL.toUint128();
     (uint160 sqrtP, , , ) = pool.getPoolState();
     // finally, calculate token amounts owed
     token0Owed = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, deltaL);
