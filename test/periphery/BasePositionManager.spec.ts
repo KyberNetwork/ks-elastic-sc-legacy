@@ -528,6 +528,8 @@ describe('BasePositionManager', () => {
       let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
       let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
 
+      let liquidityDesired = [200510416, 100505833];
+
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
         let tickUpper = tickDistanceArray[0] * (i + 1) * 10;
@@ -535,20 +537,27 @@ describe('BasePositionManager', () => {
         let userBalanceBefore = await getBalances(user.address, [token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
         let _ticksPrevious = await getTicksPrevious(pool, tickLower, tickUpper);
-        let tx = await positionManager.connect(user).mint({
-          token0: token0,
-          token1: token1,
-          fee: swapFeeBpsArray[0],
-          tickLower: tickLower,
-          tickUpper: tickUpper,
-          ticksPrevious: _ticksPrevious,
-          amount0Desired: BN.from(1000000),
-          amount1Desired: BN.from(1000000),
-          amount0Min: 0,
-          amount1Min: 0,
-          recipient: recipients[i],
-          deadline: PRECISION,
-        });
+        let tx;
+
+        await expect(
+          (tx = await positionManager.connect(user).mint({
+            token0: token0,
+            token1: token1,
+            fee: swapFeeBpsArray[0],
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            ticksPrevious: _ticksPrevious,
+            amount0Desired: BN.from(1000000),
+            amount1Desired: BN.from(1000000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: recipients[i],
+            deadline: PRECISION,
+          }))
+        )
+          .to.emit(positionManager, 'MintPosition')
+          .withArgs(i + 1, 1, liquidityDesired[i], 1000000, 1000000);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balances
@@ -585,6 +594,7 @@ describe('BasePositionManager', () => {
           tickLower,
           tickUpper
         );
+
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
@@ -848,6 +858,7 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let liquidityDesired = [2050516, 4101033, 6151549, 8202066, 10252583];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -862,14 +873,20 @@ describe('BasePositionManager', () => {
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
 
-        let tx = await positionManager.connect(sender).addLiquidity({
-          tokenId: tokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(sender).addLiquidity({
+            tokenId: tokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(tokenId, liquidityDesired[i], amount0, amount0, 0);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -913,6 +930,10 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let liquidityDesired = [1795550, 2894577, 3713659, 4798240, 5997800];
+      let amount0Desired = [55707, 45591, 10439, 0, 0];
+      let amount1Desired = [120000, 240000, 360000, 480000, 600000];
+      let additionalRTokenOwedDesired = [469, 915, 939, 832, 686];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -935,14 +956,26 @@ describe('BasePositionManager', () => {
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
 
-        let tx = await positionManager.connect(sender).addLiquidity({
-          tokenId: tokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(sender).addLiquidity({
+            tokenId: tokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(
+            tokenId,
+            liquidityDesired[i],
+            amount0Desired[i],
+            amount1Desired[i],
+            additionalRTokenOwedDesired[i]
+          );
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -1082,6 +1115,7 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let amount0Desired = [10, 20, 30, 40, 50];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1095,7 +1129,11 @@ describe('BasePositionManager', () => {
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
 
         let liquidity = BN.from((i + 1) * 100);
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity);
+        let tx;
+        await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
+          .to.be.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(tokenId, liquidity, 0, amount0Desired[i], 0);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -1145,6 +1183,8 @@ describe('BasePositionManager', () => {
         let userData = await positionManager.positions(tokenId);
         let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
+        let amount1Desired = [10, 20, 30, 40, 50];
+        let additionalRTokenOwedDesired = [75, 150, 150, 150, 150];
 
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
@@ -1158,7 +1198,11 @@ describe('BasePositionManager', () => {
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
 
         let liquidity = BN.from((i + 1) * 100);
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity);
+        let tx;
+        await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
+          .to.be.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(tokenId, liquidity, 0, amount1Desired[i], additionalRTokenOwedDesired[i]);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -1205,15 +1249,19 @@ describe('BasePositionManager', () => {
 
       let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
       let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
-
+      let liquidity = BN.from(1000);
       // remove liquidity without calling transfer tokens
-      await positionManager.connect(user).removeLiquidity({
-        tokenId: nextTokenId,
-        liquidity: BN.from(1000),
-        amount0Min: 0,
-        amount1Min: 0,
-        deadline: PRECISION,
-      });
+      await expect(
+        positionManager.connect(user).removeLiquidity({
+          tokenId: nextTokenId,
+          liquidity,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      )
+        .to.be.emit(positionManager, 'RemoveLiquidity')
+        .withArgs(nextTokenId, liquidity, 0, 100, 0);
 
       let poolBalAfter = await getBalances(pool, [tokenA.address, tokenB.address]);
       expect(poolBalBefore.tokenBalances[0].sub(poolBalAfter.tokenBalances[0])).to.be.eq(
@@ -1401,7 +1449,12 @@ describe('BasePositionManager', () => {
       let userData = await positionManager.positions(nextTokenId);
       await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
       await burnRTokens(tokenA.address, tokenB.address, user, nextTokenId);
-      let tx = await positionManager.burn(nextTokenId);
+
+      let tx;
+      await expect((tx = await positionManager.burn(nextTokenId)))
+        .to.be.emit(positionManager, 'BurnPosition')
+        .withArgs(nextTokenId);
+
       await expect(positionManager.ownerOf(nextTokenId)).to.be.revertedWith('');
       if (showTxGasUsed) {
         logMessage(`Average gas use to burn: ${(await tx.wait()).gasUsed.toString()}`);
