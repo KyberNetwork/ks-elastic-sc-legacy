@@ -3,9 +3,10 @@ pragma solidity >=0.8.0;
 
 import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
+import {IBasePositionManagerEvents} from './base_position_manager/IBasePositionManagerEvents.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
 
-interface IBasePositionManager is IRouterTokenHelper {
+interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents {
   struct Position {
     // the nonce for permits
     uint96 nonce;
