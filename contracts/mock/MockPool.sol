@@ -13,4 +13,8 @@ contract MockPool is Pool {
   function _blockTimestamp() internal view override returns (uint32) {
     return timestamp;
   }
+
+  function blockTimestamp() external view returns (uint32) {
+    return timestamp;
+  }
 }
