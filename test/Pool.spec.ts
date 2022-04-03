@@ -1147,6 +1147,39 @@ describe('Pool', () => {
             await pool.forwardTime(10);
             expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(secondsPerLiquidityInside);
           });
+
+          it('should correctly update secondsPerLiquidity if swap inside position', async () => {
+            // provide enough liquidity to swap to tickUpper
+            await callback.mint(
+              pool.address,
+              user.address,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
+              ticksPrevious,
+              PRECISION.mul(BPS),
+              '0x'
+            );
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
+            await callback.mint(pool.address, user.address, tickLower + tickDistance, tickUpper - tickDistance, ticksPrevious, PRECISION, '0x');
+            
+            // do swaps to cross into position
+            await swapToDownTick(pool, user, tickUpper - 1);
+            await pool.forwardTime(10);
+            
+            let secondsPerLiquidityInside1 = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
+            let timeElapsedPerLiquidity1 = await getTimeElapsedPerLiquidity(pool, tickLower, tickUpper);
+            secondsPerLiquidityInside1 = secondsPerLiquidityInside1.sub(timeElapsedPerLiquidity1);
+            
+            await pool.forwardTime(10);
+            await swapToDownTick(pool, user, tickLower + 1);
+            await pool.forwardTime(10);
+            
+            let secondsPerLiquidityInside2 = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
+            let timeElapsedPerLiquidity2 = await getTimeElapsedPerLiquidity(pool, tickLower, tickUpper);
+            secondsPerLiquidityInside2 = secondsPerLiquidityInside2.sub(timeElapsedPerLiquidity2);
+            expect(secondsPerLiquidityInside1).to.not.be.eql(secondsPerLiquidityInside2);
+          });
         });
 
         describe('overlapping positions', async () => {
@@ -1169,6 +1202,7 @@ describe('Pool', () => {
       });
     });
   });
+
 
   describe('#burn', async () => {
     it('should fail if pool is not unlocked', async () => {
@@ -2191,4 +2225,18 @@ async function swapToDownTick(pool: MockPool, user: Wallet, targetTick: number, 
     // advance time between each swap
     await pool.forwardTime(3);
   }
+}
+
+async function getTimeElapsedPerLiquidity(pool: MockPool, tickLower: number, tickUpper: number) {
+  let currentTick = (await pool.getPoolState()).currentTick;
+  if (tickLower <= currentTick && currentTick < tickUpper) {
+    let timestamp = BN.from(await pool.blockTimestamp());
+    let lastUpdateTime = (await pool.getSecondsPerLiquidityData()).lastUpdateTime;
+    let secondsElapsed =  timestamp.sub(lastUpdateTime);
+    let baseL = (await pool.getLiquidityState()).baseL;
+    if (secondsElapsed.gt(0) && baseL.gt(0)) {
+      return secondsElapsed.shl(96).div(baseL);
+    }
+  }
+  return BN.from(0);
 }

@@ -176,7 +176,7 @@ abstract contract PoolStorage is IPoolStorage {
     uint128 upperValue = ticks[tickUpper].secondsPerLiquidityOutside;
 
     unchecked {
-      if (tickLower < currentTick) {
+      if (currentTick < tickLower) {
         secondsPerLiquidityInside = lowerValue - upperValue;
       } else if (currentTick >= tickUpper) {
         secondsPerLiquidityInside = upperValue - lowerValue;
