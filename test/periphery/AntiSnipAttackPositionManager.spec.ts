@@ -2,6 +2,7 @@ import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {Wallet, BigNumber, ContractTransaction} from 'ethers';
 import chai from 'chai';
+
 const {solidity} = waffle;
 chai.use(solidity);
 
@@ -252,6 +253,7 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
+      let liquidityDesired = [2050516, 4101033, 6151549];
 
       for (let i = 0; i < numRuns; i++) {
         let amount0 = BN.from(100000 * (i + 1));
@@ -259,14 +261,20 @@ describe('AntiSnipAttackPositionManager', () => {
         let tokenId = nextTokenId;
 
         let userData = await positionManager.positions(tokenId);
-        let tx = await positionManager.connect(user).addLiquidity({
-          tokenId: tokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(user).addLiquidity({
+            tokenId: tokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(tokenId, liquidityDesired[i], amount0, amount0, 0);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // should earn no fee as no swap
@@ -284,6 +292,10 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
+      let liquidityDesired = [1420622, 2399120, 3598680];
+      let amount0Desired = [20311, 0, 0];
+      let amount1Desired = [120000, 240000, 360000];
+      let additionalRTokenOwedDesired = [10, 941, 831];
 
       for (let i = 0; i < numRuns; i++) {
         let amount0 = BN.from(100000 * (i + 1));
@@ -299,14 +311,26 @@ describe('AntiSnipAttackPositionManager', () => {
           await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
         }
 
-        let tx = await positionManager.connect(user).addLiquidity({
-          tokenId: nextTokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(user).addLiquidity({
+            tokenId: nextTokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(
+            nextTokenId,
+            liquidityDesired[i],
+            amount0Desired[i],
+            amount1Desired[i],
+            additionalRTokenOwedDesired[i]
+          );
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // should update rToken owed and latest fee growth
@@ -400,6 +424,10 @@ describe('AntiSnipAttackPositionManager', () => {
       let numRuns = 3;
       let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
+      let liquidityDesired = [50, 100, 150];
+      let amount0Desired = [0, 0, 0];
+      let amount1Desired = [5, 10, 15];
+      let additionalRTokenOwedDesired = [160, 160, 158];
 
       for (let i = 0; i < numRuns; i++) {
         let liquidity = BN.from((i + 1) * 50);
@@ -415,17 +443,28 @@ describe('AntiSnipAttackPositionManager', () => {
 
         // next block timestamp should be after vesting period
         await setNextBlockTimestampFromCurrent(vestingPeriod + 5);
+        let tx;
         await expect(
-          positionManager.connect(user).removeLiquidity({
+          (tx = await positionManager.connect(user).removeLiquidity({
             tokenId: nextTokenId,
             liquidity: liquidity,
             amount0Min: 0,
             amount1Min: 0,
             deadline: PRECISION,
-          })
-        ).to.not.emit(poolContract, 'BurnRTokens');
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+          }))
+        )
+          .to.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(
+            nextTokenId,
+            liquidityDesired[i],
+            amount0Desired[i],
+            amount1Desired[i],
+            additionalRTokenOwedDesired[i]
+          )
+          .to.not.emit(poolContract, 'BurnRTokens');
+
+        let tx1 = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
+        gasUsed = gasUsed.add((await tx1.wait()).gasUsed);
 
         // should update rToken owed and latest fee growth
         let userNewData = await positionManager.positions(nextTokenId);
@@ -450,6 +489,10 @@ describe('AntiSnipAttackPositionManager', () => {
       let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let liquidity = (await positionManager.positions(nextTokenId)).pos.liquidity.div(numRuns * 2);
+      let liquidityDesired = [1666055, 1666055, 1666055];
+      let amount0Desired = [0, 0, 0];
+      let amount1Desired = [166666, 166666, 166666];
+      let additionalRTokenOwedDesired = [272, 371, 284];
 
       for (let i = 0; i < numRuns; i++) {
         let userData = await positionManager.positions(nextTokenId);
@@ -464,17 +507,29 @@ describe('AntiSnipAttackPositionManager', () => {
 
         // next block timestamp should be during vesting period
         await setNextBlockTimestampFromCurrent(vestingPeriod / 5);
+
+        let tx;
         await expect(
-          positionManager.connect(user).removeLiquidity({
+          (tx = await positionManager.connect(user).removeLiquidity({
             tokenId: nextTokenId,
             liquidity: liquidity,
             amount0Min: ZERO,
             amount1Min: ZERO,
             deadline: PRECISION,
-          })
-        ).to.emit(poolContract, 'BurnRTokens');
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
-        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+          }))
+        )
+          .to.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(
+            nextTokenId,
+            liquidityDesired[i],
+            amount0Desired[i],
+            amount1Desired[i],
+            additionalRTokenOwedDesired[i]
+          )
+          .to.emit(poolContract, 'BurnRTokens');
+
+        let tx1 = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
+        gasUsed = gasUsed.add((await tx1.wait()).gasUsed);
 
         // should update rToken owed and latest fee growth
         let userNewData = await positionManager.positions(nextTokenId);
