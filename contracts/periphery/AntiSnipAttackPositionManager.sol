@@ -88,6 +88,8 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     }
 
     pos.liquidity += liquidity;
+
+    emit AddLiquidity(params.tokenId, liquidity, amount0, amount1, additionalRTokenOwed);
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -137,5 +139,7 @@ contract AntiSnipAttackPositionManager is BasePositionManager {
     if (feesBurnable > 0) pool.burnRTokens(feesBurnable, true);
 
     pos.liquidity = tmpLiquidity - params.liquidity;
+
+    emit RemoveLiquidity(params.tokenId, params.liquidity, amount0, amount1, additionalRTokenOwed);
   }
 }
