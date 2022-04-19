@@ -71,7 +71,7 @@ library AntiSnipAttack {
       // duration of the position as the measure, not just the duration after last action performed
       uint256 feesClaimableSinceLastActionBps = Math.min(
         C.BPS,
-        ((currentTime - _self.lockTime) * C.BPS) / vestingPeriod
+        (uint256(currentTime - _self.lockTime) * C.BPS) / vestingPeriod
       );
       // claimable proportion (in basis pts) of locked fees
       // lastActionTime is used instead of lockTime since the vested fees
@@ -80,7 +80,7 @@ library AntiSnipAttack {
         ? C.BPS
         : Math.min(
           C.BPS,
-          ((currentTime - _self.lastActionTime) * C.BPS) /
+          (uint256(currentTime - _self.lastActionTime) * C.BPS) /
             (_self.unlockTime - _self.lastActionTime)
         );
 
