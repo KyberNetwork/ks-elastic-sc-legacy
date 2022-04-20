@@ -44,8 +44,10 @@ describe('Factory', () => {
 
   it('should have initialized with the expected settings', async () => {
     expect(await factory.configMaster()).to.eql(admin.address);
+    expect(await factory.feeAmountTickDistance(1)).to.eql(1);
     expect(await factory.feeAmountTickDistance(5)).to.eql(10);
     expect(await factory.feeAmountTickDistance(30)).to.eql(60);
+    expect(await factory.feeAmountTickDistance(100)).to.eql(200);
     let result = await factory.feeConfiguration();
     expect(result._feeTo).to.eql(ZERO_ADDRESS);
     expect(result._governmentFeeBps).to.eql(0);
