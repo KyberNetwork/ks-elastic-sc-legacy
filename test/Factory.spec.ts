@@ -74,11 +74,11 @@ describe('Factory', () => {
     });
 
     it('should revert for invalid swapFeeBps', async () => {
-      await expect(factory.createPool(tokenA.address, tokenB.address, ONE)).to.be.revertedWith('invalid fee');
+      await expect(factory.createPool(tokenA.address, tokenB.address, ZERO)).to.be.revertedWith('invalid fee');
     });
 
     it('should revert for invalid swapFeeBps', async () => {
-      await expect(factory.createPool(tokenA.address, tokenB.address, ONE)).to.be.revertedWith('invalid fee');
+      await expect(factory.createPool(tokenA.address, tokenB.address, ZERO)).to.be.revertedWith('invalid fee');
     });
 
     it('should revert for existing pool', async () => {
