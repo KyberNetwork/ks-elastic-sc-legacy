@@ -61,10 +61,17 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     configMaster = msg.sender;
     emit ConfigMasterUpdated(address(0), configMaster);
 
+    feeAmountTickDistance[1] = 1;
+    emit SwapFeeEnabled(1, 1);
+
     feeAmountTickDistance[5] = 10;
     emit SwapFeeEnabled(5, 10);
+
     feeAmountTickDistance[30] = 60;
     emit SwapFeeEnabled(30, 60);
+
+    feeAmountTickDistance[100] = 200;
+    emit SwapFeeEnabled(100, 200);
   }
 
   /// @inheritdoc IFactory
