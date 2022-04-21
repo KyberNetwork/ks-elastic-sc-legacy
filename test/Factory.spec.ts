@@ -30,8 +30,8 @@ describe('Factory', () => {
 
   beforeEach('load fixture', async () => {
     factory = await loadFixture(fixture);
-    swapFeeBps = 5;
-    tickDistance = 10;
+    swapFeeBps = 4;
+    tickDistance = 8;
   });
 
   it('should return the contract creation code storage addresses', async () => {
@@ -45,7 +45,7 @@ describe('Factory', () => {
   it('should have initialized with the expected settings', async () => {
     expect(await factory.configMaster()).to.eql(admin.address);
     expect(await factory.feeAmountTickDistance(1)).to.eql(1);
-    expect(await factory.feeAmountTickDistance(5)).to.eql(10);
+    expect(await factory.feeAmountTickDistance(4)).to.eql(8);
     expect(await factory.feeAmountTickDistance(30)).to.eql(60);
     expect(await factory.feeAmountTickDistance(100)).to.eql(200);
     let result = await factory.feeConfiguration();
