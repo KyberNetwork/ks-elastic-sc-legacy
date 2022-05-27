@@ -1447,7 +1447,7 @@ describe('Pool', () => {
         tickUpper = 10 * tickDistance;
 
         // set non-zero and feeTo in factory
-        await factory.updateFeeConfiguration(configMaster.address, 5);
+        await factory.updateFeeConfiguration(configMaster.address, 50);
         let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
 
         // do some random swaps to accumulate fees
@@ -1716,9 +1716,12 @@ describe('Pool', () => {
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
 
-      it('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
+      it.only('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
         let priceLimit = await getPriceFromTick(nearestTickToPrice - tickDistance);
         priceLimit = priceLimit.add(1);
+
+        console.log('swapFeeUnits :>> ', swapFeeUnits);
+        console.log('pool :>> ', poolArray[0].address);
 
         let quoteResult = await quoter.callStatic.quoteExactInputSingle({
           tokenIn: token0.address,

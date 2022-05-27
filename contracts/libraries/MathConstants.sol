@@ -8,7 +8,7 @@ library MathConstants {
   uint128 internal constant MIN_LIQUIDITY = 100000;
   uint8 internal constant RES_96 = 96;
   uint24 internal constant BPS = 10000;
-  uint24 internal constant FEE_UNITS = 10000;
+  uint24 internal constant FEE_UNITS = 100000;
   // it is strictly less than 5% price movement if jumping MAX_TICK_DISTANCE ticks
   int24 internal constant MAX_TICK_DISTANCE = 480;
   // max number of tick travel when inserting if data changes
