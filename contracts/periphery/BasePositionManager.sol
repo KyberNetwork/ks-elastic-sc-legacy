@@ -56,7 +56,7 @@ contract BasePositionManager is
   function createAndUnlockPoolIfNecessary(
     address token0,
     address token1,
-    uint16 fee,
+    uint24 fee,
     uint160 currentSqrtP
   ) external payable override returns (address pool) {
     require(token0 < token1);
@@ -311,7 +311,7 @@ contract BasePositionManager is
     address pool,
     address token0,
     address token1,
-    uint16 fee
+    uint24 fee
   ) internal returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {

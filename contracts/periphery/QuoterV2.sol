@@ -40,9 +40,9 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
   function _getPool(
     address tokenA,
     address tokenB,
-    uint16 feeBps
+    uint24 feeUnits
   ) private view returns (IPool) {
-    return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, feeBps, poolInitHash));
+    return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, feeUnits, poolInitHash));
   }
 
   /// @inheritdoc ISwapCallback
@@ -52,8 +52,8 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
     bytes memory path
   ) external view override {
     require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-    (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
-    IPool pool = _getPool(tokenIn, tokenOut, feeBps);
+    (address tokenIn, address tokenOut, uint24 feeUnits) = path.decodeFirstPool();
+    IPool pool = _getPool(tokenIn, tokenOut, feeUnits);
     require(address(pool) == msg.sender, 'invalid sender');
     (uint160 afterSqrtP, , int24 nearestCurrentTickAfter, ) = pool.getPoolState();
 
@@ -134,8 +134,8 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
   {
     // if tokenIn < tokenOut, token input and specified token is token0, swap from 0 to 1
     bool isToken0 = params.tokenIn < params.tokenOut;
-    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
-    bytes memory data = abi.encodePacked(params.tokenIn, params.feeBps, params.tokenOut);
+    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeUnits);
+    bytes memory data = abi.encodePacked(params.tokenIn, params.feeUnits, params.tokenOut);
     uint160 priceLimit = params.limitSqrtP == 0
       ? (isToken0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
       : params.limitSqrtP;
@@ -163,14 +163,14 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
 
     uint256 i = 0;
     while (true) {
-      (address tokenIn, address tokenOut, uint16 feeBps) = path.decodeFirstPool();
+      (address tokenIn, address tokenOut, uint24 feeUnits) = path.decodeFirstPool();
 
       // the outputs of prior swaps become the inputs to subsequent ones
       QuoteOutput memory quoteOutput = quoteExactInputSingle(
         QuoteExactInputSingleParams({
           tokenIn: tokenIn,
           tokenOut: tokenOut,
-          feeBps: feeBps,
+          feeUnits: feeUnits,
           amountIn: amountIn,
           limitSqrtP: 0
         })
@@ -198,7 +198,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
   {
     // if tokenIn > tokenOut, output token and specified token is token0, swap from token1 to token0
     bool isToken0 = params.tokenIn > params.tokenOut;
-    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeBps);
+    IPool pool = _getPool(params.tokenIn, params.tokenOut, params.feeUnits);
 
     // if no price limit has been specified, cache the output amount for comparison in the swap callback
     if (params.limitSqrtP == 0) amountOutCached = params.amount;
@@ -211,7 +211,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
         params.limitSqrtP == 0
           ? (isToken0 ? TickMath.MAX_SQRT_RATIO - 1 : TickMath.MIN_SQRT_RATIO + 1)
           : params.limitSqrtP,
-        abi.encodePacked(params.tokenOut, params.feeBps, params.tokenIn)
+        abi.encodePacked(params.tokenOut, params.feeUnits, params.tokenIn)
       )
     {} catch (bytes memory reason) {
       uint256 gasEstimate = gasBefore - gasleft();
@@ -235,7 +235,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
 
     uint256 i = 0;
     while (true) {
-      (address tokenOut, address tokenIn, uint16 feeBps) = path.decodeFirstPool();
+      (address tokenOut, address tokenIn, uint24 feeUnits) = path.decodeFirstPool();
 
       // the inputs of prior swaps become the outputs of subsequent ones
       QuoteOutput memory quoteOutput = quoteExactOutputSingle(
@@ -243,7 +243,7 @@ contract QuoterV2 is IQuoterV2, ISwapCallback {
           tokenIn: tokenIn,
           tokenOut: tokenOut,
           amount: amountOut,
-          feeBps: feeBps,
+          feeUnits: feeUnits,
           limitSqrtP: 0
         })
       );

@@ -41,7 +41,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amountIn: PRECISION.mul(PRECISION),
-      feeBps: swapFeeUnitsArray[1],
+      feeUnits: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -52,7 +52,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amount: PRECISION.mul(PRECISION),
-      feeBps: swapFeeUnitsArray[1],
+      feeUnits: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -338,7 +338,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[0].address,
           tokenOut: tokens[2].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnitsArray[1],
+          feeUnits: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -362,7 +362,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[2].address,
           tokenOut: tokens[0].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnitsArray[1],
+          feeUnits: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -540,7 +540,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[0].address,
           tokenOut: tokens[1].address,
-          feeBps: swapFeeUnitsArray[0],
+          feeUnits: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 103),
         });
@@ -558,7 +558,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[1].address,
           tokenOut: tokens[0].address,
-          feeBps: swapFeeUnitsArray[0],
+          feeUnits: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 101),
         });

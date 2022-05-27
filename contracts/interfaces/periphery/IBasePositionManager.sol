@@ -27,7 +27,7 @@ interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents
 
   struct PoolInfo {
     address token0;
-    uint16 fee;
+    uint24 fee;
     address token1;
   }
 
@@ -50,7 +50,7 @@ interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents
   struct MintParams {
     address token0;
     address token1;
-    uint16 fee;
+    uint24 fee;
     int24 tickLower;
     int24 tickUpper;
     int24[2] ticksPrevious;
@@ -112,7 +112,7 @@ interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents
   function createAndUnlockPoolIfNecessary(
     address token0,
     address token1,
-    uint16 fee,
+    uint24 fee,
     uint160 currentSqrtP
   ) external payable returns (address pool);
 

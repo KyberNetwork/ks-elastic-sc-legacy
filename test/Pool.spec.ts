@@ -1724,7 +1724,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
@@ -1740,7 +1740,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1757,7 +1757,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1795,7 +1795,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1819,7 +1819,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1843,7 +1843,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeUnits,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 

@@ -43,7 +43,7 @@ contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidat
   ) external override {
     require(deltaQty0 > 0 || deltaQty1 > 0, 'Router: invalid delta qties');
     SwapCallbackData memory swapData = abi.decode(data, (SwapCallbackData));
-    (address tokenIn, address tokenOut, uint16 fee) = swapData.path.decodeFirstPool();
+    (address tokenIn, address tokenOut, uint24 fee) = swapData.path.decodeFirstPool();
     require(
       msg.sender == address(_getPool(tokenIn, tokenOut, fee)),
       'Router: invalid callback sender'
@@ -169,7 +169,7 @@ contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidat
     // allow swapping to the router address with address 0
     if (recipient == address(0)) recipient = address(this);
 
-    (address tokenIn, address tokenOut, uint16 fee) = data.path.decodeFirstPool();
+    (address tokenIn, address tokenOut, uint24 fee) = data.path.decodeFirstPool();
 
     bool isFromToken0 = tokenIn < tokenOut;
 
@@ -195,7 +195,7 @@ contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidat
     // consider address 0 as the router address
     if (recipient == address(0)) recipient = address(this);
 
-    (address tokenOut, address tokenIn, uint16 fee) = data.path.decodeFirstPool();
+    (address tokenOut, address tokenIn, uint24 fee) = data.path.decodeFirstPool();
 
     bool isFromToken0 = tokenOut < tokenIn;
 
@@ -224,7 +224,7 @@ contract Router is IRouter, RouterTokenHelperWithFee, Multicall, DeadlineValidat
   function _getPool(
     address tokenA,
     address tokenB,
-    uint16 fee
+    uint24 fee
   ) private view returns (IPool) {
     return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }
