@@ -49,7 +49,7 @@ library PathHelper {
     )
   {
     tokenA = path.toAddress(0);
-    fee = path.toUint16(ADDR_SIZE);
+    fee = path.toUint24(ADDR_SIZE);
     tokenB = path.toAddress(TOKEN_AND_POOL_OFFSET);
   }
 
