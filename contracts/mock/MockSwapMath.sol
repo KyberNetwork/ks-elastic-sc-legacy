@@ -8,7 +8,7 @@ contract MockSwapMath {
     uint256 liquidity,
     uint160 currentSqrtP,
     uint160 nextSqrtP,
-    uint16 feeInFeeUnits,
+    uint24 feeInFeeUnits,
     bool isExactInput,
     bool isToken0
   ) external pure returns (int256 reachAmount) {
@@ -44,7 +44,7 @@ contract MockSwapMath {
     uint256 absDelta,
     uint256 liquidity,
     uint160 currentSqrtP,
-    uint16 feeInFeeUnits,
+    uint24 feeInFeeUnits,
     bool isExactInput,
     bool isToken0
   ) external pure returns (uint256 deltaL) {

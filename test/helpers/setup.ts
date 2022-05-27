@@ -28,10 +28,10 @@ export async function createPool(
   factory: Factory,
   tokenA: MockToken,
   tokenB: MockToken,
-  feeBps: BigNumberish
+  feeUnits: BigNumberish
 ): Promise<Pool> {
-  await factory.createPool(tokenA.address, tokenB.address, feeBps);
-  const addr = await factory.getPool(tokenA.address, tokenB.address, feeBps);
+  await factory.createPool(tokenA.address, tokenB.address, feeUnits);
+  const addr = await factory.getPool(tokenA.address, tokenB.address, feeUnits);
   const PoolContract = (await ethers.getContractFactory('Pool')) as Pool__factory;
   return PoolContract.attach(addr);
 }
@@ -45,10 +45,10 @@ export async function setupPoolWithLiquidity(
   recipient: string,
   tokenA: MockToken,
   tokenB: MockToken,
-  feeBps: BigNumberish,
+  feeUnits: BigNumberish,
   initialPrice: BN
 ): Promise<[Pool, number]> {
-  const pool = await createPool(factory, tokenA, tokenB, feeBps);
+  const pool = await createPool(factory, tokenA, tokenB, feeUnits);
   await mockCallback.unlockPool(pool.address, initialPrice);
   let tickDistance = await pool.tickDistance();
 
