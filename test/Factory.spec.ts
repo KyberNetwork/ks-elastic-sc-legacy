@@ -1,6 +1,6 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {BN, PRECISION, ZERO_ADDRESS, BPS_PLUS_ONE, ZERO, ONE, BPS, FEE_UNITS} from './helpers/helper';
+import {BN, PRECISION, ZERO_ADDRESS, BPS_PLUS_ONE, ZERO, ONE, BPS, FEE_UNITS, FEE_UNITS_PLUS_ONE} from './helpers/helper';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
@@ -244,8 +244,8 @@ describe('Factory', () => {
       await expect(factory.connect(operator).enableSwapFee(2, 20)).to.be.revertedWith('forbidden');
     });
 
-    it('should revert for swapFeeUnits > BPS', async () => {
-      await expect(factory.connect(admin).enableSwapFee(BPS_PLUS_ONE, 20)).to.be.revertedWith('invalid fee');
+    it('should revert for swapFeeUnits > FEE_UNITS', async () => {
+      await expect(factory.connect(admin).enableSwapFee(FEE_UNITS_PLUS_ONE, 20)).to.be.revertedWith('invalid fee');
     });
 
     it('should revert for invalid tickDistance', async () => {
@@ -306,7 +306,7 @@ describe('Factory', () => {
 
       // change configMaster
       await factory.connect(admin).updateConfigMaster(operator.address);
-      governmentFeeUnits = 20;
+      governmentFeeUnits = 200;
       // operator updates fee config
       await factory.connect(operator).updateFeeConfiguration(operator.address, governmentFeeUnits);
       result = await factory.feeConfiguration();
@@ -332,7 +332,7 @@ describe('Factory', () => {
     });
 
     it('should be able to update governmentFeeUnits to the max value (2000)', async () => {
-      let governmentFeeUnits = 2000;
+      let governmentFeeUnits = 20000;
       await factory.connect(admin).updateFeeConfiguration(operator.address, governmentFeeUnits);
       let result = await factory.feeConfiguration();
       expect(result._feeTo).to.be.eql(operator.address);
