@@ -6,7 +6,7 @@ import {Router} from '../periphery/Router.sol';
 contract MockEncoder {
   function encodeSwapCallbackData(
     address tokenIn,
-    uint16 fee,
+    uint24 fee,
     address tokenOut
   ) external view returns (bytes memory) {
     return
