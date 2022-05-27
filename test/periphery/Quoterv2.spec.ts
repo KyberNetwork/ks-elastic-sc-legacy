@@ -14,7 +14,7 @@ import {MockToken, MockToken__factory} from '../../typechain';
 import {Pool, MockTickMath, MockTickMath__factory} from '../../typechain';
 import {MockCallbacks2, MockCallbacks2__factory} from '../../typechain';
 
-let swapFeeBpsArray = [5, 2];
+let swapFeeUnitsArray = [50, 20];
 let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
 let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
@@ -41,7 +41,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amountIn: PRECISION.mul(PRECISION),
-      feeBps: swapFeeBpsArray[1],
+      feeBps: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -52,7 +52,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amount: PRECISION.mul(PRECISION),
-      feeBps: swapFeeBpsArray[1],
+      feeBps: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -67,9 +67,9 @@ describe('QuoterV2', function () {
   async function fixture(): Promise<Fixtures> {
     let factory = await deployFactory(admin, vestingPeriod);
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -104,7 +104,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[0],
       tokens[1],
-      swapFeeBpsArray[0],
+      swapFeeUnitsArray[0],
       encodePriceSqrt(100, 102)
     );
     await setupPoolWithLiquidity(
@@ -113,7 +113,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[1],
       tokens[2],
-      swapFeeBpsArray[0],
+      swapFeeUnitsArray[0],
       encodePriceSqrt(100, 200)
     );
     let [pool02] = await setupPoolWithLiquidity(
@@ -122,7 +122,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[0],
       tokens[2],
-      swapFeeBpsArray[1],
+      swapFeeUnitsArray[1],
       await tickMath.getMiddleSqrtRatioAtTick(24)
     );
 
@@ -153,7 +153,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(-4);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -169,7 +169,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -185,7 +185,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -202,7 +202,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -222,7 +222,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -239,7 +239,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -256,7 +256,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(48);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -275,7 +275,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -292,7 +292,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -310,7 +310,7 @@ describe('QuoterV2', function () {
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath(
             [tokens[0].address, tokens[2].address, tokens[1].address],
-            [swapFeeBpsArray[1], swapFeeBpsArray[0]]
+            [swapFeeUnitsArray[1], swapFeeUnitsArray[0]]
           ),
           amountIn
         );
@@ -338,7 +338,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[0].address,
           tokenOut: tokens[2].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBpsArray[1],
+          feeBps: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -362,7 +362,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[2].address,
           tokenOut: tokens[0].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBpsArray[1],
+          feeBps: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -380,7 +380,7 @@ describe('QuoterV2', function () {
         const targetSqrtP = await tickMath.getMiddleSqrtRatioAtTick(-1);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
 
@@ -398,7 +398,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -414,7 +414,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -432,7 +432,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -448,7 +448,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -464,7 +464,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -481,7 +481,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -498,7 +498,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -516,8 +516,8 @@ describe('QuoterV2', function () {
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[1].address, tokens[2].address, tokens[0].address].reverse(), [
-            swapFeeBpsArray[1],
-            swapFeeBpsArray[0],
+            swapFeeUnitsArray[1],
+            swapFeeUnitsArray[0],
           ]),
           amountOut
         );
@@ -540,7 +540,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[0].address,
           tokenOut: tokens[1].address,
-          feeBps: swapFeeBpsArray[0],
+          feeBps: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 103),
         });
@@ -558,7 +558,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[1].address,
           tokenOut: tokens[0].address,
-          feeBps: swapFeeBpsArray[0],
+          feeBps: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 101),
         });

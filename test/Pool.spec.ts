@@ -8,7 +8,7 @@ chai.use(solidity);
 import {MockFactory, MockPool, MockToken, MockToken__factory, MockPool__factory} from '../typechain';
 import {QuoterV2, QuoterV2__factory, MockCallbacks, MockCallbacks__factory} from '../typechain';
 
-import {MIN_LIQUIDITY, MIN_TICK, MAX_TICK, MIN_SQRT_RATIO, MAX_SQRT_RATIO} from './helpers/helper';
+import {MIN_LIQUIDITY, MIN_TICK, MAX_TICK, MIN_SQRT_RATIO, MAX_SQRT_RATIO, FEE_UNITS} from './helpers/helper';
 import {ZERO_ADDRESS, ZERO, ONE, MAX_UINT, PRECISION, TWO, BPS, NEGATIVE_ONE} from './helpers/helper';
 import {deployMockFactory, getTicksPrevious} from './helpers/setup';
 import {genRandomBN} from './helpers/genRandomBN';
@@ -25,8 +25,8 @@ let poolBalToken1: BN;
 let poolArray: MockPool[] = [];
 let pool: MockPool;
 let callback: MockCallbacks;
-let swapFeeBpsArray = [5, 30];
-let swapFeeBps = swapFeeBpsArray[0];
+let swapFeeUnitsArray = [50, 300];
+let swapFeeUnits = swapFeeUnitsArray[0];
 let tickDistanceArray = [10, 60];
 let tickDistance = tickDistanceArray[0];
 let vestingPeriod = 100;
@@ -60,9 +60,9 @@ describe('Pool', () => {
     let factory = await deployMockFactory(admin, vestingPeriod);
     const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -74,9 +74,9 @@ describe('Pool', () => {
 
     // create pools
     let poolArray = [];
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      await factory.createPool(token0.address, token1.address, swapFeeBpsArray[i]);
-      const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeBpsArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      await factory.createPool(token0.address, token1.address, swapFeeUnitsArray[i]);
+      const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeUnitsArray[i]);
       poolArray.push(PoolContract.attach(poolAddress));
     }
 
@@ -102,7 +102,7 @@ describe('Pool', () => {
       expect(await pool.factory()).to.be.eql(factory.address);
       expect(await pool.token0()).to.be.eql(token0.address);
       expect(await pool.token1()).to.be.eql(token1.address);
-      expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
+      expect(await pool.swapFeeUnits()).to.be.eql(swapFeeUnits);
       expect(await pool.tickDistance()).to.be.eql(tickDistance);
       expect(await pool.maxTickLiquidity()).to.be.gt(ZERO);
       let result = await pool.getLiquidityState();
@@ -124,14 +124,14 @@ describe('Pool', () => {
 
     it('should fail to unlockPool for non-compliant ERC20 tokens', async () => {
       const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
-      await factory.createPool(user.address, admin.address, swapFeeBps);
-      let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
+      await factory.createPool(user.address, admin.address, swapFeeUnits);
+      let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeUnits));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
 
       // use valid token0 so that poolBalToken1() will revert
       let badAddress = '0xffffffffffffffffffffffffffffffffffffffff';
-      await factory.createPool(token0.address, badAddress, swapFeeBps);
-      badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
+      await factory.createPool(token0.address, badAddress, swapFeeUnits);
+      badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeUnits));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
     });
 
@@ -1724,7 +1724,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
@@ -1740,7 +1740,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1757,7 +1757,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1795,7 +1795,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1819,7 +1819,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1843,7 +1843,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeBps: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1931,7 +1931,7 @@ describe('Pool', () => {
           ).to.not.emit(pool, 'Transfer');
         });
 
-        it('will mint rTokens but not transfer any for 0 governmentFeeBps', async () => {
+        it('will mint rTokens but not transfer any for 0 governmentFeeUnits', async () => {
           // cross initialized tick to mint rTokens
           await expect(
             callback.swap(pool.address, user.address, PRECISION, false, await getPriceFromTick(tickUpper + 1), '0x')
@@ -1939,7 +1939,7 @@ describe('Pool', () => {
           expect(await pool.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
         });
 
-        it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
+        it('should transfer rTokens to feeTo for non-zero governmentFeeUnits', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
           let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
@@ -2113,7 +2113,7 @@ describe('Pool', () => {
         });
 
         it('should send collected fees to feeTo if not null', async () => {
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x'))
             .to.emit(token0, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)
@@ -2124,7 +2124,7 @@ describe('Pool', () => {
         it('should send only token0 fees if loan is taken in only token0', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
             .to.emit(token0, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)
@@ -2134,7 +2134,7 @@ describe('Pool', () => {
         it('should send only token1 fees if loan is taken in only token1', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
             .to.emit(token1, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)

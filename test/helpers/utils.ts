@@ -78,11 +78,11 @@ export function sortTokens(tokenA: string, tokenB: string): [string, string] {
 
 export function getCreate2Address(
   factoryAddress: string,
-  [tokenA, tokenB, swapFeeBps]: [string, string, number],
+  [tokenA, tokenB, swapFeeUnits]: [string, string, number],
   bytecode: string
 ): string {
   const [token0, token1] = sortTokens(tokenA, tokenB);
-  const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint16'], [token0, token1, swapFeeBps]);
+  const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint24'], [token0, token1, swapFeeUnits]);
   const create2Inputs = ['0xff', factoryAddress, utils.keccak256(params), utils.keccak256(bytecode)];
   const sanitizedInputs = `0x${create2Inputs.map((i) => i.slice(2)).join('')}`;
   return utils.getAddress(`0x${utils.keccak256(sanitizedInputs).slice(-40)}`);

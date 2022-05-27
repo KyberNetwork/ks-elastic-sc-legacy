@@ -320,7 +320,7 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     uint256 feeGrowthGlobal; // cache of fee growth of the reinvestment token, multiplied by 2^96
     uint128 secondsPerLiquidityGlobal; // all-time seconds per liquidity, multiplied by 2^96
     address feeTo; // recipient of govt fees
-    uint16 governmentFeeBps; // governmentFeeBps to be charged
+    uint24 governmentFeeUnits; // governmentFeeUnits to be charged
     uint256 governmentFee; // qty of reinvestment token for government fee
     uint256 lpFee; // qty of reinvestment token for liquidity provider
   }
@@ -390,7 +390,7 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
           swapData.baseL + swapData.reinvestL,
           swapData.sqrtP,
           targetSqrtP,
-          swapFeeBps,
+          swapFeeUnits,
           swapData.specifiedAmount,
           swapData.isExactInput,
           swapData.isToken0
@@ -419,7 +419,7 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
           poolData.secondsPerLiquidityGlobal,
           swapData.baseL
         );
-        (cache.feeTo, cache.governmentFeeBps) = factory.feeConfiguration();
+        (cache.feeTo, cache.governmentFeeUnits) = factory.feeConfiguration();
       }
       // update rTotalSupply, feeGrowthGlobal and reinvestL
       uint256 rMintQty = ReinvestmentMath.calcrMintQty(
@@ -430,9 +430,9 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       );
       if (rMintQty != 0) {
         cache.rTotalSupply += rMintQty;
-        // overflow/underflow not possible bc governmentFeeBps < 2000
+        // overflow/underflow not possible bc governmentFeeUnits < 20000
         unchecked {
-          uint256 governmentFee = (rMintQty * cache.governmentFeeBps) / C.BPS;
+          uint256 governmentFee = (rMintQty * cache.governmentFeeUnits) / C.FEE_UNITS;
           cache.governmentFee += governmentFee;
 
           uint256 lpFee = rMintQty - governmentFee;
@@ -516,8 +516,8 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     uint256 feeQty0;
     uint256 feeQty1;
     if (feeTo != address(0)) {
-      feeQty0 = (qty0 * swapFeeBps) / C.BPS;
-      feeQty1 = (qty1 * swapFeeBps) / C.BPS;
+      feeQty0 = (qty0 * swapFeeUnits) / C.FEE_UNITS;
+      feeQty1 = (qty1 * swapFeeUnits) / C.FEE_UNITS;
     }
     uint256 balance0Before = _poolBalToken0();
     uint256 balance1Before = _poolBalToken1();
@@ -594,15 +594,15 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
 
   /// @return the lp fee without governance fee
   function _deductGovermentFee(uint256 rMintQty) internal returns (uint256) {
-    // fetch governmentFeeBps
-    (address feeTo, uint16 governmentFeeBps) = factory.feeConfiguration();
-    if (governmentFeeBps == 0) {
+    // fetch governmentFeeUnits
+    (address feeTo, uint24 governmentFeeUnits) = factory.feeConfiguration();
+    if (governmentFeeUnits == 0) {
       return rMintQty;
     }
 
-    // unchecked due to governmentFeeBps <= 2000
+    // unchecked due to governmentFeeUnits <= 20000
     unchecked {
-      uint256 rGovtQty = (rMintQty * governmentFeeBps) / C.BPS;
+      uint256 rGovtQty = (rMintQty * governmentFeeUnits) / C.FEE_UNITS;
       if (rGovtQty != 0) {
         _mint(feeTo, rGovtQty);
       }

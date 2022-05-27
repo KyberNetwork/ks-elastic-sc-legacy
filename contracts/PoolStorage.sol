@@ -62,7 +62,7 @@ abstract contract PoolStorage is IPoolStorage {
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
   uint128 public immutable override maxTickLiquidity;
-  uint16 public immutable override swapFeeBps;
+  uint24 public immutable override swapFeeUnits;
   int24 public immutable override tickDistance;
 
   mapping(int24 => TickData) public override ticks;
@@ -78,13 +78,13 @@ abstract contract PoolStorage is IPoolStorage {
       address _factory,
       address _token0,
       address _token1,
-      uint16 _swapFeeBps,
+      uint24 _swapFeeUnits,
       int24 _tickDistance
     ) = IFactory(msg.sender).parameters();
     factory = IFactory(_factory);
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
-    swapFeeBps = _swapFeeBps;
+    swapFeeUnits = _swapFeeUnits;
     tickDistance = _tickDistance;
 
     maxTickLiquidity = type(uint128).max / TickMath.getMaxNumberTicks(_tickDistance);

@@ -43,7 +43,7 @@ let token0: string;
 let token1: string;
 let weth: MockWeth;
 let nextTokenId: BigNumber;
-let swapFeeBpsArray = [5, 30];
+let swapFeeUnitsArray = [50, 300];
 let tickDistanceArray = [10, 60];
 let ticksPrevious: [BigNumber, BigNumber] = [MIN_TICK, MIN_TICK];
 let vestingPeriod = 1000;
@@ -80,9 +80,9 @@ describe('AntiSnipAttackPositionManager', () => {
     router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -112,15 +112,15 @@ describe('AntiSnipAttackPositionManager', () => {
     let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
     [token0, token1] = sortTokens(tokenA.address, weth.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
     [token0, token1] = sortTokens(tokenB.address, weth.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
   };
 
   describe(`#mint`, async () => {
@@ -141,7 +141,7 @@ describe('AntiSnipAttackPositionManager', () => {
       await positionManager.connect(user).mint({
         token0: token0,
         token1: token1,
-        fee: swapFeeBpsArray[0],
+        fee: swapFeeUnitsArray[0],
         tickLower: tickLower,
         tickUpper: tickUpper,
         ticksPrevious: ticksPrevious,
@@ -166,7 +166,7 @@ describe('AntiSnipAttackPositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: 0,
           tickUpper: 0,
           ticksPrevious: ticksPrevious,
@@ -186,7 +186,7 @@ describe('AntiSnipAttackPositionManager', () => {
     await positionManager.connect(user).mint({
       token0: token0,
       token1: token1,
-      fee: swapFeeBpsArray[0],
+      fee: swapFeeUnitsArray[0],
       tickLower: -100 * tickDistanceArray[0],
       tickUpper: 100 * tickDistanceArray[0],
       ticksPrevious: ticksPrevious,
@@ -306,9 +306,9 @@ describe('AntiSnipAttackPositionManager', () => {
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
           let amount = BN.from(100000 * (j + 1));
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], amount);
           amount = BN.from(150000 * (j + 1));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], amount);
         }
 
         let tx;
@@ -422,7 +422,7 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
-      let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let liquidityDesired = [50, 100, 150];
       let amount0Desired = [0, 0, 0];
@@ -436,9 +436,9 @@ describe('AntiSnipAttackPositionManager', () => {
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
           let amount = BN.from(100000 * (j + 1));
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], amount);
           amount = BN.from(150000 * (j + 1));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], amount);
         }
 
         // next block timestamp should be after vesting period
@@ -486,7 +486,7 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
-      let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let liquidity = (await positionManager.positions(nextTokenId)).pos.liquidity.div(numRuns * 2);
       let liquidityDesired = [1666055, 1666055, 1666055];
@@ -500,9 +500,9 @@ describe('AntiSnipAttackPositionManager', () => {
         // made some swaps to get fees
         for (let j = 0; j < 3; j++) {
           let amount = BN.from(2500000 * (j + 1));
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], amount);
           amount = BN.from(2500000 * (j + 1));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], amount);
         }
 
         // next block timestamp should be during vesting period
@@ -557,10 +557,10 @@ describe('AntiSnipAttackPositionManager', () => {
       await tokenA.connect(user).approve(snipAttack.address, BIG_AMOUNT);
       await tokenB.connect(user).approve(snipAttack.address, BIG_AMOUNT);
 
-      await snipAttack.snip1(await factory.getPool(token0, token1, swapFeeBpsArray[0]), positionManager.address, {
+      await snipAttack.snip1(await factory.getPool(token0, token1, swapFeeUnitsArray[0]), positionManager.address, {
         token0: token0,
         token1: token1,
-        fee: swapFeeBpsArray[0],
+        fee: swapFeeUnitsArray[0],
         tickLower: -1000 * tickDistanceArray[0],
         tickUpper: 1000 * tickDistanceArray[0],
         ticksPrevious: ticksPrevious,
@@ -584,10 +584,10 @@ describe('AntiSnipAttackPositionManager', () => {
       await tokenA.connect(user).approve(snipAttack.address, BIG_AMOUNT);
       await tokenB.connect(user).approve(snipAttack.address, BIG_AMOUNT);
 
-      await snipAttack.snip2(positionManager.address, await factory.getPool(token0, token1, swapFeeBpsArray[0]), {
+      await snipAttack.snip2(positionManager.address, await factory.getPool(token0, token1, swapFeeUnitsArray[0]), {
         token0: token0,
         token1: token1,
-        fee: swapFeeBpsArray[0],
+        fee: swapFeeUnitsArray[0],
         tickLower: -1000 * tickDistanceArray[0],
         tickUpper: 1000 * tickDistanceArray[0],
         ticksPrevious: ticksPrevious,

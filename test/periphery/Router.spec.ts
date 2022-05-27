@@ -29,7 +29,7 @@ let weth: MockWeth;
 let router: Router;
 let callback: MockCallbacks;
 let vestingPeriod = 100;
-let swapFeeBpsArray = [5, 30];
+let swapFeeUnitsArray = [50, 300];
 let tickDistanceArray = [10, 60];
 let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
 let initialPrice: BN;
@@ -55,9 +55,9 @@ describe('Router', () => {
     CallbackContract = (await ethers.getContractFactory('MockCallbacks')) as MockCallbacks__factory;
 
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -382,18 +382,18 @@ describe('Router', () => {
 
     it('swapExactIn: token - token', async () => {
       let gasUsed = BN.from(0);
-      let numRuns = swapFeeBpsArray.length;
+      let numRuns = swapFeeUnitsArray.length;
       for (let i = 0; i < numRuns; i++) {
         let tickLower = -200 * tickDistanceArray[i];
         let tickUpper = 100 * tickDistanceArray[i];
-        await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, [tickLower, tickUpper]);
+        await setupPool(tokenA.address, tokenB.address, swapFeeUnitsArray[i], initialPrice, [tickLower, tickUpper]);
         let token0 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA : tokenB;
         let token1 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenB : tokenA;
         // token0 -> token1
         let tx = await swapExactInputSingleAndVerify(
           token0.address,
           token1.address,
-          swapFeeBpsArray[i],
+          swapFeeUnitsArray[i],
           PRECISION,
           await getPriceFromTick(tickLower),
           false
@@ -403,7 +403,7 @@ describe('Router', () => {
         tx = await swapExactInputSingleAndVerify(
           token1.address,
           token0.address,
-          swapFeeBpsArray[i],
+          swapFeeUnitsArray[i],
           PRECISION,
           await getPriceFromTick(tickUpper),
           false
@@ -420,19 +420,19 @@ describe('Router', () => {
     });
 
     it('eth -> token', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await swapExactInputSingleAndVerify(weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true);
     });
 
     it('token -> eth', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await swapExactInputSingleAndVerify(tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true);
     });
 
     it('test reverts', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await expect(
@@ -460,11 +460,11 @@ describe('Router', () => {
       let gasUsed = BN.from(0);
       let numRuns = 1;
       for (let i = 0; i < numRuns; i++) {
-        await setupPool(tokenA.address, tokenB.address, swapFeeBpsArray[i], initialPrice, ticks);
+        await setupPool(tokenA.address, tokenB.address, swapFeeUnitsArray[i], initialPrice, ticks);
         let tx = await swapExactOutputSingleAndVerify(
           tokenA.address,
           tokenB.address,
-          swapFeeBpsArray[i],
+          swapFeeUnitsArray[i],
           BN.from(1000000),
           BN.from(0),
           false
@@ -473,7 +473,7 @@ describe('Router', () => {
         tx = await swapExactOutputSingleAndVerify(
           tokenB.address,
           tokenA.address,
-          swapFeeBpsArray[i],
+          swapFeeUnitsArray[i],
           BN.from(1000000),
           BN.from(0),
           false
@@ -488,20 +488,20 @@ describe('Router', () => {
     });
 
     it('eth -> token', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB
       await swapExactOutputSingleAndVerify(weth.address, tokenB.address, fee, BN.from(10000000), BN.from(0), true);
     });
 
     it('token -> eth', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await swapExactOutputSingleAndVerify(tokenB.address, weth.address, fee, BN.from(10000000), BN.from(0), true);
     });
 
     it('test reverts', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await expect(
@@ -529,7 +529,7 @@ describe('Router', () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
       let gasUsed = ZERO;
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let numRuns = firstTokens.length;
       for (let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
@@ -548,7 +548,7 @@ describe('Router', () => {
     it('#gas one pool [ @skip-on-coverage ]', async () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let numRuns = firstTokens.length;
       for (let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
@@ -560,7 +560,7 @@ describe('Router', () => {
     });
 
     it('2 pools', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let gasUsed = ZERO;
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
@@ -577,7 +577,7 @@ describe('Router', () => {
     });
 
     it('#gas 2 pool [ @skip-on-coverage ]', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
@@ -587,7 +587,7 @@ describe('Router', () => {
     });
 
     it('eth -> token', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB -> tokenA
@@ -595,14 +595,14 @@ describe('Router', () => {
     });
 
     it('token -> eth', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await swapExactInputAndVerify([tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true);
     });
 
     it('test reverts', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenB.address, weth.address, fee, initialPrice, ticks);
@@ -628,7 +628,7 @@ describe('Router', () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
       let gasUsed = ZERO;
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let numRuns = firstTokens.length;
       for (let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
@@ -647,7 +647,7 @@ describe('Router', () => {
     it('#gas one pool [ @skip-on-coverage ]', async () => {
       let firstTokens = [weth.address, tokenA.address];
       let secondTokens = [tokenA.address, tokenB.address];
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let numRuns = firstTokens.length;
       for (let i = 0; i < numRuns; i++) {
         await setupPool(firstTokens[i], secondTokens[i], fee, initialPrice, ticks);
@@ -659,7 +659,7 @@ describe('Router', () => {
     });
 
     it('2 pools', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let gasUsed = ZERO;
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
@@ -676,7 +676,7 @@ describe('Router', () => {
     });
 
     it('#gas 2 pool [ @skip-on-coverage ]', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
@@ -686,7 +686,7 @@ describe('Router', () => {
     });
 
     it('eth -> token', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       // eth -> tokenB -> tokenA
@@ -694,14 +694,14 @@ describe('Router', () => {
     });
 
     it('token -> eth', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await swapExactOutputAndVerify([tokenA.address, tokenB.address, weth.address], fee, BN.from(1000000), true);
     });
 
     it('test reverts', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       await setupPool(tokenB.address, weth.address, fee, initialPrice, ticks);
@@ -724,7 +724,7 @@ describe('Router', () => {
     });
 
     it('swap a loop with 3 pools', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       let amount = BN.from(1000000);
       await setupPool(weth.address, tokenA.address, fee, initialPrice, ticks);
       await setupPool(weth.address, tokenB.address, fee, initialPrice, ticks);
@@ -764,7 +764,7 @@ describe('Router', () => {
     });
 
     it('swap: expiry', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
       await setupPool(tokenA.address, tokenB.address, fee, initialPrice, ticks);
       let amount = BN.from(100000);
       await expect(
