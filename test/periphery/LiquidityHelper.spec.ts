@@ -216,7 +216,7 @@ describe('LiquidityHelper', () => {
     it(`reverts token0 > token1`, async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       let encodedData = ethers.utils.defaultAbiCoder.encode(
-        ['tuple(address, address, uint16, address)'],
+        ['tuple(address, address, uint24, address)'],
         [[token1, token0, swapFeeUnitsArray[0], user.address]]
       );
       await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(
@@ -227,7 +227,7 @@ describe('LiquidityHelper', () => {
     it(`reverts for bad caller`, async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       let encodedData = ethers.utils.defaultAbiCoder.encode(
-        ['tuple(address, address, uint16, address)'],
+        ['tuple(address, address, uint24, address)'],
         [[token0, token1, swapFeeUnitsArray[0], user.address]]
       );
       await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(

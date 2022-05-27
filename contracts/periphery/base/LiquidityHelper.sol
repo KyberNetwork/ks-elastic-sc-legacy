@@ -18,7 +18,7 @@ abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   struct AddLiquidityParams {
     address token0;
     address token1;
-    uint16 fee;
+    uint24 fee;
     address recipient;
     int24 tickLower;
     int24 tickUpper;
@@ -32,7 +32,7 @@ abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   struct CallbackData {
     address token0;
     address token1;
-    uint16 fee;
+    uint24 fee;
     address source;
   }
 
@@ -104,7 +104,7 @@ abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   function _callbackData(
     address token0,
     address token1,
-    uint16 fee
+    uint24 fee
   ) internal view returns (bytes memory) {
     return
       abi.encode(CallbackData({token0: token0, token1: token1, fee: fee, source: msg.sender}));
@@ -118,7 +118,7 @@ abstract contract LiquidityHelper is IMintCallback, RouterTokenHelper {
   function _getPool(
     address tokenA,
     address tokenB,
-    uint16 fee
+    uint24 fee
   ) internal view returns (IPool) {
     return IPool(PoolAddress.computeAddress(factory, tokenA, tokenB, fee, poolInitHash));
   }

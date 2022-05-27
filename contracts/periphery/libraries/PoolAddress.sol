@@ -14,7 +14,7 @@ library PoolAddress {
     address factory,
     address token0,
     address token1,
-    uint16 swapFee,
+    uint24 swapFee,
     bytes32 poolInitHash
   ) internal pure returns (address pool) {
     (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);

@@ -21,7 +21,7 @@ interface IRouter is ISwapCallback {
   struct ExactInputSingleParams {
     address tokenIn;
     address tokenOut;
-    uint16 fee;
+    uint24 fee;
     address recipient;
     uint256 deadline;
     uint256 amountIn;
@@ -72,7 +72,7 @@ interface IRouter is ISwapCallback {
   struct ExactOutputSingleParams {
     address tokenIn;
     address tokenOut;
-    uint16 fee;
+    uint24 fee;
     address recipient;
     uint256 deadline;
     uint256 amountOut;

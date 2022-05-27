@@ -45,7 +45,7 @@ library PathHelper {
     returns (
       address tokenA,
       address tokenB,
-      uint16 fee
+      uint24 fee
     )
   {
     tokenA = path.toAddress(0);

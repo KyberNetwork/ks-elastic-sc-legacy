@@ -1,20 +1,20 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Router #swapExactInput #gas 2 pool [ @skip-on-coverage ] 1`] = `"174818"`;
+exports[`Router #swapExactInput #gas 2 pool [ @skip-on-coverage ] 1`] = `"179357"`;
 
-exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 1`] = `"111300"`;
+exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 1`] = `"106837"`;
 
-exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 2`] = `"106920"`;
+exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 2`] = `"111463"`;
 
 exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 3`] = `"106909"`;
 
 exports[`Router #swapExactInput #gas one pool [ @skip-on-coverage ] 4`] = `"111463"`;
 
-exports[`Router #swapExactOutput #gas 2 pool [ @skip-on-coverage ] 1`] = `"189850"`;
+exports[`Router #swapExactOutput #gas 2 pool [ @skip-on-coverage ] 1`] = `"194714"`;
 
-exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 1`] = `"123560"`;
+exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 1`] = `"118696"`;
 
-exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 2`] = `"118779"`;
+exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 2`] = `"123647"`;
 
 exports[`Router #swapExactOutput #gas one pool [ @skip-on-coverage ] 3`] = `"118768"`;
 
