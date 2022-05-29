@@ -1,5 +1,5 @@
 const ADDR_SIZE = 20;
-const FEE_SIZE = 2;
+const FEE_SIZE = 3;
 const OFFSET = ADDR_SIZE + FEE_SIZE;
 const DATA_SIZE = OFFSET + ADDR_SIZE;
 
