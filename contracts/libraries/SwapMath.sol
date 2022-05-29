@@ -121,14 +121,22 @@ library SwapMath {
         // denominator = currentSqrtP * (2 * targetSqrtP - currentSqrtP * feeInFeeUnits / FEE_UNITS)
         // overflow should not happen because the absPriceDiff is capped to ~5%
         uint256 denominator = C.TWO_FEE_UNITS * targetSqrtP - feeInFeeUnits * currentSqrtP;
-        uint256 numerator = FullMath.mulDivFloor(liquidity, C.TWO_FEE_UNITS * absPriceDiff, denominator);
+        uint256 numerator = FullMath.mulDivFloor(
+          liquidity,
+          C.TWO_FEE_UNITS * absPriceDiff,
+          denominator
+        );
         reachAmount = FullMath.mulDivFloor(numerator, C.TWO_POW_96, currentSqrtP).toInt256();
       } else {
         // numerator = 2 * liquidity * absPriceDiff * currentSqrtP
         // denominator = 2 * currentSqrtP - targetSqrtP * feeInFeeUnits / FEE_UNITS
         // overflow should not happen because the absPriceDiff is capped to ~5%
         uint256 denominator = C.TWO_FEE_UNITS * currentSqrtP - feeInFeeUnits * targetSqrtP;
-        uint256 numerator = FullMath.mulDivFloor(liquidity, C.TWO_FEE_UNITS * absPriceDiff, denominator);
+        uint256 numerator = FullMath.mulDivFloor(
+          liquidity,
+          C.TWO_FEE_UNITS * absPriceDiff,
+          denominator
+        );
         reachAmount = FullMath.mulDivFloor(numerator, currentSqrtP, C.TWO_POW_96).toInt256();
       }
     } else {
@@ -169,7 +177,11 @@ library SwapMath {
     if (isExactInput) {
       if (isToken0) {
         // deltaL = feeInFeeUnits * absDelta * currentSqrtP / 2
-        deltaL = FullMath.mulDivFloor(currentSqrtP, absDelta * feeInFeeUnits, C.TWO_FEE_UNITS << C.RES_96);
+        deltaL = FullMath.mulDivFloor(
+          currentSqrtP,
+          absDelta * feeInFeeUnits,
+          C.TWO_FEE_UNITS << C.RES_96
+        );
       } else {
         // deltaL = feeInFeeUnits * absDelta * / (currentSqrtP * 2)
         // Because nextSqrtP = (liquidity + absDelta / currentSqrtP) * currentSqrtP / (liquidity + deltaL)
