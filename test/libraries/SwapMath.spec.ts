@@ -52,7 +52,7 @@ describe('SwapMath', () => {
     console.log(`lc2=${lc2.toString()}`); // 16916406.564505359636169345
   });
 
-  it.only('from token0 -> token1 exact output', async () => {
+  it('from token0 -> token1 exact output', async () => {
     const liquidity = PRECISION.mul(ONE);
     const priceStart = encodePriceSqrt(1, 1);
     const priceEnd = encodePriceSqrt(100, 101);

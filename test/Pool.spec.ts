@@ -1716,12 +1716,9 @@ describe('Pool', () => {
         logBalanceChange(token0BalanceAfter.sub(token0BalanceBefore), token1BalanceAfter.sub(token1BalanceBefore));
       });
 
-      it.only('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
+      it('#gas token0 exactInput - within a tick [ @skip-on-coverage ]', async () => {
         let priceLimit = await getPriceFromTick(nearestTickToPrice - tickDistance);
         priceLimit = priceLimit.add(1);
-
-        console.log('swapFeeUnits :>> ', swapFeeUnits);
-        console.log('pool :>> ', poolArray[0].address);
 
         let quoteResult = await quoter.callStatic.quoteExactInputSingle({
           tokenIn: token0.address,

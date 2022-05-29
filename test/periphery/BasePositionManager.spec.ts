@@ -1627,7 +1627,7 @@ describe('BasePositionManager', () => {
       expect(await positionManager.supportsInterface('0x5b5e139f')).to.be.eq(true); // ERC721Metadata
       expect(await positionManager.supportsInterface('0x780e9d63')).to.be.eq(true); // ERC721Enumerable
       expect(await positionManager.supportsInterface('0x7dd42bd6')).to.be.eq(true); // ERC721Permit
-      expect(await positionManager.supportsInterface('0xfad9ce15')).to.be.eq(true); // IBasePositionManager
+      expect(await positionManager.supportsInterface('0x53e38b0d')).to.be.eq(true); // IBasePositionManager
     });
 
     it('un-support interface', async () => {
