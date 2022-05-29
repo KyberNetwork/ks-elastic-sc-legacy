@@ -142,7 +142,11 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
   }
 
   /// @inheritdoc IFactory
-  function enableSwapFee(uint24 swapFeeUnits, int24 tickDistance) public override onlyConfigMaster {
+  function enableSwapFee(uint24 swapFeeUnits, int24 tickDistance)
+    public
+    override
+    onlyConfigMaster
+  {
     require(swapFeeUnits < MathConstants.FEE_UNITS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
     // 16384 ticks represents a >5x price change with ticks of 1 bips

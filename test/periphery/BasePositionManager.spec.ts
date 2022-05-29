@@ -304,7 +304,15 @@ describe('BasePositionManager', () => {
       let [token0, token1] = sortTokens(weth.address, tokenB.address);
 
       await factory.createPool(token0, token1, swapFeeUnitsArray[0]);
-      await verifyPoolBalancesAndStates(token0, token1, swapFeeUnitsArray[0], BN.from(0), BN.from(0), BN.from(0), true);
+      await verifyPoolBalancesAndStates(
+        token0,
+        token1,
+        swapFeeUnitsArray[0],
+        BN.from(0),
+        BN.from(0),
+        BN.from(0),
+        true
+      );
 
       let userBalancesBefore = await getBalances(user.address, [ZERO_ADDRESS, token0, token1]);
 
