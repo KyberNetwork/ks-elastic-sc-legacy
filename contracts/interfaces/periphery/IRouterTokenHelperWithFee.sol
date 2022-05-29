@@ -10,7 +10,7 @@ interface IRouterTokenHelperWithFee is IRouterTokenHelper {
   function unwrapWethWithFee(
     uint256 minAmount,
     address recipient,
-    uint256 feeBips,
+    uint256 feeUnits,
     address feeRecipient
   ) external payable;
 

@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SwapMath #gas [ @skip-on-coverage ] from token0 -> token1 exact input 1`] = `"3775"`;

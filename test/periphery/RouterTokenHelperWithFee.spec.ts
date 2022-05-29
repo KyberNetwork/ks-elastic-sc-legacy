@@ -1,7 +1,7 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
 import {BigNumber as BN} from 'ethers';
-import {PRECISION, ONE, ZERO, MAX_UINT, BPS} from '../helpers/helper';
+import {PRECISION, ONE, ZERO, MAX_UINT, BPS, FEE_UNITS} from '../helpers/helper';
 import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
@@ -80,14 +80,14 @@ describe('RouterTokenHelperWithFee', () => {
       ).to.be.revertedWith('Not WETH');
     });
 
-    it('should revert for invalid fee bps', async () => {
+    it('should revert for invalid fee units', async () => {
       await expect(tokenHelper.unwrapWethWithFee(ZERO, user.address, ZERO, user.address)).to.be.revertedWith(
         'High fee'
       );
-      await expect(tokenHelper.unwrapWethWithFee(ZERO, user.address, 101, user.address)).to.be.revertedWith(
+      await expect(tokenHelper.unwrapWethWithFee(ZERO, user.address, 1001, user.address)).to.be.revertedWith(
         'High fee'
       );
-      await expect(tokenHelper.unwrapWethWithFee(ZERO, user.address, BPS, user.address)).to.be.revertedWith(
+      await expect(tokenHelper.unwrapWethWithFee(ZERO, user.address, FEE_UNITS, user.address)).to.be.revertedWith(
         'High fee'
       );
 
@@ -130,7 +130,7 @@ describe('RouterTokenHelperWithFee', () => {
 
     it('should transfer ETH to both recipient and fee recipient', async () => {
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      let feeAmt = contractBal.mul(feeUnits).div(BPS);
+      let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
       await expect(() =>
         tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeUnits, feeRecipient.address)
       ).to.changeEtherBalances([admin, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
@@ -139,7 +139,7 @@ describe('RouterTokenHelperWithFee', () => {
     it('should have ETH remain in RouterTokenHelper if it is the recipient', async () => {
       // tokenHelper is recipient
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      let feeAmt = contractBal.mul(feeUnits).div(BPS);
+      let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
       await expect(() =>
         tokenHelper.unwrapWethWithFee(PRECISION, tokenHelper.address, feeUnits, feeRecipient.address)
       ).to.changeEtherBalances([tokenHelper, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
@@ -148,7 +148,7 @@ describe('RouterTokenHelperWithFee', () => {
     it('should have ETH remain in RouterTokenHelper if it is the fee recipient', async () => {
       // tokenHelper is fee recipient
       let contractBal = await weth.balanceOf(tokenHelper.address);
-      let feeAmt = contractBal.mul(feeUnits).div(BPS);
+      let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
       await expect(() =>
         tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeUnits, tokenHelper.address)
       ).to.changeEtherBalances([admin, tokenHelper], [contractBal.sub(feeAmt), feeAmt]);
@@ -167,7 +167,7 @@ describe('RouterTokenHelperWithFee', () => {
     it('should transfer tokens to both recipient and fee recipient', async () => {
       tokens.forEach(async (token) => {
         let contractBal = await token.balanceOf(tokenHelper.address);
-        let feeAmt = contractBal.mul(feeUnits).div(BPS);
+        let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
 
         await expect(() =>
           tokenHelper.transferAllTokensWithFee(token.address, PRECISION, admin.address, feeUnits, feeRecipient.address)

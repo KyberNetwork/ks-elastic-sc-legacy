@@ -96,7 +96,7 @@ describe('Factory', () => {
       expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
     });
 
-    it('should return different pool addresses for different swap fee bps', async () => {
+    it('should return different pool addresses for different swap fee units', async () => {
       await factory.createPool(tokenA.address, tokenB.address, swapFeeUnits);
       let poolAddressOne = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnits);
       swapFeeUnits = 300;
