@@ -1,6 +1,6 @@
 import {ethers, waffle} from 'hardhat';
 import {expect} from 'chai';
-import {ZERO, ONE, TWO, BPS, PRECISION, BN} from '../helpers/helper';
+import {ZERO, ONE, TWO, FEE_UNITS, PRECISION, BN} from '../helpers/helper';
 import chai from 'chai';
 const {solidity} = waffle;
 chai.use(solidity);
@@ -14,7 +14,7 @@ let vestingPeriod: number;
 let currentTime: number;
 let currentLiquidity = PRECISION;
 let liquidityDelta = PRECISION;
-let feesSinceLastAction = BPS;
+let feesSinceLastAction = FEE_UNITS;
 
 describe('AntiSnipAttack', () => {
   before('setup', async () => {
@@ -59,15 +59,15 @@ describe('AntiSnipAttack', () => {
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, BPS, BPS);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, FEE_UNITS, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ZERO, BPS);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ZERO, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, BPS, ZERO);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, FEE_UNITS, ZERO);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
@@ -81,21 +81,21 @@ describe('AntiSnipAttack', () => {
     });
 
     it('should return 0 feesClaimable for 0 feesClaimableSinceLastActionBps and feesLockedCurrent', async () => {
-      let result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, BPS, ZERO);
+      let result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS, ZERO);
       expect(result.feesLockedNew).to.be.eql(PRECISION);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, BPS.div(TWO), ZERO);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS.div(TWO), ZERO);
       expect(result.feesLockedNew).to.be.eql(PRECISION);
       expect(result.feesClaimable).to.be.eql(ZERO);
     });
 
     it('should return 0 feesClaimable for 0 feesClaimableVestedBps and feesSinceLastAction', async () => {
-      let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, BPS);
+      let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(PRECISION);
       expect(result.feesClaimable).to.be.eql(ZERO);
 
-      result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, BPS.div(TWO));
+      result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, FEE_UNITS.div(TWO));
       expect(result.feesLockedNew).to.be.eql(PRECISION);
       expect(result.feesClaimable).to.be.eql(ZERO);
     });
@@ -111,19 +111,19 @@ describe('AntiSnipAttack', () => {
     });
 
     it('should return 0 feesLockedNew (all fees are claimable)', async () => {
-      let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, BPS, BPS);
+      let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, FEE_UNITS, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(PRECISION);
 
-      result = await antiSnipAttack.calcFeeProportions(ONE, ZERO, BPS, BPS);
+      result = await antiSnipAttack.calcFeeProportions(ONE, ZERO, FEE_UNITS, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ONE);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, BPS, BPS);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(PRECISION);
 
-      result = await antiSnipAttack.calcFeeProportions(ZERO, ONE, BPS, BPS);
+      result = await antiSnipAttack.calcFeeProportions(ZERO, ONE, FEE_UNITS, FEE_UNITS);
       expect(result.feesLockedNew).to.be.eql(ZERO);
       expect(result.feesClaimable).to.be.eql(ONE);
     });
