@@ -147,7 +147,7 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     override
     onlyConfigMaster
   {
-    require(swapFeeUnits < MathConstants.BPS, 'invalid fee');
+    require(swapFeeUnits < MathConstants.FEE_UNITS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
     // 16384 ticks represents a >5x price change with ticks of 1 bips
     require(tickDistance > 0 && tickDistance < 16384, 'invalid tickDistance');
