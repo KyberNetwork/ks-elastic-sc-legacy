@@ -65,7 +65,7 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     emit SwapFeeEnabled(8, 1);
 
     feeAmountTickDistance[10] = 1;
-    emit SwapFeeEnabled(10, 2);
+    emit SwapFeeEnabled(10, 1);
 
     feeAmountTickDistance[40] = 8;
     emit SwapFeeEnabled(40, 8);
