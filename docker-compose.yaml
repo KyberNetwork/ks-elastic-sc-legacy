@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  echidna-test:
+    container_name: "elastic-echidna"
+    build: .
+    # Comment the line below to run the echidna test when starting this container. 
+    # Otherwise, you need to access into the container (by `docker exec -it elastic-echidna bash`) to execute commands yourself.
+    command: "tail -f /dev/null"
+    volumes:
+      - .:/src
