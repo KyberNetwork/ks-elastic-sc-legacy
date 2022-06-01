@@ -143,7 +143,9 @@ library AntiSnipAttack {
     uint256 nextClaimableFeeUnits
   ) internal pure returns (uint256 feesLockedNew, uint256 feesClaimable) {
     uint256 totalFees = currentFees + nextFees;
-    feesClaimable = (currentClaimableFeeUnits * currentFees + nextClaimableFeeUnits * nextFees) / C.FEE_UNITS;
+    feesClaimable =
+      (currentClaimableFeeUnits * currentFees + nextClaimableFeeUnits * nextFees) /
+      C.FEE_UNITS;
     feesLockedNew = totalFees - feesClaimable;
   }
 }
