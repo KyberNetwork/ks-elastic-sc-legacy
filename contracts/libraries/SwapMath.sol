@@ -174,7 +174,7 @@ library SwapMath {
         // deltaL = feeInBps * absDelta * / (currentSqrtP * 2)
         // Because nextSqrtP = (liquidity + absDelta / currentSqrtP) * currentSqrtP / (liquidity + deltaL)
         // so we round up deltaL, to round down nextSqrtP
-        deltaL = FullMath.mulDivCeiling(
+        deltaL = FullMath.mulDivFloor(
           C.TWO_POW_96,
           absDelta * feeInBps,
           C.TWO_BPS * currentSqrtP
