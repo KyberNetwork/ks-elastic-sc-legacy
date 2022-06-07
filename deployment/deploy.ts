@@ -17,12 +17,13 @@ import {
   AntiSnipAttackPositionManager,
   BasePositionManager__factory,
   BasePositionManager,
+  TicksFeesReader__factory,
+  TicksFeesReader
 } from '../typechain';
 
 let gasPrice;
 
 async function verifyContract(hre: HardhatRuntimeEnvironment, contractAddress: string, ctorArgs: any[]) {
-  if (![1, 3, 4, 5, 6].includes(hre?.network?.config?.chainId as number)) return; // Check the current network is available for etherscan
   await hre.run('verify:verify', {
     address: contractAddress,
     constructorArguments: ctorArgs,
@@ -43,6 +44,7 @@ let router: Router;
 let quoter: QuoterV2;
 let descriptor: MockTokenPositionDescriptor;
 let posManager: AntiSnipAttackPositionManager | BasePositionManager;
+let ticksFeesReader: TicksFeesReader;
 
 task('deployDmmV2', 'deploy router, factory and position manager')
   .addParam('gasprice', 'The gas price (in gwei) for all transactions')
@@ -124,6 +126,15 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     console.log(`updating config master...`);
     await factory.updateConfigMaster(admin, {gasPrice: gasPrice});
 
+    console.log(`deploying tick and fees helper...`);
+    const TicksFeesReader = (await hre.ethers.getContractFactory(
+      'TicksFeesReader'
+    )) as TicksFeesReader__factory;
+    ticksFeesReader = await TicksFeesReader.deploy();
+    await ticksFeesReader.deployed();
+    console.log(`ticksFeesReader address: ${ticksFeesReader.address}`);
+    outputData['ticksFeesReader'] = ticksFeesReader.address;
+
     exportAddresses(outputData);
 
     // verify addresses
@@ -133,6 +144,7 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     if (descriptor) await verifyContract(hre, descriptor.address, []);
     if (deployQuoter) await verifyContract(hre, quoter.address, [factory.address]);
     await verifyContract(hre, posManager.address, [factory.address, weth, baseDescriptor]);
+    await verifyContract(hre, ticksFeesReader.address, []);
 
     console.log('setup completed');
     process.exit(0);
