@@ -24,3 +24,11 @@ The implementation details can be found [here](https://hackmd.io/sgADNlGNS8eSGU_
 
 ## Coverage
 `yarn coverage` (Runs coverage for all applicable files)
+
+## Echidna
+`docker-compose up -d` (Runs a new echidna-test container)
+
+`docker exec -it elastic-echidna bash` (Accesses to the container)
+
+- `./echidna.sh` (Runs echidna-test for all contracts)
+- `echidna-test . --contract {{Contract Name}} --config echidna.config.yml --test-mode assertion` (Runs echidna-test for each contract)
