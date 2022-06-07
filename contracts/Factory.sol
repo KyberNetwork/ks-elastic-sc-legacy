@@ -19,7 +19,7 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     address factory;
     address token0;
     address token1;
-    uint16 swapFeeBps;
+    uint24 swapFeeUnits;
     int24 tickDistance;
   }
 
@@ -32,13 +32,13 @@ contract Factory is BaseSplitCodeFactory, IFactory {
   bool public override whitelistDisabled;
 
   address private feeTo;
-  uint16 private governmentFeeBps;
+  uint24 private governmentFeeUnits;
   uint32 public override vestingPeriod;
 
   /// @inheritdoc IFactory
-  mapping(uint16 => int24) public override feeAmountTickDistance;
+  mapping(uint24 => int24) public override feeAmountTickDistance;
   /// @inheritdoc IFactory
-  mapping(address => mapping(address => mapping(uint16 => address))) public override getPool;
+  mapping(address => mapping(address => mapping(uint24 => address))) public override getPool;
 
   // list of whitelisted NFT position manager(s)
   // that are allowed to burn liquidity tokens on behalf of users
@@ -61,43 +61,46 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     configMaster = msg.sender;
     emit ConfigMasterUpdated(address(0), configMaster);
 
-    feeAmountTickDistance[1] = 1;
-    emit SwapFeeEnabled(1, 1);
+    feeAmountTickDistance[8] = 1;
+    emit SwapFeeEnabled(8, 1);
 
-    feeAmountTickDistance[4] = 8;
-    emit SwapFeeEnabled(5, 10);
+    feeAmountTickDistance[10] = 1;
+    emit SwapFeeEnabled(10, 1);
 
-    feeAmountTickDistance[30] = 60;
-    emit SwapFeeEnabled(30, 60);
+    feeAmountTickDistance[40] = 8;
+    emit SwapFeeEnabled(40, 8);
 
-    feeAmountTickDistance[100] = 200;
-    emit SwapFeeEnabled(100, 200);
+    feeAmountTickDistance[300] = 60;
+    emit SwapFeeEnabled(300, 60);
+
+    feeAmountTickDistance[1000] = 200;
+    emit SwapFeeEnabled(1000, 200);
   }
 
   /// @inheritdoc IFactory
   function createPool(
     address tokenA,
     address tokenB,
-    uint16 swapFeeBps
+    uint24 swapFeeUnits
   ) external override returns (address pool) {
     require(tokenA != tokenB, 'identical tokens');
     (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     require(token0 != address(0), 'null address');
-    int24 tickDistance = feeAmountTickDistance[swapFeeBps];
+    int24 tickDistance = feeAmountTickDistance[swapFeeUnits];
     require(tickDistance != 0, 'invalid fee');
-    require(getPool[token0][token1][swapFeeBps] == address(0), 'pool exists');
+    require(getPool[token0][token1][swapFeeUnits] == address(0), 'pool exists');
 
     parameters.factory = address(this);
     parameters.token0 = token0;
     parameters.token1 = token1;
-    parameters.swapFeeBps = swapFeeBps;
+    parameters.swapFeeUnits = swapFeeUnits;
     parameters.tickDistance = tickDistance;
 
-    pool = _create(bytes(''), keccak256(abi.encode(token0, token1, swapFeeBps)));
-    getPool[token0][token1][swapFeeBps] = pool;
+    pool = _create(bytes(''), keccak256(abi.encode(token0, token1, swapFeeUnits)));
+    getPool[token0][token1][swapFeeUnits] = pool;
     // populate mapping in the reverse direction, deliberate choice to avoid the cost of comparing addresses
-    getPool[token1][token0][swapFeeBps] = pool;
-    emit PoolCreated(token0, token1, swapFeeBps, tickDistance, pool);
+    getPool[token1][token0][swapFeeUnits] = pool;
+    emit PoolCreated(token0, token1, swapFeeUnits, tickDistance, pool);
   }
 
   /// @inheritdoc IFactory
@@ -139,31 +142,35 @@ contract Factory is BaseSplitCodeFactory, IFactory {
   }
 
   /// @inheritdoc IFactory
-  function enableSwapFee(uint16 swapFeeBps, int24 tickDistance) public override onlyConfigMaster {
-    require(swapFeeBps < MathConstants.BPS, 'invalid fee');
+  function enableSwapFee(uint24 swapFeeUnits, int24 tickDistance)
+    public
+    override
+    onlyConfigMaster
+  {
+    require(swapFeeUnits < MathConstants.FEE_UNITS, 'invalid fee');
     // tick distance is capped at 16384 to prevent the situation where tickDistance is so large that
     // 16384 ticks represents a >5x price change with ticks of 1 bips
     require(tickDistance > 0 && tickDistance < 16384, 'invalid tickDistance');
-    require(feeAmountTickDistance[swapFeeBps] == 0, 'existing tickDistance');
-    feeAmountTickDistance[swapFeeBps] = tickDistance;
-    emit SwapFeeEnabled(swapFeeBps, tickDistance);
+    require(feeAmountTickDistance[swapFeeUnits] == 0, 'existing tickDistance');
+    feeAmountTickDistance[swapFeeUnits] = tickDistance;
+    emit SwapFeeEnabled(swapFeeUnits, tickDistance);
   }
 
   /// @inheritdoc IFactory
-  function updateFeeConfiguration(address _feeTo, uint16 _governmentFeeBps)
+  function updateFeeConfiguration(address _feeTo, uint24 _governmentFeeUnits)
     external
     override
     onlyConfigMaster
   {
-    require(_governmentFeeBps <= 2000, 'invalid fee');
+    require(_governmentFeeUnits <= 20000, 'invalid fee');
     require(
-      (_feeTo == address(0) && _governmentFeeBps == 0) ||
-        (_feeTo != address(0) && _governmentFeeBps != 0),
+      (_feeTo == address(0) && _governmentFeeUnits == 0) ||
+        (_feeTo != address(0) && _governmentFeeUnits != 0),
       'bad config'
     );
     feeTo = _feeTo;
-    governmentFeeBps = _governmentFeeBps;
-    emit FeeConfigurationUpdated(_feeTo, _governmentFeeBps);
+    governmentFeeUnits = _governmentFeeUnits;
+    emit FeeConfigurationUpdated(_feeTo, _governmentFeeUnits);
   }
 
   /// @inheritdoc IFactory
@@ -171,10 +178,10 @@ contract Factory is BaseSplitCodeFactory, IFactory {
     external
     view
     override
-    returns (address _feeTo, uint16 _governmentFeeBps)
+    returns (address _feeTo, uint24 _governmentFeeUnits)
   {
     _feeTo = feeTo;
-    _governmentFeeBps = governmentFeeBps;
+    _governmentFeeUnits = governmentFeeUnits;
   }
 
   /// @inheritdoc IFactory

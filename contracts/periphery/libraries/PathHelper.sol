@@ -10,7 +10,7 @@ library PathHelper {
   /// @dev The length of the bytes encoded address
   uint256 private constant ADDR_SIZE = 20;
   /// @dev The length of the bytes encoded fee
-  uint256 private constant FEE_SIZE = 2;
+  uint256 private constant FEE_SIZE = 3;
 
   /// @dev The offset of a single token address and pool fee
   uint256 private constant TOKEN_AND_POOL_OFFSET = ADDR_SIZE + FEE_SIZE;
@@ -45,11 +45,11 @@ library PathHelper {
     returns (
       address tokenA,
       address tokenB,
-      uint16 fee
+      uint24 fee
     )
   {
     tokenA = path.toAddress(0);
-    fee = path.toUint16(ADDR_SIZE);
+    fee = path.toUint24(ADDR_SIZE);
     tokenB = path.toAddress(TOKEN_AND_POOL_OFFSET);
   }
 

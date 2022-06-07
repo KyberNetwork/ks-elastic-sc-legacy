@@ -69,18 +69,18 @@ library AntiSnipAttack {
       // claimable proportion (in basis pts) of collected fees between last action and now
       // lockTime is used instead of lastActionTime because we prefer to use the entire
       // duration of the position as the measure, not just the duration after last action performed
-      uint256 feesClaimableSinceLastActionBps = Math.min(
-        C.BPS,
-        (uint256(currentTime - _self.lockTime) * C.BPS) / vestingPeriod
+      uint256 feesClaimableSinceLastActionFeeUnits = Math.min(
+        C.FEE_UNITS,
+        (uint256(currentTime - _self.lockTime) * C.FEE_UNITS) / vestingPeriod
       );
       // claimable proportion (in basis pts) of locked fees
       // lastActionTime is used instead of lockTime since the vested fees
       // from lockTime to lastActionTime have already been claimed
-      uint256 feesClaimableVestedBps = _self.unlockTime <= _self.lastActionTime
-        ? C.BPS
+      uint256 feesClaimableVestedFeeUnits = _self.unlockTime <= _self.lastActionTime
+        ? C.FEE_UNITS
         : Math.min(
-          C.BPS,
-          (uint256(currentTime - _self.lastActionTime) * C.BPS) /
+          C.FEE_UNITS,
+          (uint256(currentTime - _self.lastActionTime) * C.FEE_UNITS) /
             (_self.unlockTime - _self.lastActionTime)
         );
 
@@ -88,8 +88,8 @@ library AntiSnipAttack {
       (_self.feesLocked, feesClaimable) = calcFeeProportions(
         _self.feesLocked,
         feesSinceLastAction,
-        feesClaimableVestedBps,
-        feesClaimableSinceLastActionBps
+        feesClaimableVestedFeeUnits,
+        feesClaimableSinceLastActionFeeUnits
       );
 
       // update unlock time
@@ -104,10 +104,10 @@ library AntiSnipAttack {
         ? currentTime
         : (((_self.lockTime + vestingPeriod) *
           feesSinceLastAction *
-          (C.BPS - feesClaimableSinceLastActionBps) +
+          (C.FEE_UNITS - feesClaimableSinceLastActionFeeUnits) +
           _self.unlockTime *
           feesLockedBeforeUpdate *
-          (C.BPS - feesClaimableVestedBps)) / (_self.feesLocked * C.BPS))
+          (C.FEE_UNITS - feesClaimableVestedFeeUnits)) / (_self.feesLocked * C.FEE_UNITS))
         .toUint32();
     }
 
@@ -139,11 +139,13 @@ library AntiSnipAttack {
   function calcFeeProportions(
     uint256 currentFees,
     uint256 nextFees,
-    uint256 currentClaimableBps,
-    uint256 nextClaimableBps
+    uint256 currentClaimableFeeUnits,
+    uint256 nextClaimableFeeUnits
   ) internal pure returns (uint256 feesLockedNew, uint256 feesClaimable) {
     uint256 totalFees = currentFees + nextFees;
-    feesClaimable = (currentClaimableBps * currentFees + nextClaimableBps * nextFees) / C.BPS;
+    feesClaimable =
+      (currentClaimableFeeUnits * currentFees + nextClaimableFeeUnits * nextFees) /
+      C.FEE_UNITS;
     feesLockedNew = totalFees - feesClaimable;
   }
 }

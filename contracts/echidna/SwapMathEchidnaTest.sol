@@ -10,16 +10,16 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     uint128 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
-    uint8 feeInBps,
+    uint24 feeInFeeUnits,
     bool isExactInput
   ) external {
-    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
+    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInFeeUnits);
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
     int256 reachAmount = SwapMath.calcReachAmount(
       liquidity,
       currentSqrtP,
       targetSqrtP,
-      feeInBps,
+      feeInFeeUnits,
       isExactInput,
       isToken0
     );
@@ -36,7 +36,7 @@ contract SwapMathEchidnaTest is EchidnaAssert {
       absDelta,
       liquidity,
       currentSqrtP,
-      feeInBps,
+      feeInFeeUnits,
       isExactInput,
       isToken0
     );
@@ -60,9 +60,9 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     int256 specifiedAmount,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
-    uint8 feeInBps
+    uint8 feeInFeeUnits
   ) external {
-    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInBps);
+    checkInitCondition(liquidity, currentSqrtP, targetSqrtP, feeInFeeUnits);
     require(specifiedAmount != 0);
     bool isExactInput = specifiedAmount > 0;
     bool isToken0 = isExactInput ? (currentSqrtP > targetSqrtP) : (currentSqrtP < targetSqrtP);
@@ -70,7 +70,7 @@ contract SwapMathEchidnaTest is EchidnaAssert {
       liquidity,
       currentSqrtP,
       targetSqrtP,
-      feeInBps,
+      feeInFeeUnits,
       specifiedAmount,
       isExactInput,
       isToken0
@@ -104,12 +104,12 @@ contract SwapMathEchidnaTest is EchidnaAssert {
     uint128 liquidity,
     uint160 currentSqrtP,
     uint160 targetSqrtP,
-    uint8 feeInBps
+    uint24 feeInFeeUnits
   ) internal pure {
     require(currentSqrtP >= TickMath.MIN_SQRT_RATIO && currentSqrtP <= TickMath.MAX_SQRT_RATIO);
     require(targetSqrtP >= TickMath.MIN_SQRT_RATIO && targetSqrtP <= TickMath.MAX_SQRT_RATIO);
     require(liquidity >= 100000);
-    require(feeInBps != 0);
+    require(feeInFeeUnits != 0);
     require(currentSqrtP * 95 < targetSqrtP * 100 && targetSqrtP * 100 < currentSqrtP * 105);
   }
 }

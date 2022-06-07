@@ -19,7 +19,7 @@ let liquidityHelper: MockLiquidityHelper;
 let tokenA: MockToken;
 let tokenB: MockToken;
 let weth: MockWeth;
-let swapFeeBpsArray = [5, 30];
+let swapFeeUnitsArray = [50, 300];
 let tickDistanceArray = [10, 60];
 let vestingPeriod = 100;
 let initialPrice = encodePriceSqrt(1, 1);
@@ -48,9 +48,9 @@ describe('LiquidityHelper', () => {
     await factory.connect(admin).addNFTManager(liquidityHelper.address);
 
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -76,14 +76,14 @@ describe('LiquidityHelper', () => {
 
     it(`reverts token0 > token1`, async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
-      await createPool(token0, token1, swapFeeBpsArray[0]);
-      await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[0], initialPrice);
+      await createPool(token0, token1, swapFeeUnitsArray[0]);
+      await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeUnitsArray[0], initialPrice);
 
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
           token0: token1,
           token1: token0,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           recipient: user.address,
           tickLower: -100 * tickDistanceArray[0],
           tickUpper: 100 * tickDistanceArray[0],
@@ -98,14 +98,14 @@ describe('LiquidityHelper', () => {
 
     it('reverts lower than min amount', async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
-      await createPool(token0, token1, swapFeeBpsArray[0]);
-      await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[0], initialPrice);
+      await createPool(token0, token1, swapFeeUnitsArray[0]);
+      await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeUnitsArray[0], initialPrice);
 
       await expect(
         liquidityHelper.connect(user).testAddLiquidity({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           recipient: user.address,
           tickLower: -100 * tickDistanceArray[0],
           tickUpper: 100 * tickDistanceArray[0],
@@ -120,7 +120,7 @@ describe('LiquidityHelper', () => {
         liquidityHelper.connect(user).testAddLiquidity({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           recipient: user.address,
           tickLower: -100 * tickDistanceArray[0],
           tickUpper: 100 * tickDistanceArray[0],
@@ -137,12 +137,12 @@ describe('LiquidityHelper', () => {
       let firstTokens = [weth.address, tokenA.address, tokenB.address];
       let secondTokens = [tokenA.address, tokenB.address, weth.address];
       for (let i = 0; i < firstTokens.length; i++) {
-        let index = i % swapFeeBpsArray.length;
-        let fee = swapFeeBpsArray[index];
+        let index = i % swapFeeUnitsArray.length;
+        let fee = swapFeeUnitsArray[index];
         let [token0, token1] = sortTokens(firstTokens[i], secondTokens[i]);
 
-        let pool = await createPool(token0, token1, swapFeeBpsArray[index]);
-        await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeBpsArray[index], initialPrice);
+        let pool = await createPool(token0, token1, swapFeeUnitsArray[index]);
+        await liquidityHelper.connect(user).testUnlockPool(token0, token1, swapFeeUnitsArray[index], initialPrice);
 
         let userBefore = await getBalances(user.address, [firstTokens[i], secondTokens[i]]);
         let poolBefore = await getBalances(pool.address, [firstTokens[i], secondTokens[i]]);
@@ -170,7 +170,7 @@ describe('LiquidityHelper', () => {
     });
 
     it('can setup to unlock with eth', async () => {
-      let fee = swapFeeBpsArray[0];
+      let fee = swapFeeUnitsArray[0];
 
       let pool = await createPool(weth.address, tokenA.address, fee);
       await liquidityHelper.connect(user).testUnlockPool(weth.address, tokenA.address, fee, initialPrice);
@@ -216,8 +216,8 @@ describe('LiquidityHelper', () => {
     it(`reverts token0 > token1`, async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       let encodedData = ethers.utils.defaultAbiCoder.encode(
-        ['tuple(address, address, uint16, address)'],
-        [[token1, token0, swapFeeBpsArray[0], user.address]]
+        ['tuple(address, address, uint24, address)'],
+        [[token1, token0, swapFeeUnitsArray[0], user.address]]
       );
       await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(
         'LiquidityHelper: wrong token order'
@@ -227,8 +227,8 @@ describe('LiquidityHelper', () => {
     it(`reverts for bad caller`, async () => {
       let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
       let encodedData = ethers.utils.defaultAbiCoder.encode(
-        ['tuple(address, address, uint16, address)'],
-        [[token0, token1, swapFeeBpsArray[0], user.address]]
+        ['tuple(address, address, uint24, address)'],
+        [[token0, token1, swapFeeUnitsArray[0], user.address]]
       );
       await expect(liquidityHelper.connect(user).mintCallback(PRECISION, PRECISION, encodedData)).to.be.revertedWith(
         'LiquidityHelper: invalid callback sender'
