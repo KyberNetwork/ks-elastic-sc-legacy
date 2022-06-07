@@ -1,0 +1,8 @@
+{
+    "admin": "0x77Eb6DBe7f37FF0aEcD44c5901B02dA1e40c324F",
+    "vestingPeriod": 100,
+    "weth": "0x4200000000000000000000000000000000000006",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "optimism_testnet_deployment.json"
+}

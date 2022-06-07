@@ -77,7 +77,9 @@ const config: HardhatUserConfig = {
       rinkeby: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       goerli: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       kovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-    },
+      optimisticEthereum: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      optimisticKovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+    }
   },
 
   solidity: {
@@ -210,6 +212,18 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     url: `https://rpc.ftm.tools/`,
     accounts: [PRIVATE_KEY],
     timeout: 20000,
+  };
+
+  config.networks!.optimism = {
+    url: `https://optimistic.etherscan.io`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.optimism_testnet = {
+    url: `https://kovan.optimism.io`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
   };
 }
 
