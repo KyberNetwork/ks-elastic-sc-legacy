@@ -51,7 +51,7 @@ async function deployTickMath(): Promise<MockTickMath> {
 import chai from 'chai';
 
 import {jestSnapshotPlugin} from 'mocha-chai-jest-snapshot';
-import {MockToken__factory} from '../../typechain';
+import {MockToken, MockToken__factory} from '../../typechain';
 chai.use(jestSnapshotPlugin());
 
 export async function snapshotGasCost(response: TransactionResponse) {
@@ -74,6 +74,10 @@ export async function getBalances(account: string, tokens: string[]): Promise<BN
 
 export function sortTokens(tokenA: string, tokenB: string): [string, string] {
   return tokenA.toLowerCase() < tokenB.toLowerCase() ? [tokenA, tokenB] : [tokenB, tokenA];
+}
+
+export function orderTokens(tokenA: MockToken, tokenB: MockToken): [MockToken, MockToken] {
+  return tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? [tokenA, tokenB] : [tokenB, tokenA];
 }
 
 export function getCreate2Address(

@@ -23,7 +23,7 @@ import {
 import {deployFactory, getTicksPrevious} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK} from '../helpers/helper';
-import {encodePriceSqrt, sortTokens} from '../helpers/utils';
+import {encodePriceSqrt, sortTokens, orderTokens} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
@@ -65,6 +65,7 @@ describe('BasePositionManager', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(100000000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(100000000000).mul(PRECISION));
+    [tokenA, tokenB] = orderTokens(tokenA, tokenB);
     factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
@@ -938,10 +939,10 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
-      let liquidityDesired = [1795550, 2894577, 3713659, 4798240, 5997800];
-      let amount0Desired = [55707, 45591, 10439, 0, 0];
+      let liquidityDesired = [1795547, 2894569, 3713647, 4798240, 5997800];
+      let amount0Desired = [55707, 45590, 10438, 0, 0];
       let amount1Desired = [120000, 240000, 360000, 480000, 600000];
-      let additionalRTokenOwedDesired = [469, 915, 939, 832, 686];
+      let additionalRTokenOwedDesired = [466, 911, 934, 829, 685];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];

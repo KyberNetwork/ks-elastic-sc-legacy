@@ -26,7 +26,7 @@ import {
 import {deployFactory} from '../helpers/setup';
 import {snapshot, revertToSnapshot, setNextBlockTimestampFromCurrent} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO, MIN_TICK, ONE} from '../helpers/helper';
-import {encodePriceSqrt, sortTokens} from '../helpers/utils';
+import {encodePriceSqrt, sortTokens, orderTokens} from '../helpers/utils';
 
 const showTxGasUsed = true;
 const BIG_AMOUNT = BN.from(2).pow(255);
@@ -60,6 +60,7 @@ describe('AntiSnipAttackPositionManager', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(100000000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(100000000000).mul(PRECISION));
+    [tokenA, tokenB] = orderTokens(tokenA, tokenB);
     factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
@@ -292,10 +293,10 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
-      let liquidityDesired = [1420622, 2399120, 3598680];
+      let liquidityDesired = [1420617, 2399120, 3598680];
       let amount0Desired = [20311, 0, 0];
       let amount1Desired = [120000, 240000, 360000];
-      let additionalRTokenOwedDesired = [10, 941, 831];
+      let additionalRTokenOwedDesired = [10, 936, 828];
 
       for (let i = 0; i < numRuns; i++) {
         let amount0 = BN.from(100000 * (i + 1));
