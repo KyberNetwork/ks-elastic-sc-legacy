@@ -378,6 +378,7 @@ describe('BasePositionManager', () => {
   describe(`#mint`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -784,6 +785,7 @@ describe('BasePositionManager', () => {
   describe(`#add liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1031,6 +1033,7 @@ describe('BasePositionManager', () => {
   describe(`#remove liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1124,7 +1127,8 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
-      let amount0Desired = [10, 20, 30, 40, 50];
+      let amount0Desired = [4, 9, 14, 19, 24];
+      let amount1Desired = [4, 9, 14, 19, 24];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1141,7 +1145,7 @@ describe('BasePositionManager', () => {
         let tx;
         await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
           .to.be.emit(positionManager, 'RemoveLiquidity')
-          .withArgs(tokenId, liquidity, 0, amount0Desired[i], 0);
+          .withArgs(tokenId, liquidity, amount0Desired[i], amount1Desired[i], 0);
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
@@ -1184,6 +1188,9 @@ describe('BasePositionManager', () => {
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let amount0Desired = [3, 3, 0, 0, 0];
+      let amount1Desired = [6, 16, 29, 40, 50];
+      let additionalRTokenOwedDesired = [466, 930, 926, 805, 643];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1192,8 +1199,6 @@ describe('BasePositionManager', () => {
         let userData = await positionManager.positions(tokenId);
         let poolData = await poolContract.getPositions(positionManager.address, tickLower, tickUpper);
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
-        let amount1Desired = [10, 20, 30, 40, 50];
-        let additionalRTokenOwedDesired = [75, 150, 150, 150, 150];
 
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
@@ -1210,7 +1215,7 @@ describe('BasePositionManager', () => {
         let tx;
         await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
           .to.be.emit(positionManager, 'RemoveLiquidity')
-          .withArgs(tokenId, liquidity, 0, amount1Desired[i], additionalRTokenOwedDesired[i]);
+          .withArgs(tokenId, liquidity, amount0Desired[i], amount1Desired[i], additionalRTokenOwedDesired[i]);
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
@@ -1270,7 +1275,7 @@ describe('BasePositionManager', () => {
         })
       )
         .to.be.emit(positionManager, 'RemoveLiquidity')
-        .withArgs(nextTokenId, liquidity, 0, 100, 0);
+        .withArgs(nextTokenId, liquidity, 48, 48, 0);
 
       let poolBalAfter = await getBalances(pool, [tokenA.address, tokenB.address]);
       expect(poolBalBefore.tokenBalances[0].sub(poolBalAfter.tokenBalances[0])).to.be.eq(
@@ -1285,6 +1290,7 @@ describe('BasePositionManager', () => {
   describe(`#burn rtoken`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1416,6 +1422,7 @@ describe('BasePositionManager', () => {
   describe(`#burn token`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1474,6 +1481,7 @@ describe('BasePositionManager', () => {
   describe(`#transfer all tokens`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1511,6 +1519,7 @@ describe('BasePositionManager', () => {
   describe(`#approve`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1544,6 +1553,7 @@ describe('BasePositionManager', () => {
   describe(`#tokenUri`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1569,6 +1579,7 @@ describe('BasePositionManager', () => {
   describe(`#permit-erc721`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
