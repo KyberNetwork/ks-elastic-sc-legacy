@@ -1,5 +1,5 @@
 {
-    "admin": "0xfDCEE5525e10F8fA87f3FE7AEF165b843fC7C170",
+    "admin": "",
     "vestingPeriod": 100,
     "weth": "0xae13d989dac2f0debff460ac112a837c89baa7cd",
     "baseDescriptor": "",
