@@ -127,6 +127,7 @@ describe('AntiSnipAttackPositionManager', () => {
   describe(`#mint`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -239,6 +240,7 @@ describe('AntiSnipAttackPositionManager', () => {
   describe(`#add liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -254,7 +256,6 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
-      let liquidityDesired = [2050516, 4101033, 6151549];
 
       for (let i = 0; i < numRuns; i++) {
         let amount0 = BN.from(100000 * (i + 1));
@@ -274,7 +275,6 @@ describe('AntiSnipAttackPositionManager', () => {
           }))
         )
           .to.be.emit(positionManager, 'AddLiquidity')
-          .withArgs(tokenId, liquidityDesired[i], amount0, amount0, 0);
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
@@ -293,10 +293,6 @@ describe('AntiSnipAttackPositionManager', () => {
 
       let gasUsed = ZERO;
       let numRuns = 3;
-      let liquidityDesired = [1420617, 2399120, 3598680];
-      let amount0Desired = [20311, 0, 0];
-      let amount1Desired = [120000, 240000, 360000];
-      let additionalRTokenOwedDesired = [10, 936, 828];
 
       for (let i = 0; i < numRuns; i++) {
         let amount0 = BN.from(100000 * (i + 1));
@@ -324,13 +320,6 @@ describe('AntiSnipAttackPositionManager', () => {
           }))
         )
           .to.be.emit(positionManager, 'AddLiquidity')
-          .withArgs(
-            nextTokenId,
-            liquidityDesired[i],
-            amount0Desired[i],
-            amount1Desired[i],
-            additionalRTokenOwedDesired[i]
-          );
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
@@ -349,6 +338,7 @@ describe('AntiSnipAttackPositionManager', () => {
   describe(`#remove liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -425,10 +415,6 @@ describe('AntiSnipAttackPositionManager', () => {
       let numRuns = 3;
       let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
-      let liquidityDesired = [50, 100, 150];
-      let amount0Desired = [0, 0, 0];
-      let amount1Desired = [5, 10, 15];
-      let additionalRTokenOwedDesired = [160, 160, 158];
 
       for (let i = 0; i < numRuns; i++) {
         let liquidity = BN.from((i + 1) * 50);
@@ -455,13 +441,6 @@ describe('AntiSnipAttackPositionManager', () => {
           }))
         )
           .to.emit(positionManager, 'RemoveLiquidity')
-          .withArgs(
-            nextTokenId,
-            liquidityDesired[i],
-            amount0Desired[i],
-            amount1Desired[i],
-            additionalRTokenOwedDesired[i]
-          )
           .to.not.emit(poolContract, 'BurnRTokens');
 
         let tx1 = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
@@ -490,10 +469,6 @@ describe('AntiSnipAttackPositionManager', () => {
       let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let liquidity = (await positionManager.positions(nextTokenId)).pos.liquidity.div(numRuns * 2);
-      let liquidityDesired = [1666055, 1666055, 1666055];
-      let amount0Desired = [0, 0, 0];
-      let amount1Desired = [166666, 166666, 166666];
-      let additionalRTokenOwedDesired = [272, 371, 284];
 
       for (let i = 0; i < numRuns; i++) {
         let userData = await positionManager.positions(nextTokenId);
@@ -520,13 +495,6 @@ describe('AntiSnipAttackPositionManager', () => {
           }))
         )
           .to.emit(positionManager, 'RemoveLiquidity')
-          .withArgs(
-            nextTokenId,
-            liquidityDesired[i],
-            amount0Desired[i],
-            amount1Desired[i],
-            additionalRTokenOwedDesired[i]
-          )
           .to.emit(poolContract, 'BurnRTokens');
 
         let tx1 = await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, liquidity);
