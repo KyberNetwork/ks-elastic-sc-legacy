@@ -79,6 +79,14 @@ const config: HardhatUserConfig = {
       kovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       optimisticEthereum: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       optimisticKovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      polygon: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      polygonMumbai: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      arbitrumOne: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      arbitrumTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      avalanche: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      avalancheFujiTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+      opera: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,  // Fantom mainnet
+      ftmTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
     }
   },
 
