@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 100,
+    "weth": "",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "avax_testnet_deployment.json"
+}

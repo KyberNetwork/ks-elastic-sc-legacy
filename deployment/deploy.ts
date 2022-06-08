@@ -18,7 +18,7 @@ import {
   BasePositionManager__factory,
   BasePositionManager,
   TicksFeesReader__factory,
-  TicksFeesReader
+  TicksFeesReader,
 } from '../typechain';
 
 let gasPrice;
@@ -50,9 +50,9 @@ task('deployDmmV2', 'deploy router, factory and position manager')
   .addParam('gasprice', 'The gas price (in gwei) for all transactions')
   .addParam('input', 'Input file')
   .setAction(async (taskArgs, hre) => {
-    const configPath = path.join(__dirname, `./${taskArgs.input}`);
+    const configPath = path.join(getDir(hre.network.name), `./${taskArgs.input}`);
     const configParams = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    parseInput(configParams);
+    parseInput(configParams, hre.network.name);
 
     const BN = hre.ethers.BigNumber;
     const [deployer] = await hre.ethers.getSigners();
@@ -127,9 +127,7 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     await factory.updateConfigMaster(admin, {gasPrice: gasPrice});
 
     console.log(`deploying tick and fees helper...`);
-    const TicksFeesReader = (await hre.ethers.getContractFactory(
-      'TicksFeesReader'
-    )) as TicksFeesReader__factory;
+    const TicksFeesReader = (await hre.ethers.getContractFactory('TicksFeesReader')) as TicksFeesReader__factory;
     ticksFeesReader = await TicksFeesReader.deploy();
     await ticksFeesReader.deployed();
     console.log(`ticksFeesReader address: ${ticksFeesReader.address}`);
@@ -150,16 +148,46 @@ task('deployDmmV2', 'deploy router, factory and position manager')
     process.exit(0);
   });
 
-function parseInput(jsonInput: any) {
+function parseInput(jsonInput: any, networkName: string) {
   admin = jsonInput['admin'];
   vestingPeriod = jsonInput['vestingPeriod'];
   weth = jsonInput['weth'];
   baseDescriptor = jsonInput['baseDescriptor'];
   deployQuoter = jsonInput['deployQuoter'];
-  outputFilename = jsonInput['outputFilename'];
+  outputFilename = path.join(getDir(networkName), jsonInput['outputFilename']);
+}
+
+function getDir(networkName: string): string {
+  if (['mainnet', 'ropsten', 'rinkeby', 'kovan'].includes(networkName)) {
+    return path.join(__dirname, 'ethereum');
+  } else if (['bsc', 'bsc_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'bsc');
+  } else if (['cronos', 'cronos_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'cronos');
+  } else if (['aurora', 'aurora_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'aurora');
+  } else if (['polygon', 'polygon_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'polygon');
+  } else if (['avax', 'avax_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'avax');
+  } else if (['fantom', 'fantom_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'fantom');
+  } else if (['optimism', 'optimism_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'optimism');
+  } else if (['arbitrum', 'arbitrum_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'arbitrum');
+  } else if (['bttc', 'bttc_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'bttc');
+  } else if (['oasis', 'oasis_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'oasis');
+  } else if (['velas', 'velas_testnet'].includes(networkName)) {
+    return path.join(__dirname, 'velas');
+  } else {
+    return __dirname;
+  }
 }
 
 function exportAddresses(dictOutput: string) {
   let json = JSON.stringify(dictOutput, null, 2);
-  fs.writeFileSync(path.join(__dirname, outputFilename), json);
+  fs.writeFileSync(outputFilename, json);
 }

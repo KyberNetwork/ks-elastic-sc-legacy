@@ -225,6 +225,54 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     accounts: [PRIVATE_KEY],
     timeout: 20000
   };
+
+  config.networks!.arbitrum = {
+    url: `https://rpc.ftm.tools`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.arbitrum_testnet = {
+    url: `https://rinkeby.arbitrum.io/rpc`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.bttc = {
+    url: `https://bttc.dev.kyberengineering.io`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.bttc_testnet = {
+    url: `https://pre-rpc.bt.io`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.oasis = {
+    url: `https://emerald.oasis.dev`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.oasis_testnet = {
+    url: `https://testnet.emerald.oasis.dev`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.velas = {
+    url: `https://evmexplorer.velas.com/rpc`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
+
+  config.networks!.velas_testnet = {
+    url: `https://explorer.testnet.velas.com/rpc`,
+    accounts: [PRIVATE_KEY],
+    timeout: 20000
+  };
 }
 
 export default config;
