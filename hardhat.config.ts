@@ -5,13 +5,16 @@ import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-typechain';
 import 'hardhat-contract-sizer';
+import '@openzeppelin/hardhat-upgrades';
 
 import {HardhatUserConfig, SolcUserConfig} from 'hardhat/types';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-import './deployment/deploy.ts';
+// import './deployment/deploy.ts';
+import './scripts/debug';
+import './deployment/periphery/tokenPositionDescriptor/deployTokenPositionDescriptor';
 import {accounts} from './test-wallets';
 
 const solcConfig: SolcUserConfig = {
@@ -44,9 +47,9 @@ const veryLowRunSolcConfig = {
     ...solcConfig.settings,
     optimizer: {
       enabled: true,
-      runs: 2000
-    }
-  }
+      runs: 2000,
+    },
+  },
 };
 
 const config: HardhatUserConfig = {
@@ -75,7 +78,7 @@ const config: HardhatUserConfig = {
       rinkeby: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       goerli: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
       kovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-    }
+    },
   },
 
   solidity: {
@@ -122,7 +125,7 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
     accounts: [PRIVATE_KEY],
     timeout: 20000,
-    blockGasLimit: 30000000
+    blockGasLimit: 30000000,
   };
 
   config.networks!.ropsten = {
@@ -141,73 +144,73 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
     url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
     accounts: [PRIVATE_KEY],
     timeout: 20000,
-    blockGasLimit: 30000000
+    blockGasLimit: 30000000,
   };
 
   config.networks!.bsc = {
     url: `https://bsc-dataseed1.ninicoin.io/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.cronos_testnet = {
     url: `https://cronos-testnet-3.crypto.org:8545/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.cronos = {
     url: `https://evm-cronos.crypto.org/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.aurora_testnet = {
     url: `https://testnet.aurora.dev/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.aurora = {
     url: `https://mainnet.aurora.dev/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
-  
+
   config.networks!.polygon_testnet = {
     url: `https://rpc-mumbai.maticvigil.com/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.polygon = {
     url: `https://polygon-rpc.com/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.avax_testnet = {
     url: `https://api.avax-test.network/ext/bc/C/rpc`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.avax = {
     url: `https://api.avax.network/ext/bc/C/rpc`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.fantom_testnet = {
     url: `https://rpc.testnet.fantom.network/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 
   config.networks!.fantom = {
     url: `https://rpc.ftm.tools/`,
     accounts: [PRIVATE_KEY],
-    timeout: 20000
+    timeout: 20000,
   };
 }
 

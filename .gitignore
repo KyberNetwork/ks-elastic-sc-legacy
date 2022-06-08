@@ -56,3 +56,6 @@ crytic-export
 
 # IDE
 .vscode
+
+# upgradeable generated
+.openzeppelin
