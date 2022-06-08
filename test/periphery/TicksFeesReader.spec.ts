@@ -42,7 +42,7 @@ let pool: string;
 let positionManager: BasePositionManager;
 let initialPrice: BigNumber;
 let nextTokenId: BigNumber;
-let swapFee = 5;
+let swapFee = 40;
 
 function genMaxInitTicks(tickDistance: number) {
   let resultArr = [...Array(MAX_TICK.toNumber()).keys()].filter((x) => x % tickDistance == 0);
