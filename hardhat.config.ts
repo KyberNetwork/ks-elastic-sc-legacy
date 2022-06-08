@@ -12,7 +12,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-// import './deployment/deploy.ts';
+import './deployment/deploy.ts';
 import './scripts/debug';
 import './deployment/periphery/tokenPositionDescriptor/deployTokenPositionDescriptor';
 import {accounts} from './test-wallets';
