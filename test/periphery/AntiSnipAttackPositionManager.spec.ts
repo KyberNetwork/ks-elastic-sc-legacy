@@ -273,8 +273,7 @@ describe('AntiSnipAttackPositionManager', () => {
             amount1Min: 0,
             deadline: PRECISION,
           }))
-        )
-          .to.be.emit(positionManager, 'AddLiquidity')
+        ).to.be.emit(positionManager, 'AddLiquidity');
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
@@ -318,8 +317,7 @@ describe('AntiSnipAttackPositionManager', () => {
             amount1Min: 0,
             deadline: PRECISION,
           }))
-        )
-          .to.be.emit(positionManager, 'AddLiquidity')
+        ).to.be.emit(positionManager, 'AddLiquidity');
 
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
