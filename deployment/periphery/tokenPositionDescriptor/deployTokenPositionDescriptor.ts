@@ -1,11 +1,9 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types';
 import {task} from 'hardhat/config';
-import {BigNumber} from '@ethersproject/bignumber';
 import fs from 'fs';
 import path from 'path';
 
 let deployerAddress: string;
-let descriptorAddress: string;
 let outputFilename: string;
 
 async function verifyContract(hre: HardhatRuntimeEnvironment, contractAddress: string, ctorArgs: string[]) {
