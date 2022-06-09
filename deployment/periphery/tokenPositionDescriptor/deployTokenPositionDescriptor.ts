@@ -28,24 +28,18 @@ task('deployTokenPositionDescriptorProxy', 'deploy proxy of TokenPositionDescrip
 
     const TokenPositionDescriptor = await hre.ethers.getContractFactory('TokenPositionDescriptor');
     let outputData: {[key: string]: string} = {};
-    let descriptor;
+    let descriptorProxy = await hre.upgrades.deployProxy(TokenPositionDescriptor, [], {
+      initializer: 'initialize',
+    });
 
-    if (descriptorAddress == '' || descriptorAddress == undefined) {
-      console.log('deploy new ');
-      descriptor = await hre.upgrades.deployProxy(TokenPositionDescriptor, [], {
-        initializer: 'initialize',
-      });
+    await descriptorProxy.deployed();
 
-      await descriptor.deployed();
-      descriptorAddress = descriptor.address;
-    } else {
-      console.log('use old ');
-      descriptor = await TokenPositionDescriptor.attach(descriptorAddress);
-    }
+    const descriptorAddress = await hre.upgrades.erc1967.getImplementationAddress(descriptorProxy.address);
 
+    console.log('TokenPositionDescriptorProxy deployed to:', descriptorProxy.address);
     console.log('TokenPositionDescriptor deployed to:', descriptorAddress);
 
-    console.log(`Descriptor address: ${descriptorAddress}`);
+    outputData['descriptorProxy'] = descriptorProxy.address;
     outputData['descriptor'] = descriptorAddress;
 
     try {
@@ -63,7 +57,6 @@ task('deployTokenPositionDescriptorProxy', 'deploy proxy of TokenPositionDescrip
 
 const parseInput = (jsonInput: any) => {
   outputFilename = jsonInput['outputFilename'];
-  descriptorAddress = jsonInput['descriptorAddress'];
 };
 
 const exportAddresses = (dictOutput: {[key: string]: string}) => {
