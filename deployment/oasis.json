@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "0x21C718C22D52d0F3a789b752D4c2fD5908a8A733",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "oasis_deployment.json"
+}

@@ -1,6 +1,6 @@
 {
-    "admin": "0xfDCEE5525e10F8fA87f3FE7AEF165b843fC7C170",
-    "vestingPeriod": 100,
+    "admin": "",
+    "vestingPeriod": 300,
     "weth": "0xc778417e063141139fce010982780140aa0cd5ab",
     "baseDescriptor": "",
     "deployQuoter": true,

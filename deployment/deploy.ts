@@ -18,7 +18,7 @@ import {
   BasePositionManager__factory,
   BasePositionManager,
   TicksFeesReader__factory,
-  TicksFeesReader
+  TicksFeesReader,
 } from '../typechain';
 
 let gasPrice;
