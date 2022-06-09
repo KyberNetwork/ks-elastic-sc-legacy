@@ -235,7 +235,7 @@ if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
   };
 
   config.networks!.arbitrum = {
-    url: `https://rpc.ftm.tools`,
+    url: `https://arb1.arbitrum.io/rpc`,
     accounts: [PRIVATE_KEY],
     timeout: 20000
   };
