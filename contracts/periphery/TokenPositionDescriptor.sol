@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import '@openzeppelin/contracts/utils/Strings.sol';
 import '../interfaces/periphery/INonfungibleTokenPositionDescriptor.sol';
 
 contract TokenPositionDescriptor is
@@ -12,7 +13,7 @@ contract TokenPositionDescriptor is
   UUPSUpgradeable,
   OwnableUpgradeable
 {
-  string private tokenUri;
+  string private baseURI;
 
   function initialize() public initializer {
     __Ownable_init();
@@ -20,11 +21,19 @@ contract TokenPositionDescriptor is
 
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
-  function setTokenUri(string memory _tokenUri) external onlyOwner {
-    tokenUri = _tokenUri;
+  function setBaseURI(string memory _baseURI) external onlyOwner {
+    baseURI = _baseURI;
   }
 
-  function tokenURI(IBasePositionManager, uint256) external view override returns (string memory) {
-    return tokenUri;
+  function tokenURI(IBasePositionManager, uint256 tokenId)
+    external
+    view
+    override
+    returns (string memory)
+  {
+    return
+      bytes(baseURI).length > 0
+        ? string(abi.encodePacked(baseURI, Strings.toString(tokenId)))
+        : '';
   }
 }
