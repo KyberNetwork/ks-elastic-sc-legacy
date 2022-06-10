@@ -13,7 +13,7 @@ async function verifyContract(hre: HardhatRuntimeEnvironment, contractAddress: s
   });
 }
 
-task('deployTokenPositionDescriptorProxy', 'deploy proxy of TokenPositionDescriptor')
+task('deployTokenPositionDescriptor', 'deploy proxy of TokenPositionDescriptor')
   .addParam('input', 'The input file')
   .setAction(async (taskArgs, hre) => {
     const configPath = path.join(__dirname, `./${taskArgs.input}`);
