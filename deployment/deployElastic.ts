@@ -46,7 +46,7 @@ let descriptor: MockTokenPositionDescriptor;
 let posManager: AntiSnipAttackPositionManager | BasePositionManager;
 let ticksFeesReader: TicksFeesReader;
 
-task('deployDmmV2', 'deploy router, factory and position manager')
+task('deployElastic', 'deploy router, factory and position manager')
   .addParam('gasprice', 'The gas price (in gwei) for all transactions')
   .addParam('input', 'Input file')
   .setAction(async (taskArgs, hre) => {
