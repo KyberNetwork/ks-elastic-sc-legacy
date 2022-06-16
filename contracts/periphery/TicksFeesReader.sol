@@ -150,10 +150,32 @@ contract TicksFeesReader {
       rTotalSupply
     );
 
-    unchecked {
-      feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
+    if (rMintQty != 0) {
+      rMintQty = _deductGovermentFee(pool, rMintQty);
+      unchecked {
+        feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
+      }
+      rTotalSupply += rMintQty;
     }
-    rTotalSupply += rMintQty;
+  }
+
+  /// @return the lp fee without governance fee
+  function _deductGovermentFee(IPoolStorage pool, uint256 rMintQty) 
+    internal 
+    view
+    returns (uint256) 
+  {
+    // fetch governmentFeeUnits
+    (, uint24 governmentFeeUnits) = pool.factory().feeConfiguration();
+    if (governmentFeeUnits == 0) {
+      return rMintQty;
+    }
+
+    // unchecked due to governmentFeeUnits <= 20000
+    unchecked {
+      uint256 rGovtQty = (rMintQty * governmentFeeUnits) / C.FEE_UNITS;
+      return rMintQty - rGovtQty;
+    }
   }
 
   function _calcFeeGrowthInside(
