@@ -30,7 +30,7 @@ describe('LiquidityMath', () => {
     });
 
     it('should return 0 if qty is 0', async () => {
-      expect(await liquidityMath.getLiquidityFromQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eql(ZERO);
+      expect(await liquidityMath.getLiquidityFromQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eq(ZERO);
     });
 
     it('returns 11x liquidity for price of 1 to 1.21, qty: 10**18', async () => {
@@ -69,7 +69,7 @@ describe('LiquidityMath', () => {
     });
 
     it('should return 0 if qty is 0', async () => {
-      expect(await liquidityMath.getLiquidityFromQty1(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eql(ZERO);
+      expect(await liquidityMath.getLiquidityFromQty1(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO)).to.be.eq(ZERO);
     });
 
     it('returns 10x liquidity for price of 1 to 1.21', async () => {
@@ -132,7 +132,7 @@ describe('LiquidityMath', () => {
           ZERO,
           BN.from(1000000)
         )
-      ).to.be.eql(ZERO);
+      ).to.be.eq(ZERO);
       expect(
         await liquidityMath.getLiquidityFromQties(
           TWO_POW_96.add(ONE),
@@ -141,7 +141,7 @@ describe('LiquidityMath', () => {
           BN.from(1000000),
           ZERO
         )
-      ).to.be.eql(ZERO);
+      ).to.be.eq(ZERO);
     });
 
     it('returns min of liquidity for price of 1 to 1.21', async () => {

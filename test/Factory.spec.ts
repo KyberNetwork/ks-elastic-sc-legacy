@@ -92,8 +92,8 @@ describe('Factory', () => {
       await factory.createPool(tokenA.address, tokenB.address, swapFeeUnits);
       let poolAddressOne = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnits);
       let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnits);
-      expect(poolAddressOne).to.be.eql(poolAddressTwo);
-      expect(poolAddressOne).to.not.be.eql(ZERO_ADDRESS);
+      expect(poolAddressOne).to.be.eq(poolAddressTwo);
+      expect(poolAddressOne).to.not.be.eq(ZERO_ADDRESS);
     });
 
     it('should return different pool addresses for different swap fee units', async () => {
@@ -125,12 +125,12 @@ describe('Factory', () => {
       await expect(factory.connect(admin).updateVestingPeriod(newVestingPeriod))
         .to.emit(factory, 'VestingPeriodUpdated')
         .withArgs(newVestingPeriod);
-      expect(await factory.vestingPeriod()).to.be.eql(newVestingPeriod);
+      expect(await factory.vestingPeriod()).to.be.eq(newVestingPeriod);
     });
 
     it('should be able to update vesting period to 0', async () => {
       await factory.connect(admin).updateVestingPeriod(ZERO);
-      expect(await factory.vestingPeriod()).to.be.eql(0);
+      expect(await factory.vestingPeriod()).to.be.eq(0);
     });
   });
 
@@ -267,7 +267,7 @@ describe('Factory', () => {
       await expect(factory.connect(admin).enableSwapFee(swapFeeUnits, tickDistance))
         .to.emit(factory, 'SwapFeeEnabled')
         .withArgs(swapFeeUnits, tickDistance);
-      expect(await factory.feeAmountTickDistance(swapFeeUnits)).to.be.eql(tickDistance);
+      expect(await factory.feeAmountTickDistance(swapFeeUnits)).to.be.eq(tickDistance);
     });
 
     it('should be able to utilise new tickDistance for pool creation', async () => {
@@ -301,8 +301,8 @@ describe('Factory', () => {
         .to.emit(factory, 'FeeConfigurationUpdated')
         .withArgs(admin.address, governmentFeeUnits);
       let result = await factory.feeConfiguration();
-      expect(result._feeTo).to.be.eql(admin.address);
-      expect(result._governmentFeeUnits).to.be.eql(governmentFeeUnits);
+      expect(result._feeTo).to.be.eq(admin.address);
+      expect(result._governmentFeeUnits).to.be.eq(governmentFeeUnits);
 
       // change configMaster
       await factory.connect(admin).updateConfigMaster(operator.address);
@@ -310,8 +310,8 @@ describe('Factory', () => {
       // operator updates fee config
       await factory.connect(operator).updateFeeConfiguration(operator.address, governmentFeeUnits);
       result = await factory.feeConfiguration();
-      expect(result._feeTo).to.be.eql(operator.address);
-      expect(result._governmentFeeUnits).to.be.eql(governmentFeeUnits);
+      expect(result._feeTo).to.be.eq(operator.address);
+      expect(result._governmentFeeUnits).to.be.eq(governmentFeeUnits);
     });
 
     it('should be unable to update governmentFeeUnits to 0 if feeTo is not null', async () => {
@@ -327,16 +327,16 @@ describe('Factory', () => {
     it('should be able to update governmentFeeUnits to 0 with null address', async () => {
       await factory.connect(admin).updateFeeConfiguration(ZERO_ADDRESS, ZERO);
       let result = await factory.feeConfiguration();
-      expect(result._feeTo).to.be.eql(ZERO_ADDRESS);
-      expect(result._governmentFeeUnits).to.be.eql(0);
+      expect(result._feeTo).to.be.eq(ZERO_ADDRESS);
+      expect(result._governmentFeeUnits).to.be.eq(0);
     });
 
     it('should be able to update governmentFeeUnits to the max value (2000)', async () => {
       let governmentFeeUnits = 20000;
       await factory.connect(admin).updateFeeConfiguration(operator.address, governmentFeeUnits);
       let result = await factory.feeConfiguration();
-      expect(result._feeTo).to.be.eql(operator.address);
-      expect(result._governmentFeeUnits).to.be.eql(governmentFeeUnits);
+      expect(result._feeTo).to.be.eq(operator.address);
+      expect(result._governmentFeeUnits).to.be.eq(governmentFeeUnits);
     });
   });
 });

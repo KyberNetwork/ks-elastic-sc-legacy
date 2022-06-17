@@ -28,16 +28,16 @@ describe('AntiSnipAttack', () => {
   describe('#initialize', async () => {
     it('should be able to initialize data to default values', async () => {
       let data = await antiSnipAttack.data();
-      expect(data.lastActionTime).to.be.eql(0);
-      expect(data.lockTime).to.be.eql(0);
-      expect(data.unlockTime).to.be.eql(0);
-      expect(data.feesLocked).to.be.eql(ZERO);
+      expect(data.lastActionTime).to.be.eq(0);
+      expect(data.lockTime).to.be.eq(0);
+      expect(data.unlockTime).to.be.eq(0);
+      expect(data.feesLocked).to.be.eq(ZERO);
       await antiSnipAttack.initialize(currentTime);
       data = await antiSnipAttack.data();
-      expect(data.lastActionTime).to.be.eql(currentTime);
-      expect(data.lockTime).to.be.eql(currentTime);
-      expect(data.unlockTime).to.be.eql(currentTime);
-      expect(data.feesLocked).to.be.eql(ZERO);
+      expect(data.lastActionTime).to.be.eq(currentTime);
+      expect(data.lockTime).to.be.eq(currentTime);
+      expect(data.unlockTime).to.be.eq(currentTime);
+      expect(data.feesLocked).to.be.eq(ZERO);
     });
 
     it('should initialize to new updated timestamp', async () => {
@@ -46,86 +46,86 @@ describe('AntiSnipAttack', () => {
       // re-initialize with new timestamp
       await antiSnipAttack.initialize(currentTime);
       let data = await antiSnipAttack.data();
-      expect(data.lastActionTime).to.be.eql(currentTime);
-      expect(data.lockTime).to.be.eql(currentTime);
-      expect(data.unlockTime).to.be.eql(currentTime);
-      expect(data.feesLocked).to.be.eql(ZERO);
+      expect(data.lastActionTime).to.be.eq(currentTime);
+      expect(data.lockTime).to.be.eq(currentTime);
+      expect(data.unlockTime).to.be.eq(currentTime);
+      expect(data.feesLocked).to.be.eq(ZERO);
     });
   });
 
   describe('#calcFeeProportions', async () => {
     it('should return 0 for 0 fees', async () => {
       let result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ZERO, ZERO);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, FEE_UNITS, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ZERO, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, FEE_UNITS, ZERO);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ZERO, ONE);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ZERO, ONE, ZERO);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ZERO);
     });
 
     it('should return 0 feesClaimable for 0 feesClaimableSinceLastActionBps and feesLockedCurrent', async () => {
       let result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS, ZERO);
-      expect(result.feesLockedNew).to.be.eql(PRECISION);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS.div(TWO), ZERO);
-      expect(result.feesLockedNew).to.be.eql(PRECISION);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION);
+      expect(result.feesClaimable).to.be.eq(ZERO);
     });
 
     it('should return 0 feesClaimable for 0 feesClaimableVestedBps and feesSinceLastAction', async () => {
       let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(PRECISION);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION);
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, ZERO, FEE_UNITS.div(TWO));
-      expect(result.feesLockedNew).to.be.eql(PRECISION);
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION);
+      expect(result.feesClaimable).to.be.eq(ZERO);
     });
 
     it('should return 0 feesClaimable for 0 feesClaimableVestedBps and feesClaimableSinceLastActionBps', async () => {
       let result = await antiSnipAttack.calcFeeProportions(PRECISION, PRECISION, ZERO, ZERO);
-      expect(result.feesLockedNew).to.be.eql(PRECISION.add(PRECISION));
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION.add(PRECISION));
+      expect(result.feesClaimable).to.be.eq(ZERO);
 
       result = await antiSnipAttack.calcFeeProportions(PRECISION, ONE, ZERO, ZERO);
-      expect(result.feesLockedNew).to.be.eql(PRECISION.add(ONE));
-      expect(result.feesClaimable).to.be.eql(ZERO);
+      expect(result.feesLockedNew).to.be.eq(PRECISION.add(ONE));
+      expect(result.feesClaimable).to.be.eq(ZERO);
     });
 
     it('should return 0 feesLockedNew (all fees are claimable)', async () => {
       let result = await antiSnipAttack.calcFeeProportions(PRECISION, ZERO, FEE_UNITS, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(PRECISION);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(PRECISION);
 
       result = await antiSnipAttack.calcFeeProportions(ONE, ZERO, FEE_UNITS, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ONE);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ONE);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, PRECISION, FEE_UNITS, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(PRECISION);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(PRECISION);
 
       result = await antiSnipAttack.calcFeeProportions(ZERO, ONE, FEE_UNITS, FEE_UNITS);
-      expect(result.feesLockedNew).to.be.eql(ZERO);
-      expect(result.feesClaimable).to.be.eql(ONE);
+      expect(result.feesLockedNew).to.be.eq(ZERO);
+      expect(result.feesClaimable).to.be.eq(ONE);
     });
   });
 
@@ -142,8 +142,8 @@ describe('AntiSnipAttack', () => {
         vestingPeriod
       );
       let result = await antiSnipAttack.fees();
-      expect(result.feesClaimable).to.be.eql(feesSinceLastAction);
-      expect(result.feesBurnable).to.be.eql(ZERO);
+      expect(result.feesClaimable).to.be.eq(feesSinceLastAction);
+      expect(result.feesBurnable).to.be.eq(ZERO);
     });
   });
 
@@ -370,12 +370,12 @@ describe('AntiSnipAttack', () => {
       );
       data = await antiSnipAttack.data();
       // should be set to zero
-      expect(data.feesLocked).to.be.eql(ZERO);
+      expect(data.feesLocked).to.be.eq(ZERO);
       // fees claimed should be equal to feesSinceLastAction + feesLocked
       let result = await antiSnipAttack.fees();
-      expect(result.feesClaimable).to.be.eql(lockedFees.add(feesSinceLastAction));
+      expect(result.feesClaimable).to.be.eq(lockedFees.add(feesSinceLastAction));
       // zero fees burnable
-      expect(result.feesBurnable).to.be.eql(ZERO);
+      expect(result.feesBurnable).to.be.eq(ZERO);
     });
   });
 });
