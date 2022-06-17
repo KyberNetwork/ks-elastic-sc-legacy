@@ -169,10 +169,10 @@ contract TicksFeesReader {
   }
 
   /// @return the lp fee without governance fee
-  function _deductGovermentFee(IPoolStorage pool, uint256 rMintQty) 
-    internal 
+  function _deductGovermentFee(IPoolStorage pool, uint256 rMintQty)
+    internal
     view
-    returns (uint256) 
+    returns (uint256)
   {
     // fetch governmentFeeUnits
     (, uint24 governmentFeeUnits) = pool.factory().feeConfiguration();
