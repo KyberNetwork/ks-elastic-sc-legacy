@@ -26,13 +26,13 @@ describe('QtyDeltaMath', () => {
     });
 
     it('should return 0 if liquidity is 0', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, true)).to.be.eql(ZERO);
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, false)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, true)).to.be.eq(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96.mul(TWO), ZERO, false)).to.be.eq(ZERO);
     });
 
     it('should return 0 if prices are equal', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eql(ZERO);
-      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eq(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty0(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eq(ZERO);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {
@@ -93,13 +93,13 @@ describe('QtyDeltaMath', () => {
 
   describe('#calcRequiredQty1', () => {
     it('returns 0 if liquidity is 0', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, true)).to.be.eql(ZERO);
-      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, false)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, true)).to.be.eq(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(ONE, TWO, ZERO, false)).to.be.eq(ZERO);
     });
 
     it('should return 0 if prices are equal', async () => {
-      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eql(ZERO);
-      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eql(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, true)).to.be.eq(ZERO);
+      expect(await qtyDeltaMath.calcRequiredQty1(TWO_POW_96, TWO_POW_96, PRECISION, false)).to.be.eq(ZERO);
     });
 
     it('returns 0.1 amount1 for price of 1 to 1.21', async () => {

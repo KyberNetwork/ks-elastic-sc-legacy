@@ -74,8 +74,8 @@ describe('PoolTicksState', () => {
   describe('#externalUpdatePosition', async () => {
     it('should return 0 values for empty position', async () => {
       let {liquidity, feeGrowthInsideLast} = await mockPoolTicksState.getPositions(user1.address, 50, 1000);
-      expect(liquidity).to.be.eql(ZERO);
-      expect(feeGrowthInsideLast).to.be.eql(ZERO);
+      expect(liquidity).to.be.eq(ZERO);
+      expect(feeGrowthInsideLast).to.be.eq(ZERO);
     });
 
     describe('add liquidity', async () => {
