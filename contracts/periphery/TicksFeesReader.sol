@@ -123,11 +123,20 @@ contract TicksFeesReader {
       'tokenId and pool dont match'
     );
     // sync pool fee growth and rTotalSupply
-    (, uint256 rTotalSupply) = _syncFeeGrowthGlobal(pool);
-    uint256 rTokensOwed = getTotalRTokensOwedToPosition(posManager, pool, tokenId);
+    (uint256 feeGrowthGlobal, uint256 rTotalSupply) = _syncFeeGrowthGlobal(pool);
+    // calc feeGrowthInside
+    uint256 feeGrowthInside = _calcFeeGrowthInside(pool, pos, feeGrowthGlobal);
+    // take difference in feeGrowthInside against position feeGrowthInside
+    if (feeGrowthInside != pos.feeGrowthInsideLast) {
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = feeGrowthInside - pos.feeGrowthInsideLast;
+      }
+      pos.rTokenOwed += FullMath.mulDivFloor(pos.liquidity, feeGrowthInsideDiff, C.TWO_POW_96);
+    }
 
     (, uint128 reinvestL, ) = pool.getLiquidityState();
-    uint256 deltaL = FullMath.mulDivFloor(rTokensOwed, reinvestL, rTotalSupply);
+    uint256 deltaL = FullMath.mulDivFloor(pos.rTokenOwed, reinvestL, rTotalSupply);
     (uint160 sqrtP, , , ) = pool.getPoolState();
     // finally, calculate token amounts owed
     token0Owed = QtyDeltaMath.getQty0FromBurnRTokens(sqrtP, deltaL);
@@ -150,10 +159,32 @@ contract TicksFeesReader {
       rTotalSupply
     );
 
-    unchecked {
-      feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
+    if (rMintQty != 0) {
+      rMintQty = _deductGovermentFee(pool, rMintQty);
+      unchecked {
+        feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
+      }
+      rTotalSupply += rMintQty;
     }
-    rTotalSupply += rMintQty;
+  }
+
+  /// @return the lp fee without governance fee
+  function _deductGovermentFee(IPoolStorage pool, uint256 rMintQty)
+    internal
+    view
+    returns (uint256)
+  {
+    // fetch governmentFeeUnits
+    (, uint24 governmentFeeUnits) = pool.factory().feeConfiguration();
+    if (governmentFeeUnits == 0) {
+      return rMintQty;
+    }
+
+    // unchecked due to governmentFeeUnits <= 20000
+    unchecked {
+      uint256 rGovtQty = (rMintQty * governmentFeeUnits) / C.FEE_UNITS;
+      return rMintQty - rGovtQty;
+    }
   }
 
   function _calcFeeGrowthInside(

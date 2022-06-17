@@ -140,18 +140,34 @@ describe('RouterTokenHelperWithFee', () => {
       // tokenHelper is recipient
       let contractBal = await weth.balanceOf(tokenHelper.address);
       let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
-      await expect(() =>
-        tokenHelper.unwrapWethWithFee(PRECISION, tokenHelper.address, feeUnits, feeRecipient.address)
-      ).to.changeEtherBalances([tokenHelper, feeRecipient], [contractBal.sub(feeAmt), feeAmt]);
+      let etherBalancesBefore = [
+        await ethers.provider.getBalance(tokenHelper.address),
+        await ethers.provider.getBalance(feeRecipient.address),
+      ];
+      await tokenHelper.unwrapWethWithFee(PRECISION, tokenHelper.address, feeUnits, feeRecipient.address);
+      let etherBalancesAfter = [
+        await ethers.provider.getBalance(tokenHelper.address),
+        await ethers.provider.getBalance(feeRecipient.address),
+      ];
+      expect(etherBalancesAfter[0]).to.eq(etherBalancesBefore[0].add(contractBal.sub(feeAmt)));
+      expect(etherBalancesAfter[1]).to.eq(etherBalancesBefore[1].add(feeAmt));
     });
 
     it('should have ETH remain in RouterTokenHelper if it is the fee recipient', async () => {
       // tokenHelper is fee recipient
       let contractBal = await weth.balanceOf(tokenHelper.address);
       let feeAmt = contractBal.mul(feeUnits).div(FEE_UNITS);
-      await expect(() =>
-        tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeUnits, tokenHelper.address)
-      ).to.changeEtherBalances([admin, tokenHelper], [contractBal.sub(feeAmt), feeAmt]);
+      let etherBalancesBefore = [
+        await ethers.provider.getBalance(admin.address),
+        await ethers.provider.getBalance(tokenHelper.address),
+      ];
+      await tokenHelper.unwrapWethWithFee(PRECISION, admin.address, feeUnits, tokenHelper.address);
+      let etherBalancesAfter = [
+        await ethers.provider.getBalance(admin.address),
+        await ethers.provider.getBalance(tokenHelper.address),
+      ];
+      expect(etherBalancesAfter[0]).to.eq(etherBalancesBefore[0].add(contractBal.sub(feeAmt)));
+      expect(etherBalancesAfter[1]).to.eq(etherBalancesBefore[1].add(feeAmt));
     });
 
     it('should revert if either recipient or fee recipient cannot receive ETH', async () => {

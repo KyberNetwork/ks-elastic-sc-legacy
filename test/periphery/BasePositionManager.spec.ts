@@ -944,7 +944,7 @@ describe('BasePositionManager', () => {
       let liquidityDesired = [1795547, 2894569, 3713647, 4798240, 5997800];
       let amount0Desired = [55707, 45590, 10438, 0, 0];
       let amount1Desired = [120000, 240000, 360000, 480000, 600000];
-      let additionalRTokenOwedDesired = [466, 911, 934, 829, 685];
+      let additionalRTokenOwedDesired = [420, 820, 841, 747, 618];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1190,7 +1190,7 @@ describe('BasePositionManager', () => {
       let numRuns = 5;
       let amount0Desired = [3, 3, 0, 0, 0];
       let amount1Desired = [6, 16, 29, 40, 50];
-      let additionalRTokenOwedDesired = [466, 930, 926, 805, 643];
+      let additionalRTokenOwedDesired = [420, 838, 834, 726, 581];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
