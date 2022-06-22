@@ -267,6 +267,7 @@ describe('AntiSnipAttackPositionManager', () => {
         await expect(
           (tx = await positionManager.connect(user).addLiquidity({
             tokenId: tokenId,
+            ticksPrevious: [0, 0],
             amount0Desired: amount0,
             amount1Desired: amount1,
             amount0Min: 0,
@@ -311,6 +312,7 @@ describe('AntiSnipAttackPositionManager', () => {
         await expect(
           (tx = await positionManager.connect(user).addLiquidity({
             tokenId: nextTokenId,
+            ticksPrevious: [0, 0],
             amount0Desired: amount0,
             amount1Desired: amount1,
             amount0Min: 0,

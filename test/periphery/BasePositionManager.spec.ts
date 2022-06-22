@@ -22,7 +22,7 @@ import {
 
 import {deployFactory, getTicksPrevious} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
-import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK} from '../helpers/helper';
+import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK, ZERO} from '../helpers/helper';
 import {encodePriceSqrt, sortTokens, orderTokens} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
@@ -800,6 +800,7 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).addLiquidity({
           tokenId: 0,
+          ticksPrevious: [0, 0],
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -812,6 +813,7 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).addLiquidity({
           tokenId: nextTokenId.add(1),
+          ticksPrevious: [0, 0],
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -826,6 +828,7 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).addLiquidity({
           tokenId: 1,
+          ticksPrevious: [0, 0],
           amount0Desired: 0,
           amount1Desired: 0,
           amount0Min: 0,
@@ -840,6 +843,7 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).addLiquidity({
           tokenId: 1,
+          ticksPrevious: [0, 0],
           amount0Desired: BN.from(100000),
           amount1Desired: BN.from(100000),
           amount0Min: BN.from(100001),
@@ -850,6 +854,7 @@ describe('BasePositionManager', () => {
       await expect(
         positionManager.connect(user).addLiquidity({
           tokenId: 1,
+          ticksPrevious: [0, 0],
           amount0Desired: BN.from(100000),
           amount1Desired: BN.from(100000),
           amount0Min: 0,
@@ -888,6 +893,7 @@ describe('BasePositionManager', () => {
         await expect(
           (tx = await positionManager.connect(sender).addLiquidity({
             tokenId: tokenId,
+            ticksPrevious: [0, 0],
             amount0Desired: amount0,
             amount1Desired: amount1,
             amount0Min: 0,
@@ -971,6 +977,7 @@ describe('BasePositionManager', () => {
         await expect(
           (tx = await positionManager.connect(sender).addLiquidity({
             tokenId: tokenId,
+            ticksPrevious: [0, 0],
             amount0Desired: amount0,
             amount1Desired: amount1,
             amount0Min: 0,
@@ -1027,6 +1034,95 @@ describe('BasePositionManager', () => {
       if (showTxGasUsed) {
         logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
       }
+    });
+
+    it('add liquidity after remove all liquidity', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+
+      // do some swaps to get fees
+      for (let i = 0; i < 5; i++) {
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(200000));
+      }
+
+      // should add liquidity normally
+      await expect(
+        await positionManager.connect(user).addLiquidity({
+          tokenId: nextTokenId,
+          ticksPrevious: [0, 0],
+          amount0Desired: BN.from(100000),
+          amount1Desired: BN.from(200000),
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      ).to.be.emit(positionManager, 'AddLiquidity');
+      expect((await positionManager.positions(nextTokenId)).pos.liquidity).to.be.gt(ZERO);
+
+      // remove all liquidity
+      let userData = await positionManager.positions(nextTokenId);
+      await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
+      expect((await positionManager.positions(nextTokenId)).pos.liquidity).to.be.eq(ZERO);
+
+      // add liquidity again
+      await expect(
+        await positionManager.connect(user).addLiquidity({
+          tokenId: nextTokenId,
+          ticksPrevious: [MIN_TICK, MIN_TICK],
+          amount0Desired: BN.from(100000),
+          amount1Desired: BN.from(200000),
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      ).to.be.emit(positionManager, 'AddLiquidity');
+      expect((await positionManager.positions(nextTokenId)).pos.liquidity).to.be.gt(ZERO);
+    });
+
+    it('add liquidity after burn position should revert', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+
+      // do some swaps to get fees
+      for (let i = 0; i < 5; i++) {
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(200000));
+      }
+
+      // should add liquidity normally
+      await expect(
+        await positionManager.connect(user).addLiquidity({
+          tokenId: nextTokenId,
+          ticksPrevious: [0, 0],
+          amount0Desired: BN.from(100000),
+          amount1Desired: BN.from(200000),
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      ).to.be.emit(positionManager, 'AddLiquidity');
+      expect((await positionManager.positions(nextTokenId)).pos.liquidity).to.be.gt(ZERO);
+
+      // remove all liquidity
+      let userData = await positionManager.positions(nextTokenId);
+      await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
+      expect((await positionManager.positions(nextTokenId)).pos.liquidity).to.be.eq(ZERO);
+
+      // burn position
+      await burnRTokens(tokenA.address, tokenB.address, user, nextTokenId);
+      await positionManager.connect(user).burn(nextTokenId);
+
+      // revert add liquidity again
+      await expect(
+        positionManager.connect(user).addLiquidity({
+          tokenId: nextTokenId,
+          ticksPrevious: [MIN_TICK, MIN_TICK],
+          amount0Desired: BN.from(100000),
+          amount1Desired: BN.from(200000),
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      ).to.be.reverted;
     });
   });
 
@@ -1647,7 +1743,7 @@ describe('BasePositionManager', () => {
       expect(await positionManager.supportsInterface('0x5b5e139f')).to.be.eq(true); // ERC721Metadata
       expect(await positionManager.supportsInterface('0x780e9d63')).to.be.eq(true); // ERC721Enumerable
       expect(await positionManager.supportsInterface('0x7dd42bd6')).to.be.eq(true); // ERC721Permit
-      expect(await positionManager.supportsInterface('0x53e38b0d')).to.be.eq(true); // IBasePositionManager
+      expect(await positionManager.supportsInterface('0xbe9ef11f')).to.be.eq(true); // IBasePositionManager
     });
 
     it('un-support interface', async () => {

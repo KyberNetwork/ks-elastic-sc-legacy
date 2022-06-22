@@ -49,6 +49,7 @@ contract MockSnipAttack {
     (uint128 addedLiquidity, , , ) = posManager.addLiquidity(
       IBasePositionManager.IncreaseLiquidityParams({
         tokenId: tokenId,
+        ticksPrevious: [int24(0), int24(0)],
         amount0Desired: 1000,
         amount1Desired: 1000,
         amount0Min: 0,
