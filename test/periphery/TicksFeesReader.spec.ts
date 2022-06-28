@@ -43,6 +43,8 @@ let positionManager: BasePositionManager;
 let initialPrice: BigNumber;
 let nextTokenId: BigNumber;
 let outRangeTokenId: BigNumber;
+let positionLowerTick = -1000;
+let positionUpperTick = 1000;
 let swapFee = 40;
 
 function genMaxInitTicks(tickDistance: number) {
@@ -421,8 +423,8 @@ describe('TicksFeesReader', () => {
         token0: token0.address,
         token1: token1.address,
         fee: swapFee,
-        tickLower: -1000,
-        tickUpper: 1000,
+        tickLower: positionLowerTick,
+        tickUpper: positionUpperTick,
         ticksPrevious: ticksPrevious,
         amount0Desired: BN.from(1000000),
         amount1Desired: BN.from(1000000),
@@ -438,11 +440,11 @@ describe('TicksFeesReader', () => {
         token0: token0.address,
         token1: token1.address,
         fee: swapFee,
-        tickLower: 1000,
-        tickUpper: 2000,
+        tickLower: MIN_TICK,
+        tickUpper: positionLowerTick,
         ticksPrevious: ticksPrevious,
-        amount0Desired: BN.from(1000000),
-        amount1Desired: BN.from(1000000),
+        amount0Desired: BN.from(100000000),
+        amount1Desired: BN.from(100000000),
         amount0Min: 0,
         amount1Min: 0,
         recipient: user.address,
@@ -541,7 +543,7 @@ describe('TicksFeesReader', () => {
       expect(expectedTokensOwed.token1Owed).to.be.eq((await token1.balanceOf(user.address)).sub(token1BalBefore));
     });
 
-    it('should return correct values after 10 active swaps and 5 inactive swaps', async () => {
+    it('should return correct values after 10 active swaps and 10 inactive swaps', async () => {
       //active swaps
       for (let j = 0; j < 10; j++) {
         let amount = BN.from(100000 * (j + 1));
@@ -551,13 +553,13 @@ describe('TicksFeesReader', () => {
       }
 
       //push currentTick move out of position lowerTick
-      await swapExactInput(token0.address, token1.address, swapFee, BN.from(1500000));
+      await swapExactInput(token0.address, token1.address, swapFee, BN.from(10000000));
 
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let poolState = await poolContract.getPoolState();
 
       //make sure currentTick is lower than position's lowerTick
-      expect(poolState.currentTick).to.be.lessThan(-1000);
+      expect(poolState.currentTick).to.be.lessThan(positionLowerTick);
 
       let expectedRTokenOwedBefore = await ticksFeesReader.getTotalRTokensOwedToPosition(
         positionManager.address,
@@ -566,14 +568,14 @@ describe('TicksFeesReader', () => {
       );
 
       //inactive swaps => not getting any fee from this
-      for (let j = 0; j < 5; j++) {
+      for (let j = 0; j < 10; j++) {
         let amount = BN.from(100000 * (j + 1));
         await swapExactInput(token0.address, token1.address, swapFee, amount);
-        amount = BN.from(10000 * (j + 1));
+        amount = BN.from(100000 * (j + 1));
         await swapExactInput(token1.address, token0.address, swapFee, amount);
 
         poolState = await poolContract.getPoolState();
-        expect(poolState.currentTick).to.be.lessThan(-1000);
+        expect(poolState.currentTick).to.be.lessThan(positionLowerTick);
       }
 
       let expectedRTokenOwed = await ticksFeesReader.getTotalRTokensOwedToPosition(
@@ -601,15 +603,15 @@ describe('TicksFeesReader', () => {
       expect(expectedTokensOwed.token1Owed).to.be.eq((await token1.balanceOf(user.address)).sub(token1BalBefore));
     });
 
-    it('should return correct values after 5 inactive swaps and 10 active swaps', async () => {
+    it('should return correct values after 10 inactive swaps and 10 active swaps', async () => {
       //make currentTick lower than position's lowerTick
-      await swapExactInput(token0.address, token1.address, swapFee, BN.from(1500000));
+      await swapExactInput(token0.address, token1.address, swapFee, BN.from(10000000));
 
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
       let poolState = await poolContract.getPoolState();
 
       //make sure currentTick is lower than position's lowerTick
-      expect(poolState.currentTick).to.be.lessThan(-1000);
+      expect(poolState.currentTick).to.be.lessThan(positionLowerTick);
 
       let expectedRTokenOwedBefore = await ticksFeesReader.getTotalRTokensOwedToPosition(
         positionManager.address,
@@ -618,14 +620,14 @@ describe('TicksFeesReader', () => {
       );
 
       //inactive swaps
-      for (let j = 0; j < 5; j++) {
+      for (let j = 0; j < 10; j++) {
         let amount = BN.from(100000 * (j + 1));
         await swapExactInput(token0.address, token1.address, swapFee, amount);
-        amount = BN.from(10000 * (j + 1));
+        amount = BN.from(100000 * (j + 1));
         await swapExactInput(token1.address, token0.address, swapFee, amount);
 
         poolState = await poolContract.getPoolState();
-        expect(poolState.currentTick).to.be.lessThan(-1000);
+        expect(poolState.currentTick).to.be.lessThan(positionLowerTick);
       }
 
       let expectedRTokenOwedAfter = await ticksFeesReader.getTotalRTokensOwedToPosition(
@@ -638,11 +640,11 @@ describe('TicksFeesReader', () => {
       expect(expectedRTokenOwedBefore).to.be.eq(expectedRTokenOwedAfter);
 
       //make currentTick greater than position's lowerTick
-      await swapExactInput(token1.address, token0.address, swapFee, BN.from(1500000));
+      await swapExactInput(token1.address, token0.address, swapFee, BN.from(7000000));
 
       //make sure currentTick inside position
       poolState = await poolContract.getPoolState();
-      expect(poolState.currentTick).to.be.greaterThan(-1000).to.be.lessThan(1000);
+      expect(poolState.currentTick).to.be.greaterThan(positionLowerTick).to.be.lessThan(positionUpperTick);
 
       //active swaps
       for (let j = 0; j < 10; j++) {
