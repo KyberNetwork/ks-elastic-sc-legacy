@@ -11,7 +11,6 @@ import {FullMath} from '../libraries/FullMath.sol';
 import {ReinvestmentMath} from '../libraries/ReinvestmentMath.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 import {TickMath as T} from '../libraries/TickMath.sol';
-import 'hardhat/console.sol';
 
 contract TicksFeesReader {
   using SafeCast for uint256;
