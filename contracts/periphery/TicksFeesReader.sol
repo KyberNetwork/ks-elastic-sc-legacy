@@ -160,11 +160,13 @@ contract TicksFeesReader {
     );
 
     if (rMintQty != 0) {
+      // add rMintQty to rTotalSupply before deductGovermentFee
+      rTotalSupply += rMintQty;
+
       rMintQty = _deductGovermentFee(pool, rMintQty);
       unchecked {
         feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
       }
-      rTotalSupply += rMintQty;
     }
   }
 
