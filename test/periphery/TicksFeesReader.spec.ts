@@ -513,7 +513,7 @@ describe('TicksFeesReader', () => {
     });
 
     it('should return correct values after 20 swaps and position is active', async () => {
-      for (let j = 0; j < 10; j++) {
+      for (let j = 0; j < 20; j++) {
         let amount = BN.from(100000 * (j + 1));
         await swapExactInput(token0.address, token1.address, swapFee, amount);
         amount = BN.from(100000 * (j + 1));
