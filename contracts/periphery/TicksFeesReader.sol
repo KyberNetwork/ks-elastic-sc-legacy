@@ -11,6 +11,7 @@ import {FullMath} from '../libraries/FullMath.sol';
 import {ReinvestmentMath} from '../libraries/ReinvestmentMath.sol';
 import {SafeCast} from '../libraries/SafeCast.sol';
 import {TickMath as T} from '../libraries/TickMath.sol';
+import 'hardhat/console.sol';
 
 contract TicksFeesReader {
   using SafeCast for uint256;
@@ -160,11 +161,13 @@ contract TicksFeesReader {
     );
 
     if (rMintQty != 0) {
+      // add rMintQty to rTotalSupply before deductGovermentFee
+      rTotalSupply += rMintQty;
+
       rMintQty = _deductGovermentFee(pool, rMintQty);
       unchecked {
         feeGrowthGlobal += FullMath.mulDivFloor(rMintQty, C.TWO_POW_96, baseL);
       }
-      rTotalSupply += rMintQty;
     }
   }
 
