@@ -197,12 +197,15 @@ contract TicksFeesReader {
     (, , uint256 feeGrowthOutsideLowerTick, ) = pool.ticks(pos.tickLower);
     (, , uint256 feeGrowthOutsideUpperTick, ) = pool.ticks(pos.tickUpper);
     (, int24 currentTick, , ) = pool.getPoolState();
-    if (currentTick < pos.tickLower) {
-      feeGrowthInside = feeGrowthOutsideLowerTick - feeGrowthOutsideUpperTick;
-    } else if (currentTick >= pos.tickUpper) {
-      feeGrowthInside = feeGrowthOutsideUpperTick - feeGrowthOutsideLowerTick;
-    } else {
-      feeGrowthInside = feeGrowthGlobal - feeGrowthOutsideLowerTick - feeGrowthOutsideUpperTick;
+
+    unchecked {
+      if (currentTick < pos.tickLower) {
+        feeGrowthInside = feeGrowthOutsideLowerTick - feeGrowthOutsideUpperTick;
+      } else if (currentTick >= pos.tickUpper) {
+        feeGrowthInside = feeGrowthOutsideUpperTick - feeGrowthOutsideLowerTick;
+      } else {
+        feeGrowthInside = feeGrowthGlobal - feeGrowthOutsideLowerTick - feeGrowthOutsideUpperTick;
+      }
     }
   }
 }
