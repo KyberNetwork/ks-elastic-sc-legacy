@@ -4,7 +4,7 @@ Main smart contract repo for KyberSwap Elastic
 
 ## Deployed contracts
 
-Contracts are available on: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum, BitTorrent, Cronos, Oasis, Velas.
+Contracts are available on: Ethereum, Polygon, BNB Chain, Avalanche, Arbitrum, Optimism, Fantom, BitTorrent, Cronos, Oasis, Velas.
 
 ### Main contracts:
 - Factory: **0x5F1dddbf348aC2fbe22a163e30F99F9ECE3DD50a**
@@ -14,17 +14,20 @@ Contracts are available on: Ethereum, Polygon, BSC, Avalanche, Fantom, Arbitrum,
 
 ### Helpers
 - QuoterV2: **0x0D125c15D54cA1F8a813C74A81aEe34ebB508C1f**
-- TickFeesReader: **0xD7ab1699280980E756C446769B4c0F04550f88c9**
+- TickFeesReader: **0x165c68077ac06c83800d19200e6E2B08D02dE75D**
 
 
 ### Others
 - TokenPositionDescriptor (implementation): **0xDA474537cE9b687b78B236452A05631f09B6EB6A**
 - TokenPositionDescriptor (proxy): **0x8abd8c92F1901cf204590c16b5EF690a35b3741E**
 
-
 ## Whitepaper
 
-Check out **audit_docs/Dynamic_Market_Making_v2_whitepaper.pdf** file for the latest KyberSwap Elastic whitepaper.
+Check out **audit_docs/KyberSwap_Elastic_Whitepaper_180622.pdf** file for the latest KyberSwap Elastic whitepaper.
+
+## Audit report
+
+KyberSwap Elastic – [Security Audit Report](https://chainsecurity.com/security-audit/kyberswap-elastic/) by [Chain Security](https://chainsecurity.com/)
 
 ## Technical documentation
 
