@@ -58,8 +58,8 @@ The implementation details can be found [here](https://hackmd.io/sgADNlGNS8eSGU_
 
 ## Deploy
 `npx hardhat deployTokenPositionDescriptor --input xxx --network nnn` to deploy token descriptor proxy + implementation contracts.
-- Example: `npx hardhat deployTokenPositionDescriptor --input rinkeby.json --network rinkeby`
+- Example: `npx hardhat deployTokenPositionDescriptor --input mainnet.json --network mainnet`
 
 `npx hardhat deployElastic --input xxx --gasprice ggg --network nnn` to deploy all contracts.
-- Example: `npx hardhat deployElastic --input rinkeby.json --gasprice 5 --network rinkeby`
+- Example: `npx hardhat deployElastic --input mainnet.json --gasprice 5 --network mainnet`
 
