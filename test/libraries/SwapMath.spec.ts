@@ -20,7 +20,7 @@ describe('SwapMath', () => {
     swapMathEchidna = await EchidnaContract.deploy();
   });
 
-  const fee = BN.from(30);
+  const fee = BN.from(300);
 
   it('from token0 -> token1 exact input', async () => {
     const liquidity = PRECISION.mul(ONE);

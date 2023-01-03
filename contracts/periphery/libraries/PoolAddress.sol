@@ -7,14 +7,14 @@ library PoolAddress {
   /// @param factory the factory address
   /// @param token0 One of the tokens constituting the token pair, regardless of order
   /// @param token1 The other token constituting the token pair, regardless of order
-  /// @param swapFee Fee to be collected upon every swap in the pool, in basis points
+  /// @param swapFee Fee to be collected upon every swap in the pool, in fee units
   /// @param poolInitHash The keccak256 hash of the Pool creation code
   /// @return pool the pool address
   function computeAddress(
     address factory,
     address token0,
     address token1,
-    uint16 swapFee,
+    uint24 swapFee,
     bytes32 poolInitHash
   ) internal pure returns (address pool) {
     (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);

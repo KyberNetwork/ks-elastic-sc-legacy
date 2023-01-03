@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "0xc579D1f3CF86749E05CD06f7ADe17856c2CE3126",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "polygon_deployment.json"
+}

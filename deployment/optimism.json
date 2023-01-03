@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "0x4200000000000000000000000000000000000006",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "optimism_deployment.json"
+}

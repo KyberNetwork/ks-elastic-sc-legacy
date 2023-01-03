@@ -56,7 +56,7 @@ contract BasePositionManager is
   function createAndUnlockPoolIfNecessary(
     address token0,
     address token1,
-    uint16 fee,
+    uint24 fee,
     uint160 currentSqrtP
   ) external payable override returns (address pool) {
     require(token0 < token1);
@@ -122,6 +122,8 @@ contract BasePositionManager is
       rTokenOwed: 0,
       feeGrowthInsideLast: feeGrowthInsideLast
     });
+
+    emit MintPosition(tokenId, poolId, liquidity, amount0, amount1);
   }
 
   function addLiquidity(IncreaseLiquidityParams calldata params)
@@ -173,6 +175,8 @@ contract BasePositionManager is
     }
 
     pos.liquidity = tmpLiquidity + liquidity;
+
+    emit AddLiquidity(params.tokenId, liquidity, amount0, amount1, additionalRTokenOwed);
   }
 
   function removeLiquidity(RemoveLiquidityParams calldata params)
@@ -214,6 +218,8 @@ contract BasePositionManager is
     }
 
     pos.liquidity = tmpLiquidity - params.liquidity;
+
+    emit RemoveLiquidity(params.tokenId, params.liquidity, amount0, amount1, additionalRTokenOwed);
   }
 
   function burnRTokens(BurnRTokenParams calldata params)
@@ -248,6 +254,8 @@ contract BasePositionManager is
     require(_positions[tokenId].rTokenOwed == 0, 'Should burn rToken first');
     delete _positions[tokenId];
     _burn(tokenId);
+
+    emit BurnPosition(tokenId);
   }
 
   function positions(uint256 tokenId)
@@ -303,7 +311,7 @@ contract BasePositionManager is
     address pool,
     address token0,
     address token1,
-    uint16 fee
+    uint24 fee
   ) internal returns (uint80 poolId) {
     poolId = addressToPoolId[pool];
     if (poolId == 0) {

@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "0xc9bdeed33cd01541e1eed10f90519d2c06fe3feb",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "aurora_deployment.json"
+}

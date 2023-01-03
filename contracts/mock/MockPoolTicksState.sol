@@ -8,7 +8,7 @@ contract MockPoolTicksStateFactory {
     address factory;
     address token0;
     address token1;
-    uint16 swapFeeBps;
+    uint24 swapFeeUnits;
     int24 tickDistance;
   }
 
@@ -18,13 +18,13 @@ contract MockPoolTicksStateFactory {
   function create(
     address token0,
     address token1,
-    uint16 swapFeeBps,
+    uint24 swapFeeUnits,
     int24 tickDistance
   ) external {
     parameters.factory = address(this);
     parameters.token0 = token0;
     parameters.token1 = token1;
-    parameters.swapFeeBps = swapFeeBps;
+    parameters.swapFeeUnits = swapFeeUnits;
     parameters.tickDistance = tickDistance;
 
     state = new MockPoolTicksState();

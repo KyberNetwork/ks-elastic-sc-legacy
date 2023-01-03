@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "fantom_deployment.json"
+}

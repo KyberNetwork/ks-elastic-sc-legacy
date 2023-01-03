@@ -36,7 +36,7 @@ interface IQuoterV2 {
     address tokenIn;
     address tokenOut;
     uint256 amountIn;
-    uint16 feeBps;
+    uint24 feeUnits;
     uint160 limitSqrtP;
   }
 
@@ -71,7 +71,7 @@ interface IQuoterV2 {
     address tokenIn;
     address tokenOut;
     uint256 amount;
-    uint16 feeBps;
+    uint24 feeUnits;
     uint160 limitSqrtP;
   }
 

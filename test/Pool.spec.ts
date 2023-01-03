@@ -8,7 +8,7 @@ chai.use(solidity);
 import {MockFactory, MockPool, MockToken, MockToken__factory, MockPool__factory} from '../typechain';
 import {QuoterV2, QuoterV2__factory, MockCallbacks, MockCallbacks__factory} from '../typechain';
 
-import {MIN_LIQUIDITY, MIN_TICK, MAX_TICK, MIN_SQRT_RATIO, MAX_SQRT_RATIO} from './helpers/helper';
+import {MIN_LIQUIDITY, MIN_TICK, MAX_TICK, MIN_SQRT_RATIO, MAX_SQRT_RATIO, FEE_UNITS} from './helpers/helper';
 import {ZERO_ADDRESS, ZERO, ONE, MAX_UINT, PRECISION, TWO, BPS, NEGATIVE_ONE} from './helpers/helper';
 import {deployMockFactory, getTicksPrevious} from './helpers/setup';
 import {genRandomBN} from './helpers/genRandomBN';
@@ -25,8 +25,8 @@ let poolBalToken1: BN;
 let poolArray: MockPool[] = [];
 let pool: MockPool;
 let callback: MockCallbacks;
-let swapFeeBpsArray = [5, 30];
-let swapFeeBps = swapFeeBpsArray[0];
+let swapFeeUnitsArray = [50, 300];
+let swapFeeUnits = swapFeeUnitsArray[0];
 let tickDistanceArray = [10, 60];
 let tickDistance = tickDistanceArray[0];
 let vestingPeriod = 100;
@@ -60,9 +60,9 @@ describe('Pool', () => {
     let factory = await deployMockFactory(admin, vestingPeriod);
     const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -74,9 +74,9 @@ describe('Pool', () => {
 
     // create pools
     let poolArray = [];
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      await factory.createPool(token0.address, token1.address, swapFeeBpsArray[i]);
-      const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeBpsArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      await factory.createPool(token0.address, token1.address, swapFeeUnitsArray[i]);
+      const poolAddress = await factory.getPool(token0.address, token1.address, swapFeeUnitsArray[i]);
       poolArray.push(PoolContract.attach(poolAddress));
     }
 
@@ -99,15 +99,15 @@ describe('Pool', () => {
 
   describe('#test pool deployment and initialization', async () => {
     it('should have initialized required settings', async () => {
-      expect(await pool.factory()).to.be.eql(factory.address);
-      expect(await pool.token0()).to.be.eql(token0.address);
-      expect(await pool.token1()).to.be.eql(token1.address);
-      expect(await pool.swapFeeBps()).to.be.eql(swapFeeBps);
-      expect(await pool.tickDistance()).to.be.eql(tickDistance);
+      expect(await pool.factory()).to.be.eq(factory.address);
+      expect(await pool.token0()).to.be.eq(token0.address);
+      expect(await pool.token1()).to.be.eq(token1.address);
+      expect(await pool.swapFeeUnits()).to.be.eq(swapFeeUnits);
+      expect(await pool.tickDistance()).to.be.eq(tickDistance);
       expect(await pool.maxTickLiquidity()).to.be.gt(ZERO);
       let result = await pool.getLiquidityState();
-      expect(result.reinvestL).to.be.eql(ZERO);
-      expect(result.reinvestLLast).to.be.eql(ZERO);
+      expect(result.reinvestL).to.be.eq(ZERO);
+      expect(result.reinvestLLast).to.be.eq(ZERO);
     });
   });
 
@@ -124,14 +124,14 @@ describe('Pool', () => {
 
     it('should fail to unlockPool for non-compliant ERC20 tokens', async () => {
       const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
-      await factory.createPool(user.address, admin.address, swapFeeBps);
-      let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeBps));
+      await factory.createPool(user.address, admin.address, swapFeeUnits);
+      let badPool = PoolContract.attach(await factory.getPool(user.address, admin.address, swapFeeUnits));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
 
       // use valid token0 so that poolBalToken1() will revert
       let badAddress = '0xffffffffffffffffffffffffffffffffffffffff';
-      await factory.createPool(token0.address, badAddress, swapFeeBps);
-      badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeBps));
+      await factory.createPool(token0.address, badAddress, swapFeeUnits);
+      badPool = PoolContract.attach(await factory.getPool(token0.address, badAddress, swapFeeUnits));
       await expect(callback.connect(user).unlockPool(badPool.address, initialPrice)).to.be.reverted;
     });
 
@@ -156,20 +156,20 @@ describe('Pool', () => {
       await callback.connect(user).unlockPool(pool.address, initialPrice);
 
       let poolState = await pool.getPoolState();
-      expect(poolState.sqrtP).to.be.eql(initialPrice);
-      expect(poolState.currentTick).to.be.eql(10);
+      expect(poolState.sqrtP).to.be.eq(initialPrice);
+      expect(poolState.currentTick).to.be.eq(10);
       expect(poolState.nearestCurrentTick).to.be.eq(MIN_TICK);
       expect(poolState.locked).to.be.false;
 
       let liquidityState = await pool.getLiquidityState();
-      expect(liquidityState.baseL).to.be.eql(ZERO);
-      expect(liquidityState.reinvestL).to.be.eql(MIN_LIQUIDITY);
-      expect(liquidityState.reinvestLLast).to.be.eql(MIN_LIQUIDITY);
-      expect(await pool.getFeeGrowthGlobal()).to.be.eql(ZERO);
+      expect(liquidityState.baseL).to.be.eq(ZERO);
+      expect(liquidityState.reinvestL).to.be.eq(MIN_LIQUIDITY);
+      expect(liquidityState.reinvestLLast).to.be.eq(MIN_LIQUIDITY);
+      expect(await pool.getFeeGrowthGlobal()).to.be.eq(ZERO);
 
       let secondsPerLiquidityData = await pool.getSecondsPerLiquidityData();
-      expect(secondsPerLiquidityData.secondsPerLiquidityGlobal).to.be.eql(ZERO);
-      expect(secondsPerLiquidityData.lastUpdateTime).to.be.eql(0);
+      expect(secondsPerLiquidityData.secondsPerLiquidityGlobal).to.be.eq(ZERO);
+      expect(secondsPerLiquidityData.lastUpdateTime).to.be.eq(0);
     });
 
     it('#gas [ @skip-on-coverage ]', async () => {
@@ -343,7 +343,7 @@ describe('Pool', () => {
               .to.emit(token0, 'Transfer')
               .to.not.emit(token1, 'Transfer');
             expect(await token0.balanceOf(pool.address)).to.be.gt(poolBalToken0);
-            expect(await token1.balanceOf(pool.address)).to.be.eql(poolBalToken1);
+            expect(await token1.balanceOf(pool.address)).to.be.eq(poolBalToken1);
           });
 
           it('should take larger token0 qty for larger liquidity', async () => {
@@ -374,37 +374,37 @@ describe('Pool', () => {
               '0x'
             );
             expect(await token0.balanceOf(pool.address)).to.be.gt(poolBalToken0);
-            expect(await token1.balanceOf(pool.address)).to.be.eql(poolBalToken1);
+            expect(await token1.balanceOf(pool.address)).to.be.eq(poolBalToken1);
           });
 
           it('should have incremented user position liquidity and unchanged feeGrowthInsideLast', async () => {
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(ZERO);
             // no swap, no fees
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should not increment pool liquidity', async () => {
             let poolLiquidityBefore = (await pool.getLiquidityState()).baseL;
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-            expect((await pool.getLiquidityState()).baseL).to.be.eql(poolLiquidityBefore);
+            expect((await pool.getLiquidityState()).baseL).to.be.eq(poolLiquidityBefore);
           });
 
           it('should correctly adjust tickLower and tickUpper data', async () => {
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
-            expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
+            expect(tickLowerData.liquidityGross).to.be.eq(ZERO);
+            expect(tickUpperData.liquidityGross).to.be.eq(ZERO);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
 
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
@@ -413,14 +413,14 @@ describe('Pool', () => {
             tickUpperData = await pool.ticks(tickUpper);
 
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
-            expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
+            expect(tickLowerData.liquidityGross).to.be.eq(PRECISION);
+            expect(tickUpperData.liquidityGross).to.be.eq(PRECISION);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should not have updated time data if initial pool liquidity is zero', async () => {
@@ -464,24 +464,24 @@ describe('Pool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should add on liquidity to same position', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // no change in fees since no swap performed
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should correctly update position state if adding liquidity after swap cross into position', async () => {
@@ -498,16 +498,16 @@ describe('Pool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
             // no swap, no fees
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // do swaps to cross into position
             await swapToUpTick(pool, user, tickUpper);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // should have increased fees
             expect(positionData.feeGrowthInsideLast).to.be.gt(ZERO);
           });
@@ -518,7 +518,7 @@ describe('Pool', () => {
             // advance time
             await pool.forwardTime(10);
             // should return 0 secondsPerLiquidityInside
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(ZERO);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eq(ZERO);
           });
 
           it('should correctly update secondsPerLiquidity if swap cross into and out of position', async () => {
@@ -556,7 +556,7 @@ describe('Pool', () => {
             secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
             // increment time, secondsPerLiquidityInside should remain the same
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eq(secondsPerLiquidityInside);
           });
 
           it('#gas [ @skip-on-coverage ]', async () => {
@@ -653,37 +653,37 @@ describe('Pool', () => {
               maxLiquidityGross.sub(MIN_LIQUIDITY.mul(TWO)),
               '0x'
             );
-            expect(await token0.balanceOf(pool.address)).to.be.eql(poolBalToken0);
+            expect(await token0.balanceOf(pool.address)).to.be.eq(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
           });
 
           it('should have incremented user position liquidity and unchanged feeGrowthInsideLast', async () => {
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(ZERO);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should have incremented pool liquidity', async () => {
             let beforeBaseL = (await pool.getLiquidityState()).baseL;
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-            expect((await pool.getLiquidityState()).baseL).to.be.eql(beforeBaseL.add(PRECISION));
+            expect((await pool.getLiquidityState()).baseL).to.be.eq(beforeBaseL.add(PRECISION));
           });
 
           it('should correctly adjust tickLower and tickUpper data', async () => {
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
-            expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
+            expect(tickLowerData.liquidityGross).to.be.eq(ZERO);
+            expect(tickUpperData.liquidityGross).to.be.eq(ZERO);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
 
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
@@ -692,14 +692,14 @@ describe('Pool', () => {
             tickUpperData = await pool.ticks(tickUpper);
 
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
-            expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
+            expect(tickLowerData.liquidityGross).to.be.eq(PRECISION);
+            expect(tickUpperData.liquidityGross).to.be.eq(PRECISION);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should have correctly updated time data', async () => {
@@ -722,11 +722,11 @@ describe('Pool', () => {
 
           it('should instantiate tick lower feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
 
             // provide enough liquidity so that lc collected > 0 when swapping
             await callback.mint(
@@ -750,10 +750,10 @@ describe('Pool', () => {
 
             // feeGrowthOutside
             expect(tickLowerData.feeGrowthOutside).to.be.gt(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
             expect(tickLowerData.secondsPerLiquidityOutside).to.be.gt(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should not change initialized ticks status for liquidity addition', async () => {
@@ -765,24 +765,24 @@ describe('Pool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should add on liquidity to same position', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // no change in fees since no swap performed
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should correctly update position state if adding liquidity after swap cross into position', async () => {
@@ -799,16 +799,16 @@ describe('Pool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
             // no swap, no fees
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // do a few swaps, since price is in position, direction doesnt matter
             await doRandomSwaps(pool, user, 3);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
 
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // should have increased fees
             expect(positionData.feeGrowthInsideLast).to.be.gt(ZERO);
           });
@@ -840,7 +840,7 @@ describe('Pool', () => {
             // secondsPerLiquidityInside should remain constant
             let secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eq(secondsPerLiquidityInside);
             secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
 
             // swap back into position range
@@ -898,7 +898,7 @@ describe('Pool', () => {
             )
               .to.emit(token1, 'Transfer')
               .to.not.emit(token0, 'Transfer');
-            expect(await token0.balanceOf(pool.address)).to.be.eql(poolBalToken0);
+            expect(await token0.balanceOf(pool.address)).to.be.eq(poolBalToken0);
             expect(await token1.balanceOf(pool.address)).to.be.gt(poolBalToken1);
           });
 
@@ -935,31 +935,31 @@ describe('Pool', () => {
 
           it('should have incremented user position liquidity and unchanged feeGrowthInsideLast', async () => {
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(ZERO);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should not increment pool liquidity', async () => {
             let beforeBaseL = (await pool.getLiquidityState()).baseL;
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
-            expect((await pool.getLiquidityState()).baseL).to.be.eql(beforeBaseL);
+            expect((await pool.getLiquidityState()).baseL).to.be.eq(beforeBaseL);
           });
 
           it('should correctly adjust tickLower and tickUpper data', async () => {
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(ZERO);
-            expect(tickUpperData.liquidityGross).to.be.eql(ZERO);
+            expect(tickLowerData.liquidityGross).to.be.eq(ZERO);
+            expect(tickUpperData.liquidityGross).to.be.eq(ZERO);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
 
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
@@ -968,14 +968,14 @@ describe('Pool', () => {
             tickUpperData = await pool.ticks(tickUpper);
 
             // liquidityGross
-            expect(tickLowerData.liquidityGross).to.be.eql(PRECISION);
-            expect(tickUpperData.liquidityGross).to.be.eql(PRECISION);
+            expect(tickLowerData.liquidityGross).to.be.eq(PRECISION);
+            expect(tickUpperData.liquidityGross).to.be.eq(PRECISION);
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should not have updated time data if initial pool liquidity is zero', async () => {
@@ -1011,11 +1011,11 @@ describe('Pool', () => {
 
           it('should instantiate both tick lower and tick upper feeGrowthOutside and secondsPerLiquidityOutside for mint', async () => {
             // feeGrowthOutside
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
             // secondsPerLiquidityOutside
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
 
             // provide enough liquidity so that lc collected > 0 when swapping
             await callback.mint(
@@ -1054,24 +1054,24 @@ describe('Pool', () => {
             tickLowerData = await pool.ticks(tickLower);
             tickUpperData = await pool.ticks(tickUpper);
 
-            expect(tickLowerData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickUpperData.feeGrowthOutside).to.be.eql(ZERO);
-            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eql(ZERO);
-            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eql(ZERO);
+            expect(tickLowerData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickUpperData.feeGrowthOutside).to.be.eq(ZERO);
+            expect(tickLowerData.secondsPerLiquidityOutside).to.be.eq(ZERO);
+            expect(tickUpperData.secondsPerLiquidityOutside).to.be.eq(ZERO);
           });
 
           it('should add on liquidity to same position', async () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // no change in fees since no swap performed
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
           });
 
           it('should correctly update position state if adding liquidity after swap cross into position', async () => {
@@ -1088,15 +1088,15 @@ describe('Pool', () => {
             // mint new position
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION);
+            expect(positionData.liquidity).to.be.eq(PRECISION);
             // no swap, no fees
-            expect(positionData.feeGrowthInsideLast).to.be.eql(ZERO);
+            expect(positionData.feeGrowthInsideLast).to.be.eq(ZERO);
             // swap to cross into position
             await swapToDownTick(pool, user, tickLower);
             // add on more liquidity
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             positionData = await pool.getPositions(user.address, tickLower, tickUpper);
-            expect(positionData.liquidity).to.be.eql(PRECISION.mul(TWO));
+            expect(positionData.liquidity).to.be.eq(PRECISION.mul(TWO));
             // should have increased fees
             expect(positionData.feeGrowthInsideLast).to.be.gt(ZERO);
           });
@@ -1107,7 +1107,7 @@ describe('Pool', () => {
             // advance time
             await pool.forwardTime(10);
             // should return 0 secondsPerLiquidityInside
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(ZERO);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eq(ZERO);
           });
 
           it('should correctly update secondsPerLiquidity if swap cross into and out of position', async () => {
@@ -1145,7 +1145,40 @@ describe('Pool', () => {
             secondsPerLiquidityInside = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
             // increment time, secondsPerLiquidityInside should remain the same
             await pool.forwardTime(10);
-            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eql(secondsPerLiquidityInside);
+            expect(await pool.getSecondsPerLiquidityInside(tickLower, tickUpper)).to.be.eq(secondsPerLiquidityInside);
+          });
+
+          it('should correctly update secondsPerLiquidity if swap inside position', async () => {
+            // provide enough liquidity to swap to tickUpper
+            await callback.mint(
+              pool.address,
+              user.address,
+              tickLower - 5 * tickDistance,
+              tickUpper + 5 * tickDistance,
+              ticksPrevious,
+              PRECISION.mul(BPS),
+              '0x'
+            );
+            // mint new position
+            await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
+            await callback.mint(pool.address, user.address, tickLower + tickDistance, tickUpper - tickDistance, ticksPrevious, PRECISION, '0x');
+            
+            // do swaps to cross into position
+            await swapToDownTick(pool, user, tickUpper - 1);
+            await pool.forwardTime(10);
+            
+            let secondsPerLiquidityInside1 = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
+            let timeElapsedPerLiquidity1 = await getTimeElapsedPerLiquidity(pool, tickLower, tickUpper);
+            secondsPerLiquidityInside1 = secondsPerLiquidityInside1.sub(timeElapsedPerLiquidity1);
+            
+            await pool.forwardTime(10);
+            await swapToDownTick(pool, user, tickLower + 1);
+            await pool.forwardTime(10);
+            
+            let secondsPerLiquidityInside2 = await pool.getSecondsPerLiquidityInside(tickLower, tickUpper);
+            let timeElapsedPerLiquidity2 = await getTimeElapsedPerLiquidity(pool, tickLower, tickUpper);
+            secondsPerLiquidityInside2 = secondsPerLiquidityInside2.sub(timeElapsedPerLiquidity2);
+            expect(secondsPerLiquidityInside1).to.not.be.eql(secondsPerLiquidityInside2);
           });
         });
 
@@ -1162,13 +1195,14 @@ describe('Pool', () => {
             await callback.mint(pool.address, user.address, tickLower, tickUpper, ticksPrevious, PRECISION, '0x');
             // check overlapping tick data
             let tickData = await pool.ticks(tickLower);
-            expect(tickData.liquidityGross).to.not.eql(ZERO);
-            expect(tickData.liquidityNet).to.eql(ZERO);
+            expect(tickData.liquidityGross).to.not.eq(ZERO);
+            expect(tickData.liquidityNet).to.be.eq(ZERO);
           });
         });
       });
     });
   });
+
 
   describe('#burn', async () => {
     it('should fail if pool is not unlocked', async () => {
@@ -1204,7 +1238,7 @@ describe('Pool', () => {
         // note that user need not be whitelisted as burn() is not restricted
         await expect(pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS))).to.emit(pool, 'Burn');
         const {liquidity} = await pool.getPositions(user.address, tickLower, tickUpper);
-        expect(liquidity).to.be.eql(ZERO);
+        expect(liquidity).to.be.eq(ZERO);
       });
 
       it('should retain fee growth position snapshot after all user liquidity is removed', async () => {
@@ -1212,7 +1246,7 @@ describe('Pool', () => {
         await swapToUpTick(pool, user, tickUpper + 1);
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS));
         let position = await pool.getPositions(user.address, tickLower, tickUpper);
-        expect(position.liquidity).to.be.eql(ZERO);
+        expect(position.liquidity).to.be.eq(ZERO);
         expect(position.feeGrowthInsideLast).to.be.gt(ZERO);
       });
 
@@ -1267,7 +1301,7 @@ describe('Pool', () => {
       it('will not transfer rTokens to user if position is burnt without any swap', async () => {
         let userRTokenBalanceBefore = await pool.balanceOf(user.address);
         await pool.connect(user).burn(tickLower, tickUpper, PRECISION.mul(BPS));
-        expect(await pool.balanceOf(user.address)).to.be.eql(userRTokenBalanceBefore);
+        expect(await pool.balanceOf(user.address)).to.be.eq(userRTokenBalanceBefore);
       });
 
       it('should transfer rTokens to user after swaps overlapping user position crosses a tick', async () => {
@@ -1413,7 +1447,7 @@ describe('Pool', () => {
         tickUpper = 10 * tickDistance;
 
         // set non-zero and feeTo in factory
-        await factory.updateFeeConfiguration(configMaster.address, 5);
+        await factory.updateFeeConfiguration(configMaster.address, 50);
         let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
 
         // do some random swaps to accumulate fees
@@ -1690,7 +1724,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
         await snapshotGasCost(
@@ -1706,7 +1740,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1723,7 +1757,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1761,7 +1795,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1785,7 +1819,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1809,7 +1843,7 @@ describe('Pool', () => {
           tokenIn: token0.address,
           tokenOut: token1.address,
           amount: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBps,
+          feeUnits: swapFeeUnits,
           limitSqrtP: priceLimit,
         });
 
@@ -1897,7 +1931,7 @@ describe('Pool', () => {
           ).to.not.emit(pool, 'Transfer');
         });
 
-        it('will mint rTokens but not transfer any for 0 governmentFeeBps', async () => {
+        it('will mint rTokens but not transfer any for 0 governmentFeeUnits', async () => {
           // cross initialized tick to mint rTokens
           await expect(
             callback.swap(pool.address, user.address, PRECISION, false, await getPriceFromTick(tickUpper + 1), '0x')
@@ -1905,7 +1939,7 @@ describe('Pool', () => {
           expect(await pool.balanceOf(ZERO_ADDRESS)).to.be.eq(ZERO);
         });
 
-        it('should transfer rTokens to feeTo for non-zero governmentFeeBps', async () => {
+        it('should transfer rTokens to feeTo for non-zero governmentFeeUnits', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
           let feeToRTokenBalanceBefore = await pool.balanceOf(configMaster.address);
@@ -1964,18 +1998,18 @@ describe('Pool', () => {
     });
 
     it('should return 0 if pool is locked', async () => {
-      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eq(ZERO);
       // forward time, should have no effect
       await pool.forwardTime(10);
-      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eq(ZERO);
     });
 
     it('should return 0 for 0 pool liquidity', async () => {
       await callback.connect(user).unlockPool(pool.address, encodePriceSqrt(ONE, ONE));
-      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eq(ZERO);
       // forward time, should have no effect
       await pool.forwardTime(10);
-      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eql(ZERO);
+      expect(await pool.getSecondsPerLiquidityInside(0, 10)).to.be.eq(ZERO);
     });
   });
 
@@ -2079,7 +2113,7 @@ describe('Pool', () => {
         });
 
         it('should send collected fees to feeTo if not null', async () => {
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, PRECISION, PRECISION, '0x'))
             .to.emit(token0, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)
@@ -2090,7 +2124,7 @@ describe('Pool', () => {
         it('should send only token0 fees if loan is taken in only token0', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, PRECISION, ZERO, '0x'))
             .to.emit(token0, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)
@@ -2100,7 +2134,7 @@ describe('Pool', () => {
         it('should send only token1 fees if loan is taken in only token1', async () => {
           // set feeTo in factory
           await factory.updateFeeConfiguration(configMaster.address, 5);
-          let swapFee = PRECISION.mul(swapFeeBps).div(BPS);
+          let swapFee = PRECISION.mul(swapFeeUnits).div(FEE_UNITS);
           await expect(callback.flash(pool.address, ZERO, PRECISION, '0x'))
             .to.emit(token1, 'Transfer')
             .withArgs(pool.address, configMaster.address, swapFee)
@@ -2191,4 +2225,18 @@ async function swapToDownTick(pool: MockPool, user: Wallet, targetTick: number, 
     // advance time between each swap
     await pool.forwardTime(3);
   }
+}
+
+async function getTimeElapsedPerLiquidity(pool: MockPool, tickLower: number, tickUpper: number) {
+  let currentTick = (await pool.getPoolState()).currentTick;
+  if (tickLower <= currentTick && currentTick < tickUpper) {
+    let timestamp = BN.from(await pool.blockTimestamp());
+    let lastUpdateTime = (await pool.getSecondsPerLiquidityData()).lastUpdateTime;
+    let secondsElapsed =  timestamp.sub(lastUpdateTime);
+    let baseL = (await pool.getLiquidityState()).baseL;
+    if (secondsElapsed.gt(0) && baseL.gt(0)) {
+      return secondsElapsed.shl(96).div(baseL);
+    }
+  }
+  return BN.from(0);
 }

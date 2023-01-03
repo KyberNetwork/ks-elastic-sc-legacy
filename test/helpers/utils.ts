@@ -51,7 +51,7 @@ async function deployTickMath(): Promise<MockTickMath> {
 import chai from 'chai';
 
 import {jestSnapshotPlugin} from 'mocha-chai-jest-snapshot';
-import {MockToken__factory} from '../../typechain';
+import {MockToken, MockToken__factory} from '../../typechain';
 chai.use(jestSnapshotPlugin());
 
 export async function snapshotGasCost(response: TransactionResponse) {
@@ -76,13 +76,17 @@ export function sortTokens(tokenA: string, tokenB: string): [string, string] {
   return tokenA.toLowerCase() < tokenB.toLowerCase() ? [tokenA, tokenB] : [tokenB, tokenA];
 }
 
+export function orderTokens(tokenA: MockToken, tokenB: MockToken): [MockToken, MockToken] {
+  return tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? [tokenA, tokenB] : [tokenB, tokenA];
+}
+
 export function getCreate2Address(
   factoryAddress: string,
-  [tokenA, tokenB, swapFeeBps]: [string, string, number],
+  [tokenA, tokenB, swapFeeUnits]: [string, string, number],
   bytecode: string
 ): string {
   const [token0, token1] = sortTokens(tokenA, tokenB);
-  const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint16'], [token0, token1, swapFeeBps]);
+  const params = utils.defaultAbiCoder.encode(['address', 'address', 'uint24'], [token0, token1, swapFeeUnits]);
   const create2Inputs = ['0xff', factoryAddress, utils.keccak256(params), utils.keccak256(bytecode)];
   const sanitizedInputs = `0x${create2Inputs.map((i) => i.slice(2)).join('')}`;
   return utils.getAddress(`0x${utils.keccak256(sanitizedInputs).slice(-40)}`);

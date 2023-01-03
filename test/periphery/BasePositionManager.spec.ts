@@ -23,7 +23,7 @@ import {
 import {deployFactory, getTicksPrevious} from '../helpers/setup';
 import {snapshot, revertToSnapshot} from '../helpers/hardhat';
 import {BN, PRECISION, ZERO_ADDRESS, TWO_POW_96, MIN_TICK} from '../helpers/helper';
-import {encodePriceSqrt, sortTokens} from '../helpers/utils';
+import {encodePriceSqrt, sortTokens, orderTokens} from '../helpers/utils';
 import getEC721PermitSignature from '../helpers/getEC721PermitSignature';
 
 const txGasPrice = BN.from(100).mul(BN.from(10).pow(9));
@@ -41,7 +41,7 @@ let tokenA: MockToken;
 let tokenB: MockToken;
 let weth: MockWeth;
 let nextTokenId: BigNumber;
-let swapFeeBpsArray = [5, 30];
+let swapFeeUnitsArray = [50, 300];
 let tickDistanceArray = [10, 60];
 let ticksPrevious: [BigNumber, BigNumber] = [MIN_TICK, MIN_TICK];
 let vestingPeriod = 0;
@@ -65,6 +65,7 @@ describe('BasePositionManager', () => {
     Token = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(100000000000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(100000000000).mul(PRECISION));
+    [tokenA, tokenB] = orderTokens(tokenA, tokenB);
     factory = await deployFactory(admin, vestingPeriod);
 
     const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
@@ -83,9 +84,9 @@ describe('BasePositionManager', () => {
     router = await Router.deploy(factory.address, weth.address);
 
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -135,7 +136,7 @@ describe('BasePositionManager', () => {
     it(`revert token0 > token1`, async () => {
       let [token1, token0] = sortTokens(tokenA.address, tokenB.address);
       await expect(
-        positionManager.createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], encodePriceSqrt(1, 2))
+        positionManager.createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], encodePriceSqrt(1, 2))
       ).to.be.reverted;
     });
 
@@ -172,21 +173,21 @@ describe('BasePositionManager', () => {
       for (let i = 0; i < firstTokens.length; i++) {
         let [token0, token1] = sortTokens(firstTokens[i], secondTokens[i]);
 
-        let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+        let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
         expect(pool).to.be.eq(ZERO_ADDRESS);
 
         let userBalancesBefore = await getBalances(user.address, [token0, token1]);
 
         let tx = await positionManager
           .connect(user)
-          .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+          .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         let userBalancesAfter = await getBalances(user.address, [token0, token1]);
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]), // token0Balance
           userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]), // token1Balance
@@ -210,11 +211,11 @@ describe('BasePositionManager', () => {
 
       for (let i = 0; i < firstTokens.length; i++) {
         let [token0, token1] = sortTokens(firstTokens[i], secondTokens[i]);
-        await factory.createPool(token0, token1, swapFeeBpsArray[0]);
+        await factory.createPool(token0, token1, swapFeeUnitsArray[0]);
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           BN.from(0),
           BN.from(0),
           BN.from(0),
@@ -225,14 +226,14 @@ describe('BasePositionManager', () => {
 
         let tx = await positionManager
           .connect(user)
-          .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+          .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         let userBalancesAfter = await getBalances(user.address, [token0, token1]);
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]), // token0Balance
           userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]), // token1Balance
@@ -253,7 +254,7 @@ describe('BasePositionManager', () => {
       let initialPrice = encodePriceSqrt(1, 2);
       let [token0, token1] = sortTokens(weth.address, tokenB.address);
 
-      let pool = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       expect(pool).to.be.eq(ZERO_ADDRESS);
 
       let userBalancesBefore = await getBalances(user.address, [ZERO_ADDRESS, token0, token1]);
@@ -262,7 +263,7 @@ describe('BasePositionManager', () => {
         positionManager.interface.encodeFunctionData('createAndUnlockPoolIfNecessary', [
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
         ]),
       ];
@@ -277,7 +278,7 @@ describe('BasePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
           userBalancesBefore.tokenBalances[2].sub(userBalancesAfter.tokenBalances[2]),
@@ -287,7 +288,7 @@ describe('BasePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]),
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
@@ -303,8 +304,16 @@ describe('BasePositionManager', () => {
       let initialPrice = encodePriceSqrt(1, 2);
       let [token0, token1] = sortTokens(weth.address, tokenB.address);
 
-      await factory.createPool(token0, token1, swapFeeBpsArray[0]);
-      await verifyPoolBalancesAndStates(token0, token1, swapFeeBpsArray[0], BN.from(0), BN.from(0), BN.from(0), true);
+      await factory.createPool(token0, token1, swapFeeUnitsArray[0]);
+      await verifyPoolBalancesAndStates(
+        token0,
+        token1,
+        swapFeeUnitsArray[0],
+        BN.from(0),
+        BN.from(0),
+        BN.from(0),
+        true
+      );
 
       let userBalancesBefore = await getBalances(user.address, [ZERO_ADDRESS, token0, token1]);
 
@@ -312,7 +321,7 @@ describe('BasePositionManager', () => {
         positionManager.interface.encodeFunctionData('createAndUnlockPoolIfNecessary', [
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
         ]),
       ];
@@ -327,7 +336,7 @@ describe('BasePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
           userBalancesBefore.tokenBalances[2].sub(userBalancesAfter.tokenBalances[2]),
@@ -337,7 +346,7 @@ describe('BasePositionManager', () => {
         await verifyPoolBalancesAndStates(
           token0,
           token1,
-          swapFeeBpsArray[0],
+          swapFeeUnitsArray[0],
           initialPrice,
           userBalancesBefore.tokenBalances[1].sub(userBalancesAfter.tokenBalances[1]),
           userBalancesBefore.tokenBalances[0].sub(userBalancesAfter.tokenBalances[0]).sub(txFee),
@@ -355,20 +364,21 @@ describe('BasePositionManager', () => {
     let [token0, token1] = sortTokens(tokenA.address, tokenB.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
     [token0, token1] = sortTokens(tokenA.address, weth.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
     [token0, token1] = sortTokens(tokenB.address, weth.address);
     await positionManager
       .connect(user)
-      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeBpsArray[0], initialPrice);
+      .createAndUnlockPoolIfNecessary(token0, token1, swapFeeUnitsArray[0], initialPrice);
   };
 
   describe(`#mint`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -385,7 +395,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: 0,
           tickUpper: 0,
           ticksPrevious: ticksPrevious,
@@ -405,7 +415,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: 0,
           tickUpper: 0,
           ticksPrevious: ticksPrevious,
@@ -426,7 +436,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: 0,
           tickUpper: 0,
           ticksPrevious: ticksPrevious,
@@ -446,7 +456,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
           ticksPrevious: ticksPrevious,
@@ -462,7 +472,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
           ticksPrevious: ticksPrevious,
@@ -483,7 +493,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
           ticksPrevious: ticksPrevious,
@@ -501,7 +511,7 @@ describe('BasePositionManager', () => {
         positionManager.connect(user).mint({
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: -tickDistanceArray[0],
           tickUpper: tickDistanceArray[0],
           ticksPrevious: ticksPrevious,
@@ -525,8 +535,10 @@ describe('BasePositionManager', () => {
       let _nextTokenId = nextTokenId;
       let poolId = 1;
 
-      let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let poolAddress = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
+
+      let liquidityDesired = [200510416, 100505833];
 
       for (let i = 0; i < recipients.length; i++) {
         let tickLower = tickDistanceArray[0] * (i + 1) * -10;
@@ -535,20 +547,27 @@ describe('BasePositionManager', () => {
         let userBalanceBefore = await getBalances(user.address, [token0, token1]);
         let poolBalanceBefore = await getBalances(poolAddress, [token0, token1]);
         let _ticksPrevious = await getTicksPrevious(pool, tickLower, tickUpper);
-        let tx = await positionManager.connect(user).mint({
-          token0: token0,
-          token1: token1,
-          fee: swapFeeBpsArray[0],
-          tickLower: tickLower,
-          tickUpper: tickUpper,
-          ticksPrevious: _ticksPrevious,
-          amount0Desired: BN.from(1000000),
-          amount1Desired: BN.from(1000000),
-          amount0Min: 0,
-          amount1Min: 0,
-          recipient: recipients[i],
-          deadline: PRECISION,
-        });
+        let tx;
+
+        await expect(
+          (tx = await positionManager.connect(user).mint({
+            token0: token0,
+            token1: token1,
+            fee: swapFeeUnitsArray[0],
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            ticksPrevious: _ticksPrevious,
+            amount0Desired: BN.from(1000000),
+            amount1Desired: BN.from(1000000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: recipients[i],
+            deadline: PRECISION,
+          }))
+        )
+          .to.emit(positionManager, 'MintPosition')
+          .withArgs(i + 1, 1, liquidityDesired[i], 1000000, 1000000);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balances
@@ -570,7 +589,7 @@ describe('BasePositionManager', () => {
         const {pos, info} = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
-        expect(info.fee).to.be.eq(swapFeeBpsArray[0]);
+        expect(info.fee).to.be.eq(swapFeeUnitsArray[0]);
         expect(await positionManager.addressToPoolId(poolAddress)).to.be.eq(poolId);
         expect(pos.nonce).to.be.eq(0);
         expect(pos.operator).to.be.eq(ZERO_ADDRESS);
@@ -585,6 +604,7 @@ describe('BasePositionManager', () => {
           tickLower,
           tickUpper
         );
+
         expect(liquidity).to.be.eq(pos.liquidity);
         expect(feeGrowthInsideLast).to.be.eq(pos.feeGrowthInsideLast);
 
@@ -604,7 +624,7 @@ describe('BasePositionManager', () => {
       let _nextTokenId = nextTokenId;
       let poolId = 1;
 
-      let poolAddress = await factory.getPool(token0, token1, swapFeeBpsArray[0]);
+      let poolAddress = await factory.getPool(token0, token1, swapFeeUnitsArray[0]);
       let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
 
       for (let i = 0; i < recipients.length; i++) {
@@ -618,7 +638,7 @@ describe('BasePositionManager', () => {
         let mintParams = {
           token0: token0,
           token1: token1,
-          fee: swapFeeBpsArray[0],
+          fee: swapFeeUnitsArray[0],
           tickLower: tickLower,
           tickUpper: tickUpper,
           ticksPrevious: _ticksPrevious,
@@ -662,7 +682,7 @@ describe('BasePositionManager', () => {
         const {pos, info} = await positionManager.positions(_nextTokenId);
         expect(info.token0).to.be.eq(token0);
         expect(info.token1).to.be.eq(token1);
-        expect(info.fee).to.be.eq(swapFeeBpsArray[0]);
+        expect(info.fee).to.be.eq(swapFeeUnitsArray[0]);
         expect(await positionManager.addressToPoolId(poolAddress)).to.be.eq(poolId);
         expect(pos.nonce).to.be.eq(0);
         expect(pos.operator).to.be.eq(ZERO_ADDRESS);
@@ -693,7 +713,7 @@ describe('BasePositionManager', () => {
     await positionManager.connect(user).mint({
       token0: token0,
       token1: token1,
-      fee: swapFeeBpsArray[0],
+      fee: swapFeeUnitsArray[0],
       tickLower: -100 * tickDistanceArray[0],
       tickUpper: 100 * tickDistanceArray[0],
       ticksPrevious: ticksPrevious,
@@ -765,6 +785,7 @@ describe('BasePositionManager', () => {
   describe(`#add liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -841,13 +862,14 @@ describe('BasePositionManager', () => {
     it('add liquidity with tokens - no new fees', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let liquidityDesired = [2050516, 4101033, 6151549, 8202066, 10252583];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -862,14 +884,20 @@ describe('BasePositionManager', () => {
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
 
-        let tx = await positionManager.connect(sender).addLiquidity({
-          tokenId: tokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(sender).addLiquidity({
+            tokenId: tokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(tokenId, liquidityDesired[i], amount0, amount0, 0);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -906,13 +934,17 @@ describe('BasePositionManager', () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
 
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let liquidityDesired = [1795547, 2894569, 3713647, 4798240, 5997800];
+      let amount0Desired = [55707, 45590, 10438, 0, 0];
+      let amount1Desired = [120000, 240000, 360000, 480000, 600000];
+      let additionalRTokenOwedDesired = [420, 820, 841, 747, 618];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -927,22 +959,34 @@ describe('BasePositionManager', () => {
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
           let amount = BN.from(100000 * (j + 1));
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], amount);
           amount = BN.from(150000 * (j + 1));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], amount);
         }
 
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
 
-        let tx = await positionManager.connect(sender).addLiquidity({
-          tokenId: tokenId,
-          amount0Desired: amount0,
-          amount1Desired: amount1,
-          amount0Min: 0,
-          amount1Min: 0,
-          deadline: PRECISION,
-        });
+        let tx;
+        await expect(
+          (tx = await positionManager.connect(sender).addLiquidity({
+            tokenId: tokenId,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            deadline: PRECISION,
+          }))
+        )
+          .to.be.emit(positionManager, 'AddLiquidity')
+          .withArgs(
+            tokenId,
+            liquidityDesired[i],
+            amount0Desired[i],
+            amount1Desired[i],
+            additionalRTokenOwedDesired[i]
+          );
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -989,6 +1033,7 @@ describe('BasePositionManager', () => {
   describe(`#remove liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1075,13 +1120,15 @@ describe('BasePositionManager', () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
 
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let amount0Desired = [4, 9, 14, 19, 24];
+      let amount1Desired = [4, 9, 14, 19, 24];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1095,7 +1142,11 @@ describe('BasePositionManager', () => {
         let rTokenBalBefore = await getBalances(positionManager.address, [pool]);
 
         let liquidity = BN.from((i + 1) * 100);
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity);
+        let tx;
+        await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
+          .to.be.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(tokenId, liquidity, amount0Desired[i], amount1Desired[i], 0);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -1130,13 +1181,16 @@ describe('BasePositionManager', () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
 
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       let poolContract = (await ethers.getContractAt('Pool', pool)) as Pool;
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
       let gasUsed = BN.from(0);
       let numRuns = 5;
+      let amount0Desired = [3, 3, 0, 0, 0];
+      let amount1Desired = [6, 16, 29, 40, 50];
+      let additionalRTokenOwedDesired = [420, 838, 834, 726, 581];
 
       for (let i = 0; i < numRuns; i++) {
         let sender = users[i % 2];
@@ -1149,16 +1203,20 @@ describe('BasePositionManager', () => {
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
           let amount = BN.from(100000 * (j + 1));
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], amount);
           amount = BN.from(150000 * (j + 1));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], amount);
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], amount);
         }
 
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
 
         let liquidity = BN.from((i + 1) * 100);
-        let tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity);
+        let tx;
+        await expect((tx = await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, liquidity)))
+          .to.be.emit(positionManager, 'RemoveLiquidity')
+          .withArgs(tokenId, liquidity, amount0Desired[i], amount1Desired[i], additionalRTokenOwedDesired[i]);
+
         gasUsed = gasUsed.add((await tx.wait()).gasUsed);
 
         // verify balance
@@ -1203,17 +1261,21 @@ describe('BasePositionManager', () => {
     it('remove liquidity, no collecting tokens', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
 
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       let poolBalBefore = await getBalances(pool, [tokenA.address, tokenB.address]);
-
+      let liquidity = BN.from(1000);
       // remove liquidity without calling transfer tokens
-      await positionManager.connect(user).removeLiquidity({
-        tokenId: nextTokenId,
-        liquidity: BN.from(1000),
-        amount0Min: 0,
-        amount1Min: 0,
-        deadline: PRECISION,
-      });
+      await expect(
+        positionManager.connect(user).removeLiquidity({
+          tokenId: nextTokenId,
+          liquidity,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: PRECISION,
+        })
+      )
+        .to.be.emit(positionManager, 'RemoveLiquidity')
+        .withArgs(nextTokenId, liquidity, 48, 48, 0);
 
       let poolBalAfter = await getBalances(pool, [tokenA.address, tokenB.address]);
       expect(poolBalBefore.tokenBalances[0].sub(poolBalAfter.tokenBalances[0])).to.be.eq(
@@ -1228,6 +1290,7 @@ describe('BasePositionManager', () => {
   describe(`#burn rtoken`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1277,8 +1340,8 @@ describe('BasePositionManager', () => {
     it('revert price slippage', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       for (let i = 0; i < 5; i++) {
-        await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000));
-        await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(200000));
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(200000));
       }
       // simple remove liq to update the rtokens
       await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, BN.from(10));
@@ -1305,7 +1368,7 @@ describe('BasePositionManager', () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       await initLiquidity(other, tokenA.address, tokenB.address);
 
-      let poolAddr = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let poolAddr = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
 
       let users = [user, other];
       let tokenIds = [nextTokenId, nextTokenId.add(1)];
@@ -1318,8 +1381,8 @@ describe('BasePositionManager', () => {
 
         // made some swaps to get fees
         for (let j = 0; j < 5; j++) {
-          await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000 * (j + 1)));
-          await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(150000 * (j + 1)));
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000 * (j + 1)));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
         }
 
         // remove liquidity to update the latest rToken states
@@ -1359,6 +1422,7 @@ describe('BasePositionManager', () => {
   describe(`#burn token`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1384,8 +1448,8 @@ describe('BasePositionManager', () => {
     it('revert rTokenOwed > 0', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       for (let i = 0; i < 5; i++) {
-        await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000));
-        await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(200000));
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(200000));
       }
       let userData = await positionManager.positions(nextTokenId);
       await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
@@ -1395,13 +1459,18 @@ describe('BasePositionManager', () => {
     it('burn rToken and update states', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
       for (let i = 0; i < 5; i++) {
-        await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(100000));
-        await swapExactInput(tokenB.address, tokenA.address, swapFeeBpsArray[0], BN.from(200000));
+        await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000));
+        await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(200000));
       }
       let userData = await positionManager.positions(nextTokenId);
       await removeLiquidity(tokenA.address, tokenB.address, user, nextTokenId, userData.pos.liquidity);
       await burnRTokens(tokenA.address, tokenB.address, user, nextTokenId);
-      let tx = await positionManager.burn(nextTokenId);
+
+      let tx;
+      await expect((tx = await positionManager.burn(nextTokenId)))
+        .to.be.emit(positionManager, 'BurnPosition')
+        .withArgs(nextTokenId);
+
       await expect(positionManager.ownerOf(nextTokenId)).to.be.revertedWith('');
       if (showTxGasUsed) {
         logMessage(`Average gas use to burn: ${(await tx.wait()).gasUsed.toString()}`);
@@ -1412,6 +1481,7 @@ describe('BasePositionManager', () => {
   describe(`#transfer all tokens`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1430,7 +1500,7 @@ describe('BasePositionManager', () => {
 
     it('revert can not transfer rToken', async () => {
       await initLiquidity(user, tokenA.address, tokenB.address);
-      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeBpsArray[0]);
+      let pool = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
       await expect(positionManager.connect(user).transferAllTokens(pool, PRECISION, user.address)).to.be.revertedWith(
         'Can not transfer rToken'
       );
@@ -1449,6 +1519,7 @@ describe('BasePositionManager', () => {
   describe(`#approve`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1470,7 +1541,7 @@ describe('BasePositionManager', () => {
       expect(await positionManager.getApproved(nextTokenId)).to.be.eq(ZERO_ADDRESS);
       await positionManager.approve(other.address, nextTokenId);
       expect(await positionManager.getApproved(nextTokenId)).to.be.eq(other.address);
-      await swapExactInput(tokenA.address, tokenB.address, swapFeeBpsArray[0], BN.from(1000000));
+      await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(1000000));
       // now `other` can remove liquidity, burnRTokens, and burn nft token
       let userData = await positionManager.positions(nextTokenId);
       await removeLiquidity(tokenA.address, tokenB.address, other, nextTokenId, userData.pos.liquidity);
@@ -1482,6 +1553,7 @@ describe('BasePositionManager', () => {
   describe(`#tokenUri`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1507,6 +1579,7 @@ describe('BasePositionManager', () => {
   describe(`#permit-erc721`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
       await createAndUnlockPools();
       snapshotId = await snapshot();
     });
@@ -1574,7 +1647,7 @@ describe('BasePositionManager', () => {
       expect(await positionManager.supportsInterface('0x5b5e139f')).to.be.eq(true); // ERC721Metadata
       expect(await positionManager.supportsInterface('0x780e9d63')).to.be.eq(true); // ERC721Enumerable
       expect(await positionManager.supportsInterface('0x7dd42bd6')).to.be.eq(true); // ERC721Permit
-      expect(await positionManager.supportsInterface('0xfad9ce15')).to.be.eq(true); // IBasePositionManager
+      expect(await positionManager.supportsInterface('0x53e38b0d')).to.be.eq(true); // IBasePositionManager
     });
 
     it('un-support interface', async () => {

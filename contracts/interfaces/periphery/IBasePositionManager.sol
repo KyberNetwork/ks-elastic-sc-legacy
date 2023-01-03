@@ -3,9 +3,10 @@ pragma solidity >=0.8.0;
 
 import {IERC721Metadata} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol';
 import {IRouterTokenHelper} from './IRouterTokenHelper.sol';
+import {IBasePositionManagerEvents} from './base_position_manager/IBasePositionManagerEvents.sol';
 import {IERC721Permit} from './IERC721Permit.sol';
 
-interface IBasePositionManager is IRouterTokenHelper {
+interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents {
   struct Position {
     // the nonce for permits
     uint96 nonce;
@@ -26,7 +27,7 @@ interface IBasePositionManager is IRouterTokenHelper {
 
   struct PoolInfo {
     address token0;
-    uint16 fee;
+    uint24 fee;
     address token1;
   }
 
@@ -49,7 +50,7 @@ interface IBasePositionManager is IRouterTokenHelper {
   struct MintParams {
     address token0;
     address token1;
-    uint16 fee;
+    uint24 fee;
     int24 tickLower;
     int24 tickUpper;
     int24[2] ticksPrevious;
@@ -111,7 +112,7 @@ interface IBasePositionManager is IRouterTokenHelper {
   function createAndUnlockPoolIfNecessary(
     address token0,
     address token1,
-    uint16 fee,
+    uint24 fee,
     uint160 currentSqrtP
   ) external payable returns (address pool);
 

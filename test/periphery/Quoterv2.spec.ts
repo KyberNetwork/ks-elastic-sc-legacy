@@ -9,12 +9,12 @@ import {deployFactory, setupPoolWithLiquidity} from '../helpers/setup';
 import {encodePath} from '../helpers/swapPath';
 import {encodePriceSqrt} from '../helpers/utils';
 
-import {QuoterV2, QuoterV2__factory} from '../../typechain';
+import {QuoterV2, QuoterV2__factory, Router, Router__factory} from '../../typechain';
 import {MockToken, MockToken__factory} from '../../typechain';
 import {Pool, MockTickMath, MockTickMath__factory} from '../../typechain';
-import {MockCallbacks2, MockCallbacks2__factory} from '../../typechain';
+import {MockCallbacks2, MockCallbacks2__factory, MockWeth__factory} from '../../typechain';
 
-let swapFeeBpsArray = [5, 2];
+let swapFeeUnitsArray = [50, 20];
 let tickDistanceArray = [10, 6];
 let vestingPeriod = 100;
 let ticksPrevious: [BN, BN] = [MIN_TICK, MIN_TICK];
@@ -41,7 +41,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amountIn: PRECISION.mul(PRECISION),
-      feeBps: swapFeeBpsArray[1],
+      feeUnits: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -52,7 +52,7 @@ async function quoteToPrice(
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amount: PRECISION.mul(PRECISION),
-      feeBps: swapFeeBpsArray[1],
+      feeUnits: swapFeeUnitsArray[1],
       limitSqrtP: targetSqrtP,
     });
     // assert that we reach the targetPrice
@@ -67,9 +67,9 @@ describe('QuoterV2', function () {
   async function fixture(): Promise<Fixtures> {
     let factory = await deployFactory(admin, vestingPeriod);
     // add any newly defined tickDistance apart from default ones
-    for (let i = 0; i < swapFeeBpsArray.length; i++) {
-      if ((await factory.feeAmountTickDistance(swapFeeBpsArray[i])) == 0) {
-        await factory.connect(admin).enableSwapFee(swapFeeBpsArray[i], tickDistanceArray[i]);
+    for (let i = 0; i < swapFeeUnitsArray.length; i++) {
+      if ((await factory.feeAmountTickDistance(swapFeeUnitsArray[i])) == 0) {
+        await factory.connect(admin).enableSwapFee(swapFeeUnitsArray[i], tickDistanceArray[i]);
       }
     }
 
@@ -82,6 +82,12 @@ describe('QuoterV2', function () {
     // whitelist callback
     await factory.connect(admin).addNFTManager(callback.address);
 
+    //
+    const WETH = (await ethers.getContractFactory('MockWeth')) as MockWeth__factory;
+    let weth = await WETH.deploy();
+    const Router = (await ethers.getContractFactory('Router')) as Router__factory;
+    router = await Router.deploy(factory.address, weth.address);
+
     // init tokens by asc order
     const MockTokenContract = (await ethers.getContractFactory('MockToken')) as MockToken__factory;
     const tokens: MockToken[] = [];
@@ -89,6 +95,9 @@ describe('QuoterV2', function () {
       const token = await MockTokenContract.deploy('test', 't', PRECISION.mul(PRECISION));
       tokens.push(token);
       await token.approve(callback.address, MAX_UINT);
+      await token.transfer(wallet.address, PRECISION);
+      await token.connect(wallet).approve(callback.address, MAX_UINT);
+      await token.connect(wallet).approve(router.address, MAX_UINT);
     }
     tokens.sort((a: MockToken, b: MockToken) => {
       if (a.address.toLowerCase() < b.address.toLowerCase()) {
@@ -104,7 +113,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[0],
       tokens[1],
-      swapFeeBpsArray[0],
+      swapFeeUnitsArray[0],
       encodePriceSqrt(100, 102)
     );
     await setupPoolWithLiquidity(
@@ -113,7 +122,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[1],
       tokens[2],
-      swapFeeBpsArray[0],
+      swapFeeUnitsArray[0],
       encodePriceSqrt(100, 200)
     );
     let [pool02] = await setupPoolWithLiquidity(
@@ -122,7 +131,7 @@ describe('QuoterV2', function () {
       wallet.address,
       tokens[0],
       tokens[2],
-      swapFeeBpsArray[1],
+      swapFeeUnitsArray[1],
       await tickMath.getMiddleSqrtRatioAtTick(24)
     );
 
@@ -141,6 +150,7 @@ describe('QuoterV2', function () {
   let callback: MockCallbacks2;
   let tickMath: MockTickMath;
   let pool02: Pool;
+  let router: Router;
 
   // helper for getting weth and token balances
   beforeEach('load fixture', async () => {
@@ -153,7 +163,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(-4);
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -169,7 +179,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -185,7 +195,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -202,7 +212,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -222,7 +232,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[0], tokens[2], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -239,7 +249,7 @@ describe('QuoterV2', function () {
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
 
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -256,7 +266,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(48);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
         expect(afterSqrtPList.length).to.eq(1);
@@ -275,7 +285,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -292,7 +302,7 @@ describe('QuoterV2', function () {
         let nextSqrtP = await tickMath.getMiddleSqrtRatioAtTick(25);
         let amountIn = await quoteToPrice(quoter, tokens[2], tokens[0], nextSqrtP, true);
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountIn
         );
 
@@ -310,7 +320,7 @@ describe('QuoterV2', function () {
         const {amountOut, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactInput(
           encodePath(
             [tokens[0].address, tokens[2].address, tokens[1].address],
-            [swapFeeBpsArray[1], swapFeeBpsArray[0]]
+            [swapFeeUnitsArray[1], swapFeeUnitsArray[0]]
           ),
           amountIn
         );
@@ -338,7 +348,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[0].address,
           tokenOut: tokens[2].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBpsArray[1],
+          feeUnits: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -362,7 +372,7 @@ describe('QuoterV2', function () {
           tokenIn: tokens[2].address,
           tokenOut: tokens[0].address,
           amountIn: PRECISION.mul(PRECISION),
-          feeBps: swapFeeBpsArray[1],
+          feeUnits: swapFeeUnitsArray[1],
           limitSqrtP: priceLimit,
         });
 
@@ -380,7 +390,7 @@ describe('QuoterV2', function () {
         const targetSqrtP = await tickMath.getMiddleSqrtRatioAtTick(-1);
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
 
@@ -398,7 +408,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -414,7 +424,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -432,7 +442,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -448,7 +458,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[0], tokens[2], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[2].address, tokens[0].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[2].address, tokens[0].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -464,7 +474,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -481,7 +491,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -498,7 +508,7 @@ describe('QuoterV2', function () {
         const amountOut = await quoteToPrice(quoter, tokens[2], tokens[0], targetSqrtP, false);
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
-          encodePath([tokens[0].address, tokens[2].address], [swapFeeBpsArray[1]]),
+          encodePath([tokens[0].address, tokens[2].address], [swapFeeUnitsArray[1]]),
           amountOut
         );
         expect(initializedTicksCrossedList.length).to.eq(1);
@@ -516,8 +526,8 @@ describe('QuoterV2', function () {
 
         const {amountIn, afterSqrtPList, initializedTicksCrossedList} = await quoter.callStatic.quoteExactOutput(
           encodePath([tokens[1].address, tokens[2].address, tokens[0].address].reverse(), [
-            swapFeeBpsArray[1],
-            swapFeeBpsArray[0],
+            swapFeeUnitsArray[1],
+            swapFeeUnitsArray[0],
           ]),
           amountOut
         );
@@ -540,7 +550,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[0].address,
           tokenOut: tokens[1].address,
-          feeBps: swapFeeBpsArray[0],
+          feeUnits: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 103),
         });
@@ -558,7 +568,7 @@ describe('QuoterV2', function () {
         } = await quoter.callStatic.quoteExactOutputSingle({
           tokenIn: tokens[1].address,
           tokenOut: tokens[0].address,
-          feeBps: swapFeeBpsArray[0],
+          feeUnits: swapFeeUnitsArray[0],
           amount: PRECISION.mul(PRECISION),
           limitSqrtP: encodePriceSqrt(100, 101),
         });
@@ -566,6 +576,209 @@ describe('QuoterV2', function () {
         expect(initializedTicksCrossed).to.eq(0);
         console.log(`amountIn=${amountIn}`);
         console.log(`afterSqrtP=${afterSqrtP}`);
+      });
+    });
+
+    describe('#quote and compare with Router', () => {
+      it('quoteExactInputSingle without limit', async () => {
+        const [amountIn, token0, token1, balToken0, balToken1] = [
+          PRECISION,
+          tokens[0],
+          tokens[2],
+          await tokens[0].balanceOf(wallet.address),
+          await tokens[2].balanceOf(wallet.address),
+        ];
+
+        const {returnedAmount: amountOut} = await quoter.callStatic.quoteExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          amountIn,
+          feeUnits: swapFeeUnitsArray[1],
+          limitSqrtP: 0,
+        });
+
+        await router.connect(wallet).swapExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          fee: swapFeeUnitsArray[1],
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountIn,
+          minAmountOut: amountOut,
+          limitSqrtP: 0,
+        });
+
+        expect(balToken0.sub(await token0.balanceOf(wallet.address))).to.be.equal(amountIn);
+        expect((await token1.balanceOf(wallet.address)).sub(balToken1)).to.be.equal(amountOut);
+      });
+
+      it('quoteExactInputSingle with limit', async () => {
+        const [amountIn, priceLimit, token0, token1, balToken0, balToken1] = [
+          PRECISION,
+          await tickMath.getMiddleSqrtRatioAtTick(-1),
+          tokens[0],
+          tokens[2],
+          await tokens[0].balanceOf(wallet.address),
+          await tokens[2].balanceOf(wallet.address),
+        ];
+
+        const {usedAmount: actuallyAmountIn, returnedAmount: amountOut} =
+          await quoter.callStatic.quoteExactInputSingle({
+            tokenIn: token0.address,
+            tokenOut: token1.address,
+            amountIn: amountIn,
+            feeUnits: swapFeeUnitsArray[1],
+            limitSqrtP: priceLimit,
+          });
+
+        await router.connect(wallet).swapExactInputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          fee: swapFeeUnitsArray[1],
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountIn: amountIn,
+          minAmountOut: amountOut,
+          limitSqrtP: priceLimit,
+        });
+
+        expect(balToken0.sub(await token0.balanceOf(wallet.address))).to.be.equal(actuallyAmountIn);
+        expect((await token1.balanceOf(wallet.address)).sub(balToken1)).to.be.equal(amountOut);
+      });
+
+      it('quoteExactInput', async () => {
+        const [amountIn, amountOut, token0, token2, token1, balToken0, balToken1] = [
+          PRECISION,
+          (
+            await quoter.callStatic.quoteExactInput(
+              encodePath(
+                [tokens[0].address, tokens[2].address, tokens[1].address],
+                [swapFeeUnitsArray[1], swapFeeUnitsArray[0]]
+              ),
+              PRECISION
+            )
+          ).amountOut,
+          tokens[0],
+          tokens[2],
+          tokens[1],
+          await tokens[0].balanceOf(wallet.address),
+          await tokens[1].balanceOf(wallet.address),
+        ];
+
+        await router.connect(wallet).swapExactInput({
+          path: encodePath(
+            [token0.address, token2.address, token1.address],
+            [swapFeeUnitsArray[1], swapFeeUnitsArray[0]]
+          ),
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountIn,
+          minAmountOut: amountOut,
+        });
+
+        expect(balToken0.sub(await token0.balanceOf(wallet.address))).to.be.equal(amountIn);
+        expect((await token1.balanceOf(wallet.address)).sub(balToken1)).to.be.equal(amountOut);
+      });
+
+      it('quoteExactOutputSingle without limit', async () => {
+        const [amountOut, token0, token1, balToken0, balToken1] = [
+          BN.from('786517838847352'),
+          tokens[0],
+          tokens[2],
+          await tokens[0].balanceOf(wallet.address),
+          await tokens[2].balanceOf(wallet.address),
+        ];
+
+        const {usedAmount: actuallyAmountOut, returnedAmount: amountIn} =
+          await quoter.callStatic.quoteExactOutputSingle({
+            tokenIn: token0.address,
+            tokenOut: token1.address,
+            feeUnits: swapFeeUnitsArray[1],
+            amount: amountOut,
+            limitSqrtP: 0,
+          });
+
+        await router.connect(wallet).swapExactOutputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          fee: swapFeeUnitsArray[1],
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountOut,
+          maxAmountIn: amountIn,
+          limitSqrtP: 0,
+        });
+
+        expect(balToken0.sub(await token0.balanceOf(wallet.address))).to.be.equal(amountIn);
+        expect((await token1.balanceOf(wallet.address)).sub(balToken1)).to.be.equal(actuallyAmountOut);
+      });
+
+      it('quoteExactOutputSingle with limit', async () => {
+        const [amountOut, limitSqrtP, token0, token1, balToken0, balToken1] = [
+          PRECISION.mul(PRECISION),
+          encodePriceSqrt(100, 103),
+          tokens[0],
+          tokens[2],
+          await tokens[0].balanceOf(wallet.address),
+          await tokens[2].balanceOf(wallet.address),
+        ];
+
+        const {usedAmount: actuallyAmountOut, returnedAmount: amountIn} =
+          await quoter.callStatic.quoteExactOutputSingle({
+            tokenIn: token0.address,
+            tokenOut: token1.address,
+            feeUnits: swapFeeUnitsArray[1],
+            amount: amountOut,
+            limitSqrtP,
+          });
+
+        await router.connect(wallet).swapExactOutputSingle({
+          tokenIn: token0.address,
+          tokenOut: token1.address,
+          fee: swapFeeUnitsArray[1],
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountOut,
+          maxAmountIn: amountIn,
+          limitSqrtP,
+        });
+
+        expect(balToken0.sub(await token0.balanceOf(wallet.address))).to.be.equal(amountIn);
+        expect((await token1.balanceOf(wallet.address)).sub(balToken1)).to.be.equal(actuallyAmountOut);
+      });
+
+      it('quoteExactOutput', async () => {
+        const [amountIn, amountOut, token0, token2, token1, balToken0, balToken1] = [
+          (
+            await quoter.callStatic.quoteExactOutput(
+              encodePath(
+                [tokens[1].address, tokens[2].address, tokens[0].address],
+                [swapFeeUnitsArray[0], swapFeeUnitsArray[1]]
+              ),
+              BN.from('324355710951921')
+            )
+          ).amountIn,
+          BN.from('324355710951921'),
+          tokens[1],
+          tokens[2],
+          tokens[0],
+          await tokens[1].balanceOf(wallet.address),
+          await tokens[0].balanceOf(wallet.address),
+        ];
+
+        await router.connect(wallet).swapExactOutput({
+          path: encodePath(
+            [token0.address, token2.address, token1.address],
+            [swapFeeUnitsArray[0], swapFeeUnitsArray[1]]
+          ),
+          recipient: wallet.address,
+          deadline: MAX_UINT,
+          amountOut,
+          maxAmountIn: amountIn,
+        });
+
+        expect((await token0.balanceOf(wallet.address)).sub(balToken0)).to.be.equal(amountOut);
+        expect(balToken1.sub(await token1.balanceOf(wallet.address))).to.be.equal(amountIn);
       });
     });
   });

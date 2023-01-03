@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -20,7 +20,7 @@ interface IPoolStorage {
 
   /// @notice The fee to be charged for a swap in basis points
   /// @return The swap fee in basis points
-  function swapFeeBps() external view returns (uint16);
+  function swapFeeUnits() external view returns (uint24);
 
   /// @notice The pool tick distance
   /// @dev Ticks can only be initialized and used at multiples of this value

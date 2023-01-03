@@ -1,0 +1,8 @@
+{
+    "admin": "",
+    "vestingPeriod": 300,
+    "weth": "",
+    "baseDescriptor": "",
+    "deployQuoter": true,
+    "outputFilename": "polygon_testnet_deployment.json"
+}
