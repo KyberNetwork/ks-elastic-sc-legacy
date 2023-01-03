@@ -1,8 +1,0 @@
-{
-    "admin": "",
-    "vestingPeriod": 300,
-    "weth": "0xc778417e063141139fce010982780140aa0cd5ab",
-    "baseDescriptor": "",
-    "deployQuoter": true,
-    "outputFilename": "rinkeby_deployment.json"
-}
