@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "TS_NODE_TRANSPILE_ONLY=1 yarn hardhat test --no-compile",
+    "testc": "TS_NODE_TRANSPILE_ONLY=1 yarn hardhat test",
     "t": "UPDATE_SNAPSHOT=1 TS_NODE_TRANSPILE_ONLY=1 yarn hardhat test --no-compile",
     "compile": "TS_NODE_TRANSPILE_ONLY=1 yarn hardhat compile",
     "c": "printf 'yes' | yarn hardhat compile",
