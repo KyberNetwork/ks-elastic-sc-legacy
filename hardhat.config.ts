@@ -17,267 +17,280 @@ import './deployment/periphery/tokenPositionDescriptor/deployTokenPositionDescri
 import {accounts} from './test-wallets';
 
 const solcConfig: SolcUserConfig = {
-  version: '0.8.9',
-  settings: {
-    optimizer: {
-      enabled: true,
-      runs: 100000,
+    version: '0.8.9',
+    settings: {
+        optimizer: {
+            enabled: true,
+            runs: 100000,
+        },
+        metadata: {
+            bytecodeHash: 'none',
+        },
     },
-    metadata: {
-      bytecodeHash: 'none',
-    },
-  },
 };
 
 const lowRunSolcConfig = {
-  ...solcConfig,
-  settings: {
-    ...solcConfig.settings,
-    optimizer: {
-      enabled: true,
-      runs: 8000,
+    ...solcConfig,
+    settings: {
+        ...solcConfig.settings,
+        optimizer: {
+            enabled: true,
+            runs: 8000,
+        },
     },
-  },
 };
 
 const veryLowRunSolcConfig = {
-  ...solcConfig,
-  settings: {
-    ...solcConfig.settings,
-    optimizer: {
-      enabled: true,
-      runs: 2000,
+    ...solcConfig,
+    settings: {
+        ...solcConfig.settings,
+        optimizer: {
+            enabled: true,
+            runs: 200,
+        },
     },
-  },
 };
 
 const config: HardhatUserConfig = {
-  defaultNetwork: 'hardhat',
+    defaultNetwork: 'hardhat',
 
-  gasReporter: {
-    currency: 'USD',
-    gasPrice: 100,
-  },
-
-  networks: {
-    hardhat: {
-      accounts: accounts,
-      allowUnlimitedContractSize: true,
-      initialBaseFeePerGas: 0,
-      gas: 15000000,
+    gasReporter: {
+        currency: 'USD',
+        gasPrice: 100,
     },
-  },
 
-  etherscan: {
-    apiKey: {
-      bscTestnet: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
-      bsc: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
-      mainnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      goerli: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      optimisticEthereum: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      optimisticKovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      polygon: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      polygonMumbai: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      arbitrumOne: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      arbitrumTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      avalanche: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      avalancheFujiTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-      opera: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,  // Fantom mainnet
-      ftmTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
-    }
-  },
+    networks: {
+        hardhat: {
+            accounts: accounts,
+            allowUnlimitedContractSize: true,
+            initialBaseFeePerGas: 0,
+            gas: 15000000,
+        },
+        l2zk: {
+            chainId: 1001,
+            url: `http://34.87.113.249:8123`,
+            accounts: [`0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f`],
+            timeout: 200000,
+        }
 
-  solidity: {
-    compilers: [solcConfig],
-    overrides: {
-      'contracts/periphery/BasePositionManager.sol': lowRunSolcConfig,
-      'contracts/periphery/AntiSnipAttackPositionManager.sol': veryLowRunSolcConfig,
-      'contracts/Factory.sol': veryLowRunSolcConfig,
-      'contracts/Pool.sol': veryLowRunSolcConfig,
-      'contracts/mock/MockPool.sol': veryLowRunSolcConfig,
     },
-  },
 
-  paths: {
-    sources: './contracts',
-    tests: './test',
-  },
+    etherscan: {
+        apiKey: {
+            bscTestnet: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
+            bsc: process.env.BSCSCAN_KEY == '' ? '' : process.env.BSCSCAN_KEY,
+            mainnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            goerli: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            optimisticEthereum: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            optimisticKovan: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            polygon: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            polygonMumbai: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            arbitrumOne: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            arbitrumTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            avalanche: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            avalancheFujiTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+            opera: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,  // Fantom mainnet
+            ftmTestnet: process.env.ETHERSCAN_KEY == '' ? '' : process.env.ETHERSCAN_KEY,
+        }
+    },
 
-  mocha: {
-    timeout: 0,
-  },
+    solidity: {
+        compilers: [solcConfig],
+        overrides: {
+            'contracts/periphery/BasePositionManager.sol': lowRunSolcConfig,
+            'contracts/periphery/AntiSnipAttackPositionManager.sol': veryLowRunSolcConfig,
+            'contracts/Factory.sol': veryLowRunSolcConfig,
+            'contracts/Pool.sol': veryLowRunSolcConfig,
+            'contracts/mock/MockPool.sol': veryLowRunSolcConfig,
+        },
+    },
 
-  typechain: {
-    target: 'ethers-v5',
-  },
+    paths: {
+        sources: './contracts',
+        tests: './test',
+    },
 
-  contractSizer: {
-    runOnCompile: true,
-    disambiguatePaths: false,
-  },
+    mocha: {
+        timeout: 0,
+    },
+
+    typechain: {
+        target: 'ethers-v5',
+    },
+
+    contractSizer: {
+        runOnCompile: true,
+        disambiguatePaths: false,
+    },
 };
 
 const INFURA_API_KEY: string = process.env.INFURA_API_KEY || '';
 const PRIVATE_KEY: string = process.env.PRIVATE_KEY || '';
 
 if (INFURA_API_KEY != '' && PRIVATE_KEY != '') {
-  config.networks!.kovan = {
-    url: `https://kovan.infura.io/v3/${INFURA_API_KEY}`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.l2zk = {
+        chainId: 1001,
+        url: `http://34.87.113.249:8123`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
+    config.networks!.kovan = {
+        url: `https://kovan.infura.io/v3/${INFURA_API_KEY}`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.rinkeby = {
-    url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-    blockGasLimit: 30000000,
-  };
+    config.networks!.rinkeby = {
+        url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+        blockGasLimit: 30000000,
+    };
 
-  config.networks!.ropsten = {
-    url: `https://ropsten.infura.io/v3/${INFURA_API_KEY}`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.ropsten = {
+        url: `https://ropsten.infura.io/v3/${INFURA_API_KEY}`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.mainnet = {
-    url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.mainnet = {
+        url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.bsc_testnet = {
-    url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-    blockGasLimit: 30000000,
-  };
+    config.networks!.bsc_testnet = {
+        url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+        blockGasLimit: 30000000,
+    };
 
-  config.networks!.bsc = {
-    url: `https://bsc-dataseed1.ninicoin.io/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.bsc = {
+        url: `https://bsc-dataseed1.ninicoin.io/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.cronos_testnet = {
-    url: `https://cronos-testnet-3.crypto.org:8545/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.cronos_testnet = {
+        url: `https://cronos-testnet-3.crypto.org:8545/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.cronos = {
-    url: `https://evm-cronos.crypto.org/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.cronos = {
+        url: `https://evm-cronos.crypto.org/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.aurora_testnet = {
-    url: `https://testnet.aurora.dev/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.aurora_testnet = {
+        url: `https://testnet.aurora.dev/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.aurora = {
-    url: `https://mainnet.aurora.dev/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.aurora = {
+        url: `https://mainnet.aurora.dev/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.polygon_testnet = {
-    url: `https://rpc-mumbai.maticvigil.com/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.polygon_testnet = {
+        url: `https://rpc-mumbai.maticvigil.com/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.polygon = {
-    url: `https://polygon-rpc.com/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.polygon = {
+        url: `https://polygon-rpc.com/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.avax_testnet = {
-    url: `https://api.avax-test.network/ext/bc/C/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.avax_testnet = {
+        url: `https://api.avax-test.network/ext/bc/C/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.avax = {
-    url: `https://api.avax.network/ext/bc/C/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.avax = {
+        url: `https://api.avax.network/ext/bc/C/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.fantom_testnet = {
-    url: `https://rpc.testnet.fantom.network/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.fantom_testnet = {
+        url: `https://rpc.testnet.fantom.network/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.fantom = {
-    url: `https://rpc.ftm.tools/`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000,
-  };
+    config.networks!.fantom = {
+        url: `https://rpc.ftm.tools/`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000,
+    };
 
-  config.networks!.optimism = {
-    url: `https://optimistic.etherscan.io`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.optimism = {
+        url: `https://optimistic.etherscan.io`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.optimism_testnet = {
-    url: `https://kovan.optimism.io`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.optimism_testnet = {
+        url: `https://kovan.optimism.io`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.arbitrum = {
-    url: `https://arb1.arbitrum.io/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.arbitrum = {
+        url: `https://arb1.arbitrum.io/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.arbitrum_testnet = {
-    url: `https://rinkeby.arbitrum.io/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.arbitrum_testnet = {
+        url: `https://rinkeby.arbitrum.io/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.bttc = {
-    url: `https://bttc.dev.kyberengineering.io`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.bttc = {
+        url: `https://bttc.dev.kyberengineering.io`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.bttc_testnet = {
-    url: `https://pre-rpc.bt.io`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.bttc_testnet = {
+        url: `https://pre-rpc.bt.io`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.oasis = {
-    url: `https://emerald.oasis.dev`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.oasis = {
+        url: `https://emerald.oasis.dev`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.oasis_testnet = {
-    url: `https://testnet.emerald.oasis.dev`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.oasis_testnet = {
+        url: `https://testnet.emerald.oasis.dev`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.velas = {
-    url: `https://evmexplorer.velas.com/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.velas = {
+        url: `https://evmexplorer.velas.com/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 
-  config.networks!.velas_testnet = {
-    url: `https://explorer.testnet.velas.com/rpc`,
-    accounts: [PRIVATE_KEY],
-    timeout: 20000
-  };
+    config.networks!.velas_testnet = {
+        url: `https://explorer.testnet.velas.com/rpc`,
+        accounts: [PRIVATE_KEY],
+        timeout: 20000
+    };
 }
 
 export default config;
