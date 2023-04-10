@@ -241,7 +241,11 @@ contract BasePositionManager is
     IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
 
     pos.rTokenOwed = 0;
-    (amount0, amount1) = pool.burnRTokens(rTokenQty, false);
+    uint256 poolBalance = IERC20(address(pool)).balanceOf(address(this));
+    (amount0, amount1) = pool.burnRTokens(
+      rTokenQty > poolBalance ? poolBalance : rTokenQty,
+      false
+    );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
   }
 
