@@ -158,6 +158,8 @@ interface IBasePositionManager is IRouterTokenHelper, IBasePositionManagerEvents
    */
   function burn(uint256 tokenId) external payable;
 
+  function syncFeeGrowth(uint256 tokenId) external;
+
   function positions(uint256 tokenId)
     external
     view

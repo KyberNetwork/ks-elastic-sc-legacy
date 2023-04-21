@@ -106,4 +106,7 @@ interface IPoolActions {
     uint256 qty1,
     bytes calldata data
   ) external;
+
+  function tweakPosZeroLiq(int24 tickLower, int24 tickUpper) 
+    external returns(uint256 feeGrowthInsideLast);
 }

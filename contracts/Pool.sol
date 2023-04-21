@@ -299,6 +299,32 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     emit BurnRTokens(msg.sender, _qty, qty0, qty1);
   }
 
+  function tweakPosZeroLiq(int24 tickLower, int24 tickUpper) external returns(uint256 feeGrowthInsideLast){
+    require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
+    // SLOAD variables into memory
+    uint128 baseL = poolData.baseL;
+    CumulativesData memory cumulatives;
+    cumulatives.feeGrowth = _syncFeeGrowth(baseL, poolData.reinvestL, poolData.feeGrowthGlobal, true);
+    cumulatives.secondsPerLiquidity = _syncSecondsPerLiquidity(
+      poolData.secondsPerLiquidityGlobal,
+      baseL
+    );
+
+    uint256 feesClaimable;
+    (feesClaimable, feeGrowthInsideLast) = _updatePosition(
+      UpdatePositionData({
+        owner: msg.sender,
+        tickLower: tickLower,
+        tickUpper: tickUpper,
+        tickLowerPrevious: 0,
+        tickUpperPrevious: 0,
+        liquidityDelta: 0,
+        isAddLiquidity: false
+      })
+      , poolData.currentTick, cumulatives);
+    if (feesClaimable != 0) _transfer(address(this), msg.sender, feesClaimable);
+  }
+
   // temporary swap variables, some of which will be used to update the pool state
   struct SwapData {
     int256 specifiedAmount; // the specified amount (could be tokenIn or tokenOut)
