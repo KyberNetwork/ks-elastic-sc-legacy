@@ -117,6 +117,10 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     (feesClaimable, feeGrowthInsideLast) = _updatePosition(posData, currentTick, cumulatives);
     if (feesClaimable != 0) _transfer(address(this), posData.owner, feesClaimable);
 
+    if(posData.liquidityDelta == 0) return (0, 0, feeGrowthInsideLast);
+    
+    uint160 sqrtP = poolData.sqrtP;
+
     if (currentTick < posData.tickLower) {
       // current tick < position range
       // liquidity only comes in range when tick increases
@@ -236,7 +240,6 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       uint256 feeGrowthInsideLast
     )
   {
-    require(qty != 0, '0 qty');
     int256 qty0Int;
     int256 qty1Int;
     (qty0Int, qty1Int, feeGrowthInsideLast) = _tweakPosition(

@@ -217,7 +217,9 @@ contract BasePositionManager is
       pos.feeGrowthInsideLast = feeGrowthInsideLast;
     }
 
-    pos.liquidity = tmpLiquidity - params.liquidity;
+    if(params.liquidity != 0){
+      pos.liquidity = tmpLiquidity - params.liquidity;
+    }
 
     emit RemoveLiquidity(params.tokenId, params.liquidity, amount0, amount1, additionalRTokenOwed);
   }
