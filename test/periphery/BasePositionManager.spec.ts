@@ -105,8 +105,8 @@ describe('BasePositionManager', () => {
       await tokenA.connect(users[i]).approve(router.address, BIG_AMOUNT);
       await tokenB.connect(users[i]).approve(router.address, BIG_AMOUNT);
 
-      await tokenA.transfer(users[i].address, PRECISION.mul(2000000));
-      await tokenB.transfer(users[i].address, PRECISION.mul(2000000));
+      await tokenA.transfer(users[i].address, PRECISION.mul(10000000000));
+      await tokenB.transfer(users[i].address, PRECISION.mul(10000000000));
     }
 
     getBalances = async (account: string, tokens: string[]) => {
@@ -708,17 +708,17 @@ describe('BasePositionManager', () => {
     });
   });
 
-  const initLiquidity = async (user: Wallet, token0: string, token1: string) => {
+  const initLiquidity = async (user: Wallet, token0: string, token1: string, index = 0, amount = 1000000) => {
     [token0, token1] = sortTokens(token0, token1);
     await positionManager.connect(user).mint({
       token0: token0,
       token1: token1,
-      fee: swapFeeUnitsArray[0],
-      tickLower: -100 * tickDistanceArray[0],
-      tickUpper: 100 * tickDistanceArray[0],
+      fee: swapFeeUnitsArray[index],
+      tickLower: -100 * tickDistanceArray[index],
+      tickUpper: 100 * tickDistanceArray[index],
       ticksPrevious: ticksPrevious,
-      amount0Desired: BN.from(1000000),
-      amount1Desired: BN.from(1000000),
+      amount0Desired: BN.from(amount),
+      amount1Desired: BN.from(amount),
       amount0Min: 0,
       amount1Min: 0,
       recipient: user.address,
@@ -1416,6 +1416,122 @@ describe('BasePositionManager', () => {
       if (showTxGasUsed) {
         logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
       }
+    });
+
+    it('sync fee growth burn rToken and update states', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await initLiquidity(other, tokenA.address, tokenB.address);
+
+      let poolAddr = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
+
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+      let gasUsed = BN.from(0);
+      let numRuns = 5;
+
+      for (let i = 0; i < numRuns; i++) {
+        let sender = users[i % 2];
+        let tokenId = tokenIds[i % 2];
+
+        // made some swaps to get fees
+        for (let j = 0; j < 5; j++) {
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000 * (j + 1)));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
+        }
+
+        // remove liquidity to update the latest rToken states
+        await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, BN.from(0));
+
+        let userData = await positionManager.positions(tokenId);
+        let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalBefore = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        let rTokenBefore = await getBalances(positionManager.address, [poolAddr]);
+
+        // call to burn rTokens
+        let tx = await burnRTokens(tokenA.address, tokenB.address, sender, tokenId);
+        gasUsed = gasUsed.add((await tx.wait()).gasUsed);
+
+        // verify user has received tokens
+        let userBalAfter = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalAfter = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        expect(poolBalBefore.tokenBalances[0].sub(poolBalAfter.tokenBalances[0])).to.be.eq(
+          userBalAfter.tokenBalances[0].sub(userBalBefore.tokenBalances[0])
+        );
+        expect(poolBalBefore.tokenBalances[1].sub(poolBalAfter.tokenBalances[1])).to.be.eq(
+          userBalAfter.tokenBalances[1].sub(userBalBefore.tokenBalances[1])
+        );
+
+        // verify liquidity and position, should have burnt all rTokenOwed
+        let userNewData = await positionManager.positions(tokenId);
+        expect(userNewData.pos.rTokenOwed).to.be.eq(0);
+        let rTokenBalAfter = await getBalances(positionManager.address, [poolAddr]);
+        expect(userData.pos.rTokenOwed).to.be.eq(rTokenBefore.tokenBalances[0].sub(rTokenBalAfter.tokenBalances[0]));
+      }
+      if (showTxGasUsed) {
+        logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
+      }
+    });
+
+    it('burn rToken for position got accumulated rounding error', async () => {
+      // scenario is when calculating rToken to mint, Position Manager suffers error of (deltaA)
+      // and if a position managed by Position Manager suffers error of (deltaB)
+      // if there are many times that minting rToken satisfies deltaA < deltaB
+      // then Position Manager will not have enough rToken balance for all positions to burn
+
+      await initLiquidity(user, tokenA.address, tokenB.address, 0, BN.from(100000000).mul(PRECISION));
+      await initLiquidity(other, tokenA.address, tokenB.address, 0, BN.from(100000000).mul(PRECISION));
+
+      let poolAddress = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
+
+      let pool = (await ethers.getContractAt('Pool', poolAddress)) as Pool;
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+
+      let pos;
+
+      let userPos = await positionManager.positions(tokenIds[0]);
+      let otherPos = await positionManager.positions(tokenIds[1]);
+
+      let numCollectFee = 10;
+
+      while (--numCollectFee) {
+        let deltaA = BN.from(0); // error when calculating additional rToken for Position Manager contract
+        let deltaB = BN.from(0); // error when calculating additional rToken for a position managed by Position Manager
+        while (deltaA.gte(deltaB)) {
+          // made some swaps to get fees
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(10000000));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(15000000));
+
+          // remove liquidity to update the latest rToken states
+          await removeLiquidity(tokenA.address, tokenB.address, users[0], nextTokenId, BN.from(1));
+
+          pos = await pool.getPositions(
+            positionManager.address,
+            -100 * tickDistanceArray[0],
+            100 * tickDistanceArray[0]
+          );
+
+          deltaA = pos.feeGrowthInsideLast.mul(pos.liquidity).mod(TWO_POW_96);
+          deltaB = pos.feeGrowthInsideLast.mul(userPos.pos.liquidity).mod(TWO_POW_96);
+        }
+        await burnRTokens(tokenA.address, tokenB.address, users[0], nextTokenId);
+      }
+
+      await removeLiquidity(tokenA.address, tokenB.address, users[1], tokenIds[1], BN.from(1));
+
+      let rTokenBalance = await pool.balanceOf(positionManager.address);
+
+      userPos = await positionManager.positions(tokenIds[0]);
+      otherPos = await positionManager.positions(tokenIds[1]);
+
+      expect(rTokenBalance).to.be.lt(otherPos.pos.rTokenOwed);
+
+      await burnRTokens(tokenA.address, tokenB.address, users[1], tokenIds[1]);
+
+      otherPos = await positionManager.positions(tokenIds[1]);
+      expect(otherPos.pos.rTokenOwed).to.eq(BN.from(0));
+      let rTokenBalanceAfter = await pool.balanceOf(positionManager.address);
+      expect(rTokenBalanceAfter).to.eq(BN.from(0));
     });
   });
 

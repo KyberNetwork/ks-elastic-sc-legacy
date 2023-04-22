@@ -102,7 +102,6 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     );
 
     // SLOAD variables into memory
-    uint160 sqrtP = poolData.sqrtP;
     int24 currentTick = poolData.currentTick;
     uint128 baseL = poolData.baseL;
     uint128 reinvestL = poolData.reinvestL;

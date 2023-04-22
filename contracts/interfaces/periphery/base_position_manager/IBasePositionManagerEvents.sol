@@ -47,4 +47,9 @@ interface IBasePositionManagerEvents {
     uint256 amount1,
     uint256 additionalRTokenOwed
   );
+
+  /// @notice Emitted when burn position's RToken
+  /// @param tokenId id of the token
+  /// @param rTokenBurn amount of position's RToken burnt
+  event BurnRToken(uint256 indexed tokenId, uint256 rTokenBurn);
 }
