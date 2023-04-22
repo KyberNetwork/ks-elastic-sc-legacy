@@ -1439,10 +1439,16 @@ describe('BasePositionManager', () => {
           await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
         }
 
+        let userDataB = await positionManager.positions(tokenId);
+
         // remove liquidity to update the latest rToken states
         await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, BN.from(0));
 
         let userData = await positionManager.positions(tokenId);
+
+        // protect user to receiving more rToken
+        expect(userData.pos.rTokenOwed).to.be.gt(userDataB.pos.rTokenOwed);
+
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
         let rTokenBefore = await getBalances(positionManager.address, [poolAddr]);
@@ -1469,6 +1475,65 @@ describe('BasePositionManager', () => {
       }
       if (showTxGasUsed) {
         logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
+      }
+    });
+
+    it('sync fee growth burn rToken and update states 2', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await initLiquidity(other, tokenA.address, tokenB.address);
+
+      let poolAddr = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
+
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+      let numRuns = 6;
+
+      for (let i = 0; i < numRuns; i++) {
+        let sender = users[i % 2];
+        let tokenId = tokenIds[i % 2];
+
+        // made some swaps to get fees
+        for (let j = 0; j < 5; j++) {
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000 * (j + 1)));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
+        }
+        // remove liquidity to sync fee growth
+        await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, BN.from(0));
+        await burnRTokens(tokenA.address, tokenB.address, sender, tokenId);
+      
+        // verify liquidity and position, should have burnt all rTokenOwed
+        let userData2 = await positionManager.positions(tokenId);
+        // made swap again
+        for (let j = 0; j < 5; j++) {
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(200000 * (j + 1)));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(350000 * (j + 1)));
+        }
+        // sync fee growth again
+        await removeLiquidity(tokenA.address, tokenB.address, sender, tokenId, BN.from(0));
+
+        let userData3 = await positionManager.positions(tokenId);
+        let userBal3 = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBal3 = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        let rTokenBal3 = await getBalances(positionManager.address, [poolAddr]);
+        expect(userData3.pos.rTokenOwed).to.be.gt(userData2.pos.rTokenOwed);
+
+        await burnRTokens(tokenA.address, tokenB.address, sender, tokenId);
+
+        // verify user has received tokens
+        let userBal4 = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBal4 = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        expect(poolBal3.tokenBalances[0].sub(poolBal4.tokenBalances[0])).to.be.eq(
+          userBal4.tokenBalances[0].sub(userBal3.tokenBalances[0])
+        );
+        expect(poolBal3.tokenBalances[1].sub(poolBal4.tokenBalances[1])).to.be.eq(
+          userBal4.tokenBalances[1].sub(userBal3.tokenBalances[1])
+        );
+
+        // verify liquidity and position, should have burnt all rTokenOwed
+        let userData4 = await positionManager.positions(tokenId);
+        expect(userData4.pos.rTokenOwed).to.be.eq(0);
+        let rTokenBal4 = await getBalances(positionManager.address, [poolAddr]);
+        expect(userData3.pos.rTokenOwed).to.be.eq(rTokenBal3.tokenBalances[0].sub(rTokenBal4.tokenBalances[0]));
       }
     });
 
