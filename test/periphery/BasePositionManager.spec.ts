@@ -1522,9 +1522,16 @@ describe('BasePositionManager', () => {
           await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
         }
 
+        let userDataB = await positionManager.positions(tokenId);
+
         await syncFeeGrowth(tokenId);
 
         let userData = await positionManager.positions(tokenId);
+
+        expect(userData.pos.rTokenOwed).to.be.gt(userDataB.pos.rTokenOwed);
+        expect(userData.pos.feeGrowthInsideLast).to.be.gt(userDataB.pos.feeGrowthInsideLast);
+        expect(userData.pos.liquidity).to.be.eq(userDataB.pos.liquidity);
+
         let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
         let poolBalBefore = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
         let rTokenBefore = await getBalances(positionManager.address, [poolAddr]);
