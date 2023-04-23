@@ -26,3 +26,4 @@ export const MAX_SQRT_RATIO = BN.from('14614467034852101032872730522039888223787
 export const MIN_TICK = BN.from(-887272);
 export const MAX_TICK = BN.from(887272);
 export const MAX_TICK_DISTANCE = 487;
+export const POOL_START_TIME = 1680000000;

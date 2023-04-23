@@ -62,6 +62,9 @@ interface IFactory {
   /// This is used for pre-computation of pool addresses
   function poolInitHash() external view returns (bytes32);
 
+  /// @notice Returns the pool oracle contract for twap
+  function poolOracle() external view returns (address);
+
   /// @notice Fetches the recipient of government fees
   /// and current government fee charged in fee units
   function feeConfiguration() external view returns (address _feeTo, uint24 _governmentFeeUnits);
@@ -98,6 +101,7 @@ interface IFactory {
   /// @notice Fetch parameters to be used for pool creation
   /// @dev Called by the pool constructor to fetch the parameters of the pool
   /// @return factory The factory address
+  /// @return poolOracle The pool oracle for twap
   /// @return token0 First pool token by address sort order
   /// @return token1 Second pool token by address sort order
   /// @return swapFeeUnits Fee to be collected upon every swap in the pool, in fee units
@@ -107,6 +111,7 @@ interface IFactory {
     view
     returns (
       address factory,
+      address poolOracle,
       address token0,
       address token1,
       uint24 swapFeeUnits,

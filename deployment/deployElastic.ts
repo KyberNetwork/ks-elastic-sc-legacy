@@ -19,6 +19,8 @@ import {
   BasePositionManager,
   TicksFeesReader__factory,
   TicksFeesReader,
+  PoolOracle__factory,
+  PoolOracle
 } from '../typechain';
 
 let gasPrice;
@@ -39,6 +41,7 @@ let enableWhitelist: boolean;
 let deployQuoter: string;
 let outputFilename: string;
 
+let poolOralce: PoolOracle;
 let factory: Factory;
 let router: Router;
 let quoter: QuoterV2;
@@ -63,9 +66,16 @@ task('deployElastic', 'deploy router, factory and position manager')
     gasPrice = BN.from(10 ** 9 * taskArgs.gasprice);
     console.log(`Deploy gas price: ${gasPrice.toString()} (${taskArgs.gasprice} gwei)`);
 
+    console.log(`deploying pool oracle...`);
+    const PoolOracle = (await hre.ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+    poolOralce = await PoolOracle.deploy({gasPrice: gasPrice});
+    await poolOralce.deployed();
+    console.log(`pool oracle address: ${poolOralce.address}`);
+    outputData['poolOracle'] = poolOralce.address;
+
     console.log(`deploying factory...`);
     const Factory = (await hre.ethers.getContractFactory('Factory')) as Factory__factory;
-    factory = await Factory.deploy(vestingPeriod, {gasPrice: gasPrice});
+    factory = await Factory.deploy(vestingPeriod, poolOralce.address, {gasPrice: gasPrice});
     await factory.deployed();
     console.log(`factory address: ${factory.address}`);
     outputData['factory'] = factory.address;
