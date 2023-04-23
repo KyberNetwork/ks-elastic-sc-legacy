@@ -114,7 +114,9 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.nearestCurrentTick = TickMath.MIN_TICK;
 
     initializedTicks.init(TickMath.MIN_TICK, TickMath.MAX_TICK);
+
     poolOracle.initializeOracle(_blockTimestamp());
+
     poolData.locked = false; // unlock the pool
   }
 
