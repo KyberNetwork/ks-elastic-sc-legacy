@@ -2,9 +2,21 @@
 pragma solidity >=0.8.0;
 
 interface IPoolOracle {
+  /// @notice Emitted by the Pool Oracle for increases to the number of observations that can be stored
+  /// @dev observationCardinalityNext is not the observation cardinality until an observation is written at the index
+  /// just before a mint/swap/burn.
+  /// @param pool The pool address to update
+  /// @param observationCardinalityNextOld The previous value of the next observation cardinality
+  /// @param observationCardinalityNextNew The updated value of the next observation cardinality
+  event IncreaseObservationCardinalityNext(
+    address pool,
+    uint16 observationCardinalityNextOld,
+    uint16 observationCardinalityNextNew
+  );
+
+  /// @notice Initalize observation data for the caller.
   function initializeOracle(uint32 time)
-    external
-    returns (uint16 cardinality, uint16 cardinalityNext);
+    external;
 
   /// @notice Write a new oracle entry into the array
   ///   and update the observation index and cardinality
@@ -42,6 +54,16 @@ interface IPoolOracle {
     external
     returns (uint16 cardinalityNextOld, uint16 cardinalityNextNew);
 
+  /// @notice Increase the maximum number of price and liquidity observations that this pool will store
+  /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
+  /// the input observationCardinalityNext.
+  /// @param pool The pool address to be updated
+  /// @param observationCardinalityNext The desired minimum number of observations for the pool to store
+  function increaseObservationCardinalityNext(
+    address pool,
+    uint16 observationCardinalityNext
+  )
+    external;
 
   /// @notice Returns the accumulator values as of each time seconds ago from the given time in the array of `secondsAgos`
   /// @dev Reverts if `secondsAgos` > oldest observation

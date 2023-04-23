@@ -54,14 +54,7 @@ contract PoolOracle is
   /// @inheritdoc IPoolOracle
   function initializeOracle(uint32 time)
     external override
-    returns (uint16 cardinality, uint16 cardinalityNext)
   {
-    if (poolObservation[msg.sender].initialized) {
-      return (
-        poolObservation[msg.sender].cardinality,
-        poolObservation[msg.sender].cardinalityNext
-      );
-    }
     (cardinality, cardinalityNext) = poolOrale[msg.sender].initialize(time);
     poolObservation[msg.sender] = ObservationData({
       initialized: true,
@@ -100,6 +93,28 @@ contract PoolOracle is
     cardinalityNextOld = poolObservation[msg.sender].cardinalityNext;
     cardinalityNextNew = poolOrale[msg.sender].grow(cardinalityNextOld, next);
     poolObservation[msg.sender].cardinalityNext = cardinalityNextNew;
+  }
+
+  /// @inheritdoc IPoolOracle
+  function increaseObservationCardinalityNext(
+    address pool,
+    uint16 observationCardinalityNext
+  )
+    external
+    override
+  {
+    uint16 observationCardinalityNextOld = poolObservation[pool].cardinalityNext;
+    uint16 observationCardinalityNextNew = poolOrale[pool].grow(
+      observationCardinalityNextOld,
+      observationCardinalityNext
+    );
+    poolObservation[pool].cardinalityNext = observationCardinalityNextNew;
+    if (observationCardinalityNextOld != observationCardinalityNextNew)
+      emit IncreaseObservationCardinalityNext(
+        pool,
+        observationCardinalityNextOld,
+        observationCardinalityNextNew
+      );
   }
 
   /// @inheritdoc IPoolOracle
