@@ -4,11 +4,16 @@ pragma solidity >=0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {IFactory} from '../IFactory.sol';
+import {IPoolOracle} from '../oracle/IPoolOracle.sol';
 
 interface IPoolStorage {
   /// @notice The contract that deployed the pool, which must adhere to the IFactory interface
   /// @return The contract address
   function factory() external view returns (IFactory);
+
+  /// @notice The oracle contract that stores necessary data for price oracle
+  /// @return The contract address
+  function poolOracle() external view returns (IPoolOracle);
 
   /// @notice The first of the two tokens of the pool, sorted by address
   /// @return The token contract address
@@ -40,7 +45,7 @@ interface IPoolStorage {
   /// @return liquidityGross total liquidity amount from positions that uses this tick as a lower or upper tick
   /// liquidityNet how much liquidity changes when the pool tick crosses above the tick
   /// feeGrowthOutside the fee growth on the other side of the tick relative to the current tick
-  /// secondsPerLiquidityOutside the seconds spent on the other side of the tick relative to the current tick
+  /// secondsPerLiquidityOutside the seconds per unit of liquidity  spent on the other side of the tick relative to the current tick
   function ticks(int24 tick)
     external
     view

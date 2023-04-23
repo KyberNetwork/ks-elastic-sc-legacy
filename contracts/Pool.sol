@@ -28,15 +28,6 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
   using SafeCast for int256;
   using SafeERC20 for IERC20;
 
-  /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
-  /// Also prevents entrance to pool actions prior to initalization
-  modifier lock() {
-    require(poolData.locked == false, 'locked');
-    poolData.locked = true;
-    _;
-    poolData.locked = false;
-  }
-
   constructor() {}
 
   /// @dev Get pool's balance of token0
@@ -151,6 +142,8 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
         feeGrowthInsideLast
       );
     }
+    // write an oracle entry
+    poolOracle.write(_blockTimestamp(), currentTick, baseL);
     // current tick is inside the passed range
     qty0 = QtyDeltaMath.calcRequiredQty0(
       sqrtP,
@@ -325,6 +318,11 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     uint256 lpFee; // qty of reinvestment token for liquidity provider
   }
 
+  struct PoolDataCache {
+    int24 currentTick;
+    uint128 baseL;
+  }
+
   // @inheritdoc IPoolActions
   function swap(
     address recipient,
@@ -348,6 +346,10 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       swapData.currentTick,
       swapData.nextTick
     ) = _getInitialSwapData(willUpTick);
+
+    PoolDataCache memory poolDataStart;
+    (poolDataStart.currentTick, poolDataStart.baseL) = (swapData.currentTick, swapData.baseL);
+
     // verify limitSqrtP
     if (willUpTick) {
       require(
@@ -460,6 +462,15 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       poolData.feeGrowthGlobal = cache.feeGrowthGlobal;
     }
 
+    // write an oracle entry if tick changed
+    if (swapData.currentTick != poolDataStart.currentTick) {
+      poolOracle.write(
+        _blockTimestamp(),
+        poolDataStart.currentTick,
+        poolDataStart.baseL
+      );
+    }
+
     _updatePoolData(
       swapData.baseL,
       swapData.reinvestL,
@@ -544,6 +555,21 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     if (paid1 > 0) token1.safeTransfer(feeTo, paid1);
 
     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
+  }
+
+  /// @inheritdoc IPoolActions
+  function increaseObservationCardinalityNext(uint16 observationCardinalityNext)
+    external
+    override
+    lock
+  {
+    (uint16 observationCardinalityNextOld, uint16 observationCardinalityNextNew) =
+      poolOracle.grow(observationCardinalityNext);
+    if (observationCardinalityNextOld != observationCardinalityNextNew)
+      emit IncreaseObservationCardinalityNext(
+        observationCardinalityNextOld,
+        observationCardinalityNextNew
+      );
   }
 
   /// @dev sync the value of secondsPerLiquidity data to current block.timestamp

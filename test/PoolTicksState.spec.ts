@@ -10,10 +10,13 @@ import {
   MockPoolTicksStateFactory,
   MockPoolTicksStateFactory__factory,
   MockPoolTicksState__factory,
+  PoolOracle,
+  PoolOracle__factory
 } from '../typechain';
 import {BigNumberish} from '@ethersproject/bignumber';
 
 const tickSpacing = 50;
+let poolOracle: PoolOracle
 
 async function assertTicksData(
   mockPoolTicksState: MockPoolTicksState,
@@ -56,13 +59,15 @@ describe('PoolTicksState', () => {
   let [user1, user2] = waffle.provider.getWallets();
 
   beforeEach('setup', async () => {
+    const PoolOracleContract = (await ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+    poolOracle = await PoolOracleContract.deploy();
     const MockPoolTicksStateFactoryContract = (await ethers.getContractFactory(
       'MockPoolTicksStateFactory'
     )) as MockPoolTicksStateFactory__factory;
     factory = await MockPoolTicksStateFactoryContract.deploy();
 
     // deploy mock poolTicksState
-    await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, tickSpacing);
+    await factory.create(poolOracle.address, ZERO_ADDRESS, ZERO_ADDRESS, 5, tickSpacing);
     const MockPoolTicksStateContract = (await ethers.getContractFactory(
       'MockPoolTicksState'
     )) as MockPoolTicksState__factory;
@@ -310,7 +315,7 @@ describe('PoolTicksState', () => {
 
   it('special case when add liquidity to MIN_TICK - MAX_TICK', async () => {
     // deploy mock poolTicksState
-    await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
+    await factory.create(poolOracle.address, ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
     const MockPoolTicksStateContract = (await ethers.getContractFactory(
       'MockPoolTicksState'
     )) as MockPoolTicksState__factory;
@@ -356,7 +361,7 @@ describe('PoolTicksState', () => {
 
   describe('#updateTickList', async () => {
     beforeEach('setup data', async () => {
-      await factory.create(ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
+      await factory.create(poolOracle.address, ZERO_ADDRESS, ZERO_ADDRESS, 5, 1);
       const MockPoolTicksStateContract = (await ethers.getContractFactory(
         'MockPoolTicksState'
       )) as MockPoolTicksState__factory;

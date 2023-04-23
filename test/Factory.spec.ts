@@ -5,7 +5,11 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {Factory, MockToken, MockToken__factory, Factory__factory} from '../typechain';
+import {
+  Factory, Factory__factory,
+  MockToken, MockToken__factory,
+  PoolOracle, PoolOracle__factory,
+} from '../typechain';
 import {getCreate2Address} from './helpers/utils';
 
 let Token: MockToken__factory;
@@ -24,8 +28,10 @@ describe('Factory', () => {
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
 
+    const PoolOracleContract = (await ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+    const poolOracle = (await PoolOracleContract.connect(admin).deploy());
     const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
-    return await FactoryContract.connect(admin).deploy(vestingPeriod);
+    return await FactoryContract.connect(admin).deploy(vestingPeriod, poolOracle.address);
   }
 
   beforeEach('load fixture', async () => {

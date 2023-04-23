@@ -4,6 +4,8 @@ import {
   Factory,
   Pool,
   MockFactory,
+  PoolOracle,
+  PoolOracle__factory,
   MockToken,
   Pool__factory,
   MockCallbacks2,
@@ -15,13 +17,17 @@ import {getNearestSpacedTickAtPrice} from './utils';
 import {PRECISION, MIN_TICK, MAX_INT, MAX_TICK, ZERO, FEE_UNITS} from './helper';
 
 export async function deployMockFactory(admin: any, vestingPeriod: BigNumberish): Promise<MockFactory> {
+  const PoolOracleContract = (await ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+  const poolOracle = await PoolOracleContract.connect(admin).deploy();
   const FactoryContract = (await ethers.getContractFactory('MockFactory')) as MockFactory__factory;
-  return await FactoryContract.connect(admin).deploy(vestingPeriod);
+  return await FactoryContract.connect(admin).deploy(vestingPeriod, poolOracle.address);
 }
 
 export async function deployFactory(admin: any, vestingPeriod: BigNumberish): Promise<Factory> {
+  const PoolOracleContract = (await ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+  const poolOracle = await PoolOracleContract.connect(admin).deploy();
   const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
-  const factory = await FactoryContract.connect(admin).deploy(vestingPeriod);
+  const factory = await FactoryContract.connect(admin).deploy(vestingPeriod, poolOracle.address);
   await factory.updateFeeConfiguration(admin.address, FEE_UNITS.div(10)); // 10% fee
   return factory;
 }

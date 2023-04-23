@@ -6,6 +6,7 @@ import {PoolTicksState} from '../PoolTicksState.sol';
 contract MockPoolTicksStateFactory {
   struct Parameters {
     address factory;
+    address poolOracle;
     address token0;
     address token1;
     uint24 swapFeeUnits;
@@ -16,12 +17,14 @@ contract MockPoolTicksStateFactory {
   MockPoolTicksState public state;
 
   function create(
+    address poolOracle,
     address token0,
     address token1,
     uint24 swapFeeUnits,
     int24 tickDistance
   ) external {
     parameters.factory = address(this);
+    parameters.poolOracle = poolOracle;
     parameters.token0 = token0;
     parameters.token1 = token1;
     parameters.swapFeeUnits = swapFeeUnits;

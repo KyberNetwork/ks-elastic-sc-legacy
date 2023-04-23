@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Linkedlist} from './libraries/Linkedlist.sol';
 import {TickMath} from './libraries/TickMath.sol';
 import {MathConstants as C} from './libraries/MathConstants.sol';
+import {IPoolOracle} from './interfaces/oracle/IPoolOracle.sol';
 
 import {IFactory} from './interfaces/IFactory.sol';
 import {IPoolStorage} from './interfaces/pool/IPoolStorage.sol';
@@ -39,7 +40,7 @@ abstract contract PoolStorage is IPoolStorage {
     // fee growth per unit of liquidity on the other side of this tick (relative to current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint256 feeGrowthOutside;
-    // seconds spent on the other side of this tick (relative to current tick)
+    // the seconds per unit of liquidity on the _other_ side of this tick (relative to the current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint128 secondsPerLiquidityOutside;
   }
@@ -61,6 +62,7 @@ abstract contract PoolStorage is IPoolStorage {
   IFactory public immutable override factory;
   IERC20 public immutable override token0;
   IERC20 public immutable override token1;
+  IPoolOracle public immutable override poolOracle;
   uint128 public immutable override maxTickLiquidity;
   uint24 public immutable override swapFeeUnits;
   int24 public immutable override tickDistance;
@@ -72,16 +74,27 @@ abstract contract PoolStorage is IPoolStorage {
 
   PoolData internal poolData;
 
+  /// @dev Mutually exclusive reentrancy protection into the pool from/to a method.
+  /// Also prevents entrance to pool actions prior to initalization
+  modifier lock() {
+    require(poolData.locked == false, 'locked');
+    poolData.locked = true;
+    _;
+    poolData.locked = false;
+  }
+
   constructor() {
     // fetch data from factory constructor
     (
       address _factory,
+      address _poolOracle,
       address _token0,
       address _token1,
       uint24 _swapFeeUnits,
       int24 _tickDistance
     ) = IFactory(msg.sender).parameters();
     factory = IFactory(_factory);
+    poolOracle = IPoolOracle(_poolOracle);
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
     swapFeeUnits = _swapFeeUnits;
@@ -101,6 +114,7 @@ abstract contract PoolStorage is IPoolStorage {
     poolData.nearestCurrentTick = TickMath.MIN_TICK;
 
     initializedTicks.init(TickMath.MIN_TICK, TickMath.MAX_TICK);
+    poolOracle.initializeOracle(_blockTimestamp());
     poolData.locked = false; // unlock the pool
   }
 
