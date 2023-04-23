@@ -11,7 +11,6 @@ contract MockOracleTest {
 
   uint32 public time;
   int24 public tick;
-  uint128 public liquidity;
   uint16 public index;
   uint16 public cardinality;
   uint16 public cardinalityNext;
@@ -19,14 +18,12 @@ contract MockOracleTest {
   struct InitializeParams {
     uint32 time;
     int24 tick;
-    uint128 liquidity;
   }
 
   function initialize(InitializeParams calldata params) external {
     require(cardinality == 0, 'already initialized');
     time = params.time;
     tick = params.tick;
-    liquidity = params.liquidity;
     (cardinality, cardinalityNext) = observations.initialize(params.time);
   }
 
@@ -37,21 +34,18 @@ contract MockOracleTest {
   struct UpdateParams {
     uint32 advanceTimeBy;
     int24 tick;
-    uint128 liquidity;
   }
 
-  // write an observation, then change tick and liquidity
+  // write an observation, then change tick
   function update(UpdateParams calldata params) external {
     advanceTime(params.advanceTimeBy);
-    (index, cardinality) = observations.write(index, time, tick, liquidity, cardinality, cardinalityNext);
+    (index, cardinality) = observations.write(index, time, tick, cardinality, cardinalityNext);
     tick = params.tick;
-    liquidity = params.liquidity;
   }
 
   function batchUpdate(UpdateParams[] calldata params) external {
     // sload everything
     int24 _tick = tick;
-    uint128 _liquidity = liquidity;
     uint16 _index = index;
     uint16 _cardinality = cardinality;
     uint16 _cardinalityNext = cardinalityNext;
@@ -63,17 +57,14 @@ contract MockOracleTest {
         _index,
         _time,
         _tick,
-        _liquidity,
         _cardinality,
         _cardinalityNext
       );
       _tick = params[i].tick;
-      _liquidity = params[i].liquidity;
     }
 
     // sstore everything
     tick = _tick;
-    liquidity = _liquidity;
     index = _index;
     cardinality = _cardinality;
     time = _time;
@@ -86,15 +77,15 @@ contract MockOracleTest {
   function observe(uint32[] calldata secondsAgos)
     external
     view
-    returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+    returns (int56[] memory tickCumulatives)
   {
-    return observations.observe(time, secondsAgos, tick, index, liquidity, cardinality);
+    return observations.observe(time, secondsAgos, tick, index, cardinality);
   }
 
   function getGasCostOfObserve(uint32[] calldata secondsAgos) external view returns (uint256) {
-    (uint32 _time, int24 _tick, uint128 _liquidity, uint16 _index) = (time, tick, liquidity, index);
+    (uint32 _time, int24 _tick, uint16 _index) = (time, tick, index);
     uint256 gasBefore = gasleft();
-    observations.observe(_time, secondsAgos, _tick, _index, _liquidity, cardinality);
+    observations.observe(_time, secondsAgos, _tick, _index, cardinality);
     return gasBefore - gasleft();
   }
 }

@@ -54,6 +54,7 @@ contract PoolOracle is
   /// @inheritdoc IPoolOracle
   function initializeOracle(uint32 time)
     external override
+    returns (uint16 cardinality, uint16 cardinalityNext)
   {
     (cardinality, cardinalityNext) = poolOrale[msg.sender].initialize(time);
     poolObservation[msg.sender] = ObservationData({
@@ -67,8 +68,7 @@ contract PoolOracle is
   /// @inheritdoc IPoolOracle
   function write(
     uint32 blockTimestamp,
-    int24 tick,
-    uint128 liquidity
+    int24 tick
   )
     external override
     returns (uint16 indexUpdated, uint16 cardinalityUpdated)
@@ -77,7 +77,6 @@ contract PoolOracle is
       poolObservation[msg.sender].index,
       blockTimestamp,
       tick,
-      liquidity,
       poolObservation[msg.sender].cardinality,
       poolObservation[msg.sender].cardinalityNext
     );
@@ -122,7 +121,6 @@ contract PoolOracle is
     uint16 index,
     uint32 blockTimestamp,
     int24 tick,
-    uint128 liquidity,
     uint16 cardinality,
     uint16 cardinalityNext
   )
@@ -134,7 +132,6 @@ contract PoolOracle is
       index,
       blockTimestamp,
       tick,
-      liquidity,
       cardinality,
       cardinalityNext
     );
@@ -149,19 +146,14 @@ contract PoolOracle is
     uint32[] memory secondsAgos
   )
     external view override
-    returns (
-      int56[] memory tickCumulatives,
-      uint160[] memory secondsPerLiquidityCumulative
-    )
+    returns (int56[] memory tickCumulatives)
   {
     (, int24 tick, ,) = IPoolStorage(pool).getPoolState();
-    (uint128 liquidity, ,) = IPoolStorage(pool).getLiquidityState();
     return poolOrale[pool].observe(
       time,
       secondsAgos,
       tick,
       poolObservation[pool].index,
-      liquidity,
       poolObservation[pool].cardinality
     );
   }
@@ -172,19 +164,14 @@ contract PoolOracle is
     uint32[] memory secondsAgos
   )
     external view override
-    returns (
-      int56[] memory tickCumulatives,
-      uint160[] memory secondsPerLiquidityCumulative
-    )
+    returns (int56[] memory tickCumulatives)
   {
     (, int24 tick, ,) = IPoolStorage(pool).getPoolState();
-    (uint128 liquidity, ,) = IPoolStorage(pool).getLiquidityState();
     return poolOrale[pool].observe(
       uint32(block.timestamp),
       secondsAgos,
       tick,
       poolObservation[pool].index,
-      liquidity,
       poolObservation[pool].cardinality
     );
   }
@@ -193,21 +180,16 @@ contract PoolOracle is
   function observe(
     uint32 time,
     uint32[] memory secondsAgos,
-    int24 tick,
-    uint128 liquidity
+    int24 tick
   )
     external view override
-    returns (
-      int56[] memory tickCumulatives,
-      uint160[] memory secondsPerLiquidityCumulative
-    )
+    returns (int56[] memory tickCumulatives)
   {
     return poolOrale[msg.sender].observe(
       time,
       secondsAgos,
       tick,
       poolObservation[msg.sender].index,
-      liquidity,
       poolObservation[msg.sender].cardinality
     );
   }
@@ -216,18 +198,16 @@ contract PoolOracle is
   function observeSingle(
     uint32 time,
     uint32 secondsAgo,
-    int24 tick,
-    uint128 liquidity
+    int24 tick
   )
     external view override
-    returns (int56 tickCumulative, uint160 secondsPerLiquidityCumulative)
+    returns (int56 tickCumulative)
   {
     return poolOrale[msg.sender].observeSingle(
       time,
       secondsAgo,
       tick,
       poolObservation[msg.sender].index,
-      liquidity,
       poolObservation[msg.sender].cardinality
     );
   }
@@ -251,15 +231,13 @@ contract PoolOracle is
     returns (
       uint32 blockTimestamp,
       int56 tickCumulative,
-      uint160 secondsPerLiquidityCumulative,
       bool initialized
     )
   {
     Oracle.Observation memory obsData = poolOrale[pool][index];
-    (blockTimestamp, tickCumulative, secondsPerLiquidityCumulative, initialized) = (
+    (blockTimestamp, tickCumulative, initialized) = (
       obsData.blockTimestamp,
       obsData.tickCumulative,
-      obsData.secondsPerLiquidityCumulativeX128,
       obsData.initialized
     );
   }
