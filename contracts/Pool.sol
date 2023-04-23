@@ -557,21 +557,6 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     emit Flash(msg.sender, recipient, qty0, qty1, paid0, paid1);
   }
 
-  /// @inheritdoc IPoolActions
-  function increaseObservationCardinalityNext(uint16 observationCardinalityNext)
-    external
-    override
-    lock
-  {
-    (uint16 observationCardinalityNextOld, uint16 observationCardinalityNextNew) =
-      poolOracle.grow(observationCardinalityNext);
-    if (observationCardinalityNextOld != observationCardinalityNextNew)
-      emit IncreaseObservationCardinalityNext(
-        observationCardinalityNextOld,
-        observationCardinalityNextNew
-      );
-  }
-
   /// @dev sync the value of secondsPerLiquidity data to current block.timestamp
   /// @return new value of _secondsPerLiquidityGlobal
   function _syncSecondsPerLiquidity(uint128 _secondsPerLiquidityGlobal, uint128 baseL)
