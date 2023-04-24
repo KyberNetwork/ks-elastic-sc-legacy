@@ -573,9 +573,8 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     return _secondsPerLiquidityGlobal;
   }
 
-  function tweakPosZeroLiq(int24 tickLower, int24 tickUpper) external returns(uint256 feeGrowthInsideLast){
+  function tweakPosZeroLiq(int24 tickLower, int24 tickUpper) external override lock returns (uint256 feeGrowthInsideLast) {
     require(factory.isWhitelistedNFTManager(msg.sender), 'forbidden');
-
     require(tickLower < tickUpper, 'invalid tick range');
     require(TickMath.MIN_TICK <= tickLower, 'invalid lower tick');
     require(tickUpper <= TickMath.MAX_TICK, 'invalid upper tick');
@@ -583,6 +582,8 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       tickLower % tickDistance == 0 && tickUpper % tickDistance == 0,
       'tick not in distance'
     );
+    bytes32 key = _positionKey(msg.sender, tickLower, tickUpper);
+    require(positions[key].liquidity > 0, 'invalid position');
 
     // SLOAD variables into memory
     uint128 baseL = poolData.baseL;

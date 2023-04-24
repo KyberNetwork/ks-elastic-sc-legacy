@@ -162,9 +162,8 @@ contract BasePositionManager is
     );
 
     uint128 tmpLiquidity = pos.liquidity;
-    uint256 tmpFeeGrowthInsideLast = pos.feeGrowthInsideLast;
 
-    uint256 additionalRTokenOwed = _updateRTokenOwedAndFeeGrowth(params.tokenId, pos.feeGrowthInsideLast, feeGrowthInsideLast, tmpLiquidity);
+    additionalRTokenOwed = _updateRTokenOwedAndFeeGrowth(params.tokenId, pos.feeGrowthInsideLast, feeGrowthInsideLast, tmpLiquidity);
 
     pos.liquidity = tmpLiquidity + liquidity;
 
@@ -205,7 +204,7 @@ contract BasePositionManager is
     emit RemoveLiquidity(params.tokenId, params.liquidity, amount0, amount1, additionalRTokenOwed);
   }
 
-  function syncFeeGrowth(uint256 tokenId) external returns(uint256 additionalRTokenOwed){
+  function syncFeeGrowth(uint256 tokenId) external override returns(uint256 additionalRTokenOwed){
     Position storage pos = _positions[tokenId];
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];

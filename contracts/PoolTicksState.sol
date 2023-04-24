@@ -188,24 +188,22 @@ contract PoolTicksState is PoolStorage {
     bool isLower
   ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
+    require(liquidityGrossBefore != 0 || liquidityDelta != 0, 'invalid liq');
+
+    if (liquidityDelta == 0) return ticks[tick].feeGrowthOutside;
+
     uint128 liquidityGrossAfter = LiqDeltaMath.applyLiquidityDelta(
       liquidityGrossBefore,
       liquidityDelta,
       isAdd
     );
     require(liquidityGrossAfter <= maxTickLiquidity, '> max liquidity');
-
-    if (liquidityDelta != 0) {
-      int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
-      // if lower tick, liquidityDelta should be added | removed when crossed up | down
-      // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
-      int128 liquidityNetAfter = isLower
-        ? ticks[tick].liquidityNet + signedLiquidityDelta
-        : ticks[tick].liquidityNet - signedLiquidityDelta;
-
-      ticks[tick].liquidityGross = liquidityGrossAfter;
-      ticks[tick].liquidityNet = liquidityNetAfter;
-    }
+    int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
+    // if lower tick, liquidityDelta should be added | removed when crossed up | down
+    // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
+    int128 liquidityNetAfter = isLower
+      ? ticks[tick].liquidityNet + signedLiquidityDelta
+      : ticks[tick].liquidityNet - signedLiquidityDelta;
 
     if (liquidityGrossBefore == 0) {
       // by convention, all growth before a tick was initialized is assumed to happen below it
@@ -215,6 +213,8 @@ contract PoolTicksState is PoolStorage {
       }
     }
 
+    ticks[tick].liquidityGross = liquidityGrossAfter;
+    ticks[tick].liquidityNet = liquidityNetAfter;
     feeGrowthOutside = ticks[tick].feeGrowthOutside;
 
     if (liquidityGrossBefore > 0 && liquidityGrossAfter == 0) {
