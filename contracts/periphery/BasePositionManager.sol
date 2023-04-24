@@ -164,15 +164,7 @@ contract BasePositionManager is
     uint128 tmpLiquidity = pos.liquidity;
     uint256 tmpFeeGrowthInsideLast = pos.feeGrowthInsideLast;
 
-    if (feeGrowthInsideLast != tmpFeeGrowthInsideLast) {
-      uint256 feeGrowthInsideDiff;
-      unchecked {
-        feeGrowthInsideDiff = feeGrowthInsideLast - tmpFeeGrowthInsideLast;
-      }
-      additionalRTokenOwed = FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96);
-      pos.rTokenOwed += additionalRTokenOwed;
-      pos.feeGrowthInsideLast = feeGrowthInsideLast;
-    }
+    uint256 additionalRTokenOwed = _updateRTokenOwedAndFeeGrowth(params.tokenId, pos.feeGrowthInsideLast, feeGrowthInsideLast, tmpLiquidity);
 
     pos.liquidity = tmpLiquidity + liquidity;
 
@@ -193,7 +185,6 @@ contract BasePositionManager is
   {
     Position storage pos = _positions[params.tokenId];
     uint128 tmpLiquidity = pos.liquidity;
-    uint256 tmpFeeGrowthInsideLast = pos.feeGrowthInsideLast;
     require(tmpLiquidity >= params.liquidity, 'Insufficient liquidity');
 
     PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
@@ -207,19 +198,26 @@ contract BasePositionManager is
     );
     require(amount0 >= params.amount0Min && amount1 >= params.amount1Min, 'Low return amounts');
 
-    if (feeGrowthInsideLast != tmpFeeGrowthInsideLast) {
-      uint256 feeGrowthInsideDiff;
-      unchecked {
-        feeGrowthInsideDiff = feeGrowthInsideLast - tmpFeeGrowthInsideLast;
-      }
-      additionalRTokenOwed = FullMath.mulDivFloor(tmpLiquidity, feeGrowthInsideDiff, C.TWO_POW_96);
-      pos.rTokenOwed += additionalRTokenOwed;
-      pos.feeGrowthInsideLast = feeGrowthInsideLast;
-    }
+    additionalRTokenOwed = _updateRTokenOwedAndFeeGrowth(params.tokenId, pos.feeGrowthInsideLast, feeGrowthInsideLast, tmpLiquidity);
 
     pos.liquidity = tmpLiquidity - params.liquidity;
 
     emit RemoveLiquidity(params.tokenId, params.liquidity, amount0, amount1, additionalRTokenOwed);
+  }
+
+  function syncFeeGrowth(uint256 tokenId) external returns(uint256 additionalRTokenOwed){
+    Position storage pos = _positions[tokenId];
+
+    PoolInfo memory poolInfo = _poolInfoById[pos.poolId];
+    IPool pool = _getPool(poolInfo.token0, poolInfo.token1, poolInfo.fee);
+
+    uint256 feeGrowthInsideLast = pool.tweakPosZeroLiq(
+      pos.tickLower,
+      pos.tickUpper
+    );
+
+    additionalRTokenOwed = _updateRTokenOwedAndFeeGrowth(tokenId, pos.feeGrowthInsideLast, feeGrowthInsideLast, pos.liquidity);
+    emit SyncFeeGrowth(tokenId, additionalRTokenOwed);
   }
 
   function burnRTokens(BurnRTokenParams calldata params)
@@ -305,6 +303,21 @@ contract BasePositionManager is
       interfaceId == type(ERC721Permit).interfaceId ||
       interfaceId == type(IBasePositionManager).interfaceId ||
       super.supportsInterface(interfaceId);
+  }
+
+  function _updateRTokenOwedAndFeeGrowth(uint256 tokenId, uint256 oldFee, uint256 newFee, uint256 liq) 
+    internal 
+    returns (uint256 additionalRTokenOwed) 
+  {
+    if (newFee > oldFee) {
+      uint256 feeGrowthInsideDiff;
+      unchecked {
+        feeGrowthInsideDiff = newFee - oldFee;
+      }
+      additionalRTokenOwed = FullMath.mulDivFloor(liq, feeGrowthInsideDiff, C.TWO_POW_96);
+      _positions[tokenId].rTokenOwed += additionalRTokenOwed;
+      _positions[tokenId].feeGrowthInsideLast = newFee;
+    }
   }
 
   function _storePoolInfo(

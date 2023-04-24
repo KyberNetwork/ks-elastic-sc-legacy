@@ -160,11 +160,13 @@ contract PoolTicksState is PoolStorage {
     uint128 prevLiquidity = positions[key].liquidity;
     feesClaimable = FullMath.mulDivFloor(feeGrowth, prevLiquidity, MathConstants.TWO_POW_96);
     // update the position
-    positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
-      prevLiquidity,
-      _data.liquidityDelta,
-      _data.isAddLiquidity
-    );
+    if(_data.liquidityDelta != 0) {
+      positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
+        prevLiquidity,
+        _data.liquidityDelta,
+        _data.isAddLiquidity
+      );
+    }
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }
 

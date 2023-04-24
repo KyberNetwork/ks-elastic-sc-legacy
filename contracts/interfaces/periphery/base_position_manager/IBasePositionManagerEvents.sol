@@ -47,4 +47,9 @@ interface IBasePositionManagerEvents {
     uint256 amount1,
     uint256 additionalRTokenOwed
   );
+
+  /// @notice Emitted when sync fee growth
+  /// @param tokenId id of the token
+  /// @param additionalRTokenOwed additional rToken earned
+  event SyncFeeGrowth(uint256 indexed tokenId, uint256 additionalRTokenOwed);
 }

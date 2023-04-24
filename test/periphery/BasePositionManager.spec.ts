@@ -782,6 +782,13 @@ describe('BasePositionManager', () => {
     return tx;
   };
 
+  const syncFeeGrowth = async function (
+    tokenId: BigNumber
+  ): Promise<ContractTransaction> {
+    let tx = await positionManager.syncFeeGrowth(tokenId);
+    return tx;
+  };
+
   describe(`#add liquidity`, async () => {
     before('create and unlock pools', async () => {
       await revertToSnapshot(initialSnapshotId);
@@ -1417,6 +1424,79 @@ describe('BasePositionManager', () => {
         logMessage(`Average gas use for add liquidity - has new fees: ${gasUsed.div(numRuns).toString()}`);
       }
     });
+  });
+
+  describe(`#sync fee growth`, async () => {
+    before('create and unlock pools', async () => {
+      await revertToSnapshot(initialSnapshotId);
+      initialSnapshotId = await snapshot();
+      await createAndUnlockPools();
+      snapshotId = await snapshot();
+    });
+
+    beforeEach('revert to snapshot', async () => {
+      await revertToSnapshot(snapshotId);
+      snapshotId = await snapshot();
+      nextTokenId = await positionManager.nextTokenId();
+    });
+
+    it('sync fee growth -> POS then burn rToken', async () => {
+      await initLiquidity(user, tokenA.address, tokenB.address);
+      await initLiquidity(other, tokenA.address, tokenB.address);
+
+      let poolAddr = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnitsArray[0]);
+
+      let users = [user, other];
+      let tokenIds = [nextTokenId, nextTokenId.add(1)];
+      let numRuns = 10;
+
+      for (let i = 0; i < numRuns; i++) {
+        let sender = users[i % 2];
+        let tokenId = tokenIds[i % 2];
+
+        // made some swaps to get fees
+        for (let j = 0; j < 5; j++) {
+          await swapExactInput(tokenA.address, tokenB.address, swapFeeUnitsArray[0], BN.from(100000 * (j + 1)));
+          await swapExactInput(tokenB.address, tokenA.address, swapFeeUnitsArray[0], BN.from(150000 * (j + 1)));
+        }
+
+        let userDataB = await positionManager.positions(tokenId);
+
+        await syncFeeGrowth(tokenId);
+
+        let userData = await positionManager.positions(tokenId);
+
+        expect(userData.pos.rTokenOwed).to.be.gt(userDataB.pos.rTokenOwed);
+        expect(userData.pos.feeGrowthInsideLast).to.be.gt(userDataB.pos.feeGrowthInsideLast);
+        expect(userData.pos.liquidity).to.be.eq(userDataB.pos.liquidity);
+
+        let userBalBefore = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalBefore = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        let rTokenBefore = await getBalances(positionManager.address, [poolAddr]);
+        
+        // call to burn rTokens
+        await burnRTokens(tokenA.address, tokenB.address, sender, tokenId);
+
+        // verify user has received tokens
+        let userBalAfter = await getBalances(sender.address, [tokenA.address, tokenB.address]);
+        let poolBalAfter = await getBalances(poolAddr, [tokenA.address, tokenB.address]);
+        expect(poolBalBefore.tokenBalances[0].sub(poolBalAfter.tokenBalances[0])).to.be.eq(
+          userBalAfter.tokenBalances[0].sub(userBalBefore.tokenBalances[0])
+        );
+        expect(poolBalBefore.tokenBalances[1].sub(poolBalAfter.tokenBalances[1])).to.be.eq(
+          userBalAfter.tokenBalances[1].sub(userBalBefore.tokenBalances[1])
+        );
+
+        // verify liquidity and position, should have burnt all rTokenOwed
+        let userNewData = await positionManager.positions(tokenId);
+        expect(userNewData.pos.rTokenOwed).to.be.eq(0);
+        let rTokenBalAfter = await getBalances(positionManager.address, [poolAddr]);
+
+        expect(userData.pos.rTokenOwed).to.be.eq(rTokenBefore.tokenBalances[0].sub(rTokenBalAfter.tokenBalances[0]));
+      }
+      
+    });
+
   });
 
   describe(`#burn token`, async () => {
