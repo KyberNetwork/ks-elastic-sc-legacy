@@ -143,7 +143,7 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       );
     }
     // write an oracle entry
-    poolOracle.write(_blockTimestamp(), currentTick);
+    poolOracle.write(_blockTimestamp(), currentTick, baseL);
     // current tick is inside the passed range
     qty0 = QtyDeltaMath.calcRequiredQty0(
       sqrtP,
@@ -318,6 +318,11 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     uint256 lpFee; // qty of reinvestment token for liquidity provider
   }
 
+  struct OracleCache {
+    int24 currentTick;
+    uint128 baseL;
+  }
+
   // @inheritdoc IPoolActions
   function swap(
     address recipient,
@@ -342,7 +347,11 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
       swapData.nextTick
     ) = _getInitialSwapData(willUpTick);
 
-    int24 currentTickStart = swapData.currentTick;
+    // cache data before swap to write into oracle if needed
+    OracleCache memory oracleCache = OracleCache({
+      currentTick: swapData.currentTick,
+      baseL: swapData.baseL
+    });
 
     // verify limitSqrtP
     if (willUpTick) {
@@ -457,8 +466,8 @@ contract Pool is IPool, PoolTicksState, ERC20('KyberSwap v2 Reinvestment Token',
     }
 
     // write an oracle entry if tick changed
-    if (swapData.currentTick != currentTickStart) {
-      poolOracle.write(_blockTimestamp(), currentTickStart);
+    if (swapData.currentTick != oracleCache.currentTick) {
+      poolOracle.write(_blockTimestamp(), oracleCache.currentTick, oracleCache.baseL);
     }
 
     _updatePoolData(
