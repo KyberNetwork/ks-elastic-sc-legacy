@@ -2,6 +2,13 @@
 pragma solidity >=0.8.0;
 
 interface IPoolOracle {
+  /// @notice Owner withdrew funds in the pool oracle in case some funds are stuck there
+  event OwnerWithdrew(
+    address indexed owner,
+    address indexed token,
+    uint256 indexed amount
+  );
+
   /// @notice Emitted by the Pool Oracle for increases to the number of observations that can be stored
   /// @dev observationCardinalityNext is not the observation cardinality until an observation is written at the index
   /// just before a mint/swap/burn.
@@ -22,10 +29,11 @@ interface IPoolOracle {
   /// @notice Write a new oracle entry into the array
   ///   and update the observation index and cardinality
   /// Read the Oralce.write function for more details
-  function write(
+  function writeNewEntry(
     uint16 index,
     uint32 blockTimestamp,
     int24 tick,
+    uint128 liquidity,
     uint16 cardinality,
     uint16 cardinalityNext
   )
@@ -37,21 +45,11 @@ interface IPoolOracle {
   /// Read the Oralce.write function for more details
   function write(
     uint32 blockTimestamp,
-    int24 tick
+    int24 tick,
+    uint128 liquidity
   )
     external
     returns (uint16 indexUpdated, uint16 cardinalityUpdated);
-
-  /// @notice Prepares the oracle array to store up to `next` observations
-  /// Read the Oralce.grow function for more details
-  /// @param next The proposed next cardinality which will be populated in the oracle array
-  /// @return cardinalityNextOld The old next cardinality of the oracle array
-  /// @return cardinalityNextNew The next cardinality which will be populated in the oracle array
-  function grow(
-    uint16 next
-  )
-    external
-    returns (uint16 cardinalityNextOld, uint16 cardinalityNextNew);
 
   /// @notice Increase the maximum number of price observations that this pool will store
   /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to

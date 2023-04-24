@@ -49,6 +49,7 @@ contract PoolOracle is
     } else {
       IERC20(token).safeTransfer(owner(), amount);
     }
+    emit OwnerWithdrew(owner(), token, amount);
   }
 
   /// @inheritdoc IPoolOracle
@@ -68,30 +69,20 @@ contract PoolOracle is
   /// @inheritdoc IPoolOracle
   function write(
     uint32 blockTimestamp,
-    int24 tick
+    int24 tick,
+    uint128 liquidity
   )
     external override
     returns (uint16 indexUpdated, uint16 cardinalityUpdated)
   {
-    return write(
+    return writeNewEntry(
       poolObservation[msg.sender].index,
       blockTimestamp,
       tick,
+      liquidity,
       poolObservation[msg.sender].cardinality,
       poolObservation[msg.sender].cardinalityNext
     );
-  }
-
-  /// @inheritdoc IPoolOracle
-  function grow(
-    uint16 next
-  )
-    external override
-    returns (uint16 cardinalityNextOld, uint16 cardinalityNextNew)
-  {
-    cardinalityNextOld = poolObservation[msg.sender].cardinalityNext;
-    cardinalityNextNew = poolOrale[msg.sender].grow(cardinalityNextOld, next);
-    poolObservation[msg.sender].cardinalityNext = cardinalityNextNew;
   }
 
   /// @inheritdoc IPoolOracle
@@ -117,16 +108,18 @@ contract PoolOracle is
   }
 
   /// @inheritdoc IPoolOracle
-  function write(
+  function writeNewEntry(
     uint16 index,
     uint32 blockTimestamp,
     int24 tick,
+    uint128 liquidity,
     uint16 cardinality,
     uint16 cardinalityNext
   )
     public override
     returns (uint16 indexUpdated, uint16 cardinalityUpdated)
   {
+    liquidity; // unused for now
     address pool = msg.sender;
     (indexUpdated, cardinalityUpdated) = poolOrale[pool].write(
       index,
@@ -140,25 +133,6 @@ contract PoolOracle is
   }
 
   /// @inheritdoc IPoolOracle
-  function observeFromPoolAt(
-    uint32 time,
-    address pool,
-    uint32[] memory secondsAgos
-  )
-    external view override
-    returns (int56[] memory tickCumulatives)
-  {
-    (, int24 tick, ,) = IPoolStorage(pool).getPoolState();
-    return poolOrale[pool].observe(
-      time,
-      secondsAgos,
-      tick,
-      poolObservation[pool].index,
-      poolObservation[pool].cardinality
-    );
-  }
-
-  /// @inheritdoc IPoolOracle
   function observeFromPool(
     address pool,
     uint32[] memory secondsAgos
@@ -166,14 +140,7 @@ contract PoolOracle is
     external view override
     returns (int56[] memory tickCumulatives)
   {
-    (, int24 tick, ,) = IPoolStorage(pool).getPoolState();
-    return poolOrale[pool].observe(
-      uint32(block.timestamp),
-      secondsAgos,
-      tick,
-      poolObservation[pool].index,
-      poolObservation[pool].cardinality
-    );
+    return observeFromPoolAt(uint32(block.timestamp), pool, secondsAgos);
   }
 
   /// @inheritdoc IPoolOracle
@@ -239,6 +206,25 @@ contract PoolOracle is
       obsData.blockTimestamp,
       obsData.tickCumulative,
       obsData.initialized
+    );
+  }
+
+  /// @inheritdoc IPoolOracle
+  function observeFromPoolAt(
+    uint32 time,
+    address pool,
+    uint32[] memory secondsAgos
+  )
+    public view override
+    returns (int56[] memory tickCumulatives)
+  {
+    (, int24 tick, ,) = IPoolStorage(pool).getPoolState();
+    return poolOrale[pool].observe(
+      time,
+      secondsAgos,
+      tick,
+      poolObservation[pool].index,
+      poolObservation[pool].cardinality
     );
   }
 }

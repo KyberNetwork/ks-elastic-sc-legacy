@@ -5,7 +5,7 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {MockFactory, MockPool, MockToken, MockToken__factory, MockPool__factory} from '../typechain';
+import {MockFactory, MockPool, MockToken, MockToken__factory, MockPool__factory, PoolOracle, PoolOracle__factory} from '../typechain';
 import {QuoterV2, QuoterV2__factory, MockCallbacks, MockCallbacks__factory} from '../typechain';
 
 import {MIN_LIQUIDITY, MIN_TICK, MAX_TICK, MIN_SQRT_RATIO, MAX_SQRT_RATIO, FEE_UNITS} from './helpers/helper';
@@ -17,6 +17,7 @@ import {encodePriceSqrt, getMaxTick, getMinTick, getNearestSpacedTickAtPrice} fr
 import {getPriceFromTick, snapshotGasCost} from './helpers/utils';
 
 let factory: MockFactory;
+let poolOracle: PoolOracle;
 let token0: MockToken;
 let token1: MockToken;
 let quoter: QuoterV2;
@@ -25,9 +26,9 @@ let poolBalToken1: BN;
 let poolArray: MockPool[] = [];
 let pool: MockPool;
 let callback: MockCallbacks;
-let swapFeeUnitsArray = [50, 300];
+let swapFeeUnitsArray = [50, 300, 8, 10, 5000];
 let swapFeeUnits = swapFeeUnitsArray[0];
-let tickDistanceArray = [10, 60];
+let tickDistanceArray = [10, 60, 1, 1, 100];
 let tickDistance = tickDistanceArray[0];
 let vestingPeriod = 100;
 
@@ -45,6 +46,7 @@ let positionData: any;
 class Fixtures {
   constructor(
     public factory: MockFactory,
+    public poolOracle: PoolOracle,
     public poolArray: MockPool[],
     public token0: MockToken,
     public token1: MockToken,
@@ -57,7 +59,7 @@ describe('Pool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture(): Promise<Fixtures> {
-    let factory = await deployMockFactory(admin, vestingPeriod);
+    let [factory, poolOracle] = await deployMockFactory(admin, vestingPeriod);
     const PoolContract = (await ethers.getContractFactory('MockPool')) as MockPool__factory;
     // add any newly defined tickDistance apart from default ones
     for (let i = 0; i < swapFeeUnitsArray.length; i++) {
@@ -89,17 +91,19 @@ describe('Pool', () => {
     const QuoterV2Contract = (await ethers.getContractFactory('QuoterV2')) as QuoterV2__factory;
     let quoter = await QuoterV2Contract.deploy(factory.address);
 
-    return new Fixtures(factory, poolArray, token0, token1, callback, quoter);
+    return new Fixtures(factory, poolOracle, poolArray, token0, token1, callback, quoter);
   }
 
   beforeEach('load fixture', async () => {
-    ({factory, poolArray, token0, token1, callback, quoter} = await loadFixture(fixture));
+    ({factory, poolOracle, poolArray, token0, token1, callback, quoter} = await loadFixture(fixture));
     pool = poolArray[0];
   });
 
   describe('#test pool deployment and initialization', async () => {
     it('should have initialized required settings', async () => {
       expect(await pool.factory()).to.be.eq(factory.address);
+      expect(await pool.poolOracle()).to.be.eq(await factory.poolOracle());
+      expect(await pool.poolOracle()).to.be.eq(poolOracle.address);
       expect(await pool.token0()).to.be.eq(token0.address);
       expect(await pool.token1()).to.be.eq(token1.address);
       expect(await pool.swapFeeUnits()).to.be.eq(swapFeeUnits);
@@ -108,6 +112,12 @@ describe('Pool', () => {
       let result = await pool.getLiquidityState();
       expect(result.reinvestL).to.be.eq(ZERO);
       expect(result.reinvestLLast).to.be.eq(ZERO);
+      // oracle shouldn't be initialized yet
+      let oracleData = await poolOracle.getPoolObservation(pool.address);
+      expect(oracleData.initialized).to.be.eq(false);
+      expect(oracleData.index).to.be.eq(0);
+      expect(oracleData.cardinality).to.be.eq(0);
+      expect(oracleData.cardinalityNext).to.be.eq(0);
     });
   });
 
@@ -152,6 +162,7 @@ describe('Pool', () => {
       await expect(callback.badUnlockPool(pool.address, initialPrice, false, true)).to.be.revertedWith('lacking qty1');
     });
 
+
     it('should have initialized the pool and created first position', async () => {
       await callback.connect(user).unlockPool(pool.address, initialPrice);
 
@@ -170,6 +181,16 @@ describe('Pool', () => {
       let secondsPerLiquidityData = await pool.getSecondsPerLiquidityData();
       expect(secondsPerLiquidityData.secondsPerLiquidityGlobal).to.be.eq(ZERO);
       expect(secondsPerLiquidityData.lastUpdateTime).to.be.eq(0);
+    });
+
+    it('should have unlocked the pool and initialized oracle data', async () => {
+      await callback.connect(user).unlockPool(pool.address, initialPrice);
+
+      let oracleData = await poolOracle.getPoolObservation(pool.address);
+      expect(oracleData.initialized).to.be.eq(true);
+      expect(oracleData.index).to.be.eq(0);
+      expect(oracleData.cardinality).to.be.eq(1);
+      expect(oracleData.cardinalityNext).to.be.eq(1);
     });
 
     it('#gas [ @skip-on-coverage ]', async () => {
