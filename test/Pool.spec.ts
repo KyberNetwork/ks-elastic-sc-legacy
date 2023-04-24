@@ -55,7 +55,7 @@ class Fixtures {
   ) {}
 }
 
-describe.only('Pool', () => {
+describe('Pool', () => {
   const [user, admin, configMaster] = waffle.provider.getWallets();
 
   async function fixture(): Promise<Fixtures> {
@@ -2162,7 +2162,7 @@ describe.only('Pool', () => {
     });
   });
 
-  describe.only('#write to oracle', async () => {
+  describe('#write to oracle', async () => {
     beforeEach('unlock pool with initial price', async () => {
       initialPrice = encodePriceSqrt(TWO, ONE);
       await callback.unlockPool(pool.address, initialPrice);
