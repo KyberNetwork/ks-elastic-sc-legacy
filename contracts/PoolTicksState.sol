@@ -160,11 +160,13 @@ contract PoolTicksState is PoolStorage {
     uint128 prevLiquidity = positions[key].liquidity;
     feesClaimable = FullMath.mulDivFloor(feeGrowth, prevLiquidity, MathConstants.TWO_POW_96);
     // update the position
-    positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
-      prevLiquidity,
-      _data.liquidityDelta,
-      _data.isAddLiquidity
-    );
+    if (_data.liquidityDelta != 0) {
+      positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
+        prevLiquidity,
+        _data.liquidityDelta,
+        _data.isAddLiquidity
+      );
+    }
     positions[key].feeGrowthInsideLast = feeGrowthInside;
   }
 
@@ -186,6 +188,10 @@ contract PoolTicksState is PoolStorage {
     bool isLower
   ) private returns (uint256 feeGrowthOutside) {
     uint128 liquidityGrossBefore = ticks[tick].liquidityGross;
+    require(liquidityGrossBefore != 0 || liquidityDelta != 0, 'invalid liq');
+
+    if (liquidityDelta == 0) return ticks[tick].feeGrowthOutside;
+
     uint128 liquidityGrossAfter = LiqDeltaMath.applyLiquidityDelta(
       liquidityGrossBefore,
       liquidityDelta,
@@ -193,7 +199,6 @@ contract PoolTicksState is PoolStorage {
     );
     require(liquidityGrossAfter <= maxTickLiquidity, '> max liquidity');
     int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
-
     // if lower tick, liquidityDelta should be added | removed when crossed up | down
     // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
     int128 liquidityNetAfter = isLower

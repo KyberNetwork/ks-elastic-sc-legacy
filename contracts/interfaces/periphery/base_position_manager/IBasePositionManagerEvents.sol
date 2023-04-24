@@ -52,4 +52,9 @@ interface IBasePositionManagerEvents {
   /// @param tokenId id of the token
   /// @param rTokenBurn amount of position's RToken burnt
   event BurnRToken(uint256 indexed tokenId, uint256 rTokenBurn);
+
+  /// @notice Emitted when sync fee growth
+  /// @param tokenId id of the token
+  /// @param additionalRTokenOwed additional rToken earned
+  event SyncFeeGrowth(uint256 indexed tokenId, uint256 additionalRTokenOwed);
 }
