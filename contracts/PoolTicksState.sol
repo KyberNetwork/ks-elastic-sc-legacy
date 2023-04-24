@@ -160,7 +160,7 @@ contract PoolTicksState is PoolStorage {
     uint128 prevLiquidity = positions[key].liquidity;
     feesClaimable = FullMath.mulDivFloor(feeGrowth, prevLiquidity, MathConstants.TWO_POW_96);
     // update the position
-    if(_data.liquidityDelta != 0) {
+    if (_data.liquidityDelta != 0) {
       positions[key].liquidity = LiqDeltaMath.applyLiquidityDelta(
         prevLiquidity,
         _data.liquidityDelta,
@@ -194,13 +194,18 @@ contract PoolTicksState is PoolStorage {
       isAdd
     );
     require(liquidityGrossAfter <= maxTickLiquidity, '> max liquidity');
-    int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
 
-    // if lower tick, liquidityDelta should be added | removed when crossed up | down
-    // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
-    int128 liquidityNetAfter = isLower
-      ? ticks[tick].liquidityNet + signedLiquidityDelta
-      : ticks[tick].liquidityNet - signedLiquidityDelta;
+    if (liquidityDelta != 0) {
+      int128 signedLiquidityDelta = isAdd ? liquidityDelta.toInt128() : -(liquidityDelta.toInt128());
+      // if lower tick, liquidityDelta should be added | removed when crossed up | down
+      // else, for upper tick, liquidityDelta should be removed | added when crossed up | down
+      int128 liquidityNetAfter = isLower
+        ? ticks[tick].liquidityNet + signedLiquidityDelta
+        : ticks[tick].liquidityNet - signedLiquidityDelta;
+
+      ticks[tick].liquidityGross = liquidityGrossAfter;
+      ticks[tick].liquidityNet = liquidityNetAfter;
+    }
 
     if (liquidityGrossBefore == 0) {
       // by convention, all growth before a tick was initialized is assumed to happen below it
@@ -210,8 +215,6 @@ contract PoolTicksState is PoolStorage {
       }
     }
 
-    ticks[tick].liquidityGross = liquidityGrossAfter;
-    ticks[tick].liquidityNet = liquidityNetAfter;
     feeGrowthOutside = ticks[tick].feeGrowthOutside;
 
     if (liquidityGrossBefore > 0 && liquidityGrossAfter == 0) {

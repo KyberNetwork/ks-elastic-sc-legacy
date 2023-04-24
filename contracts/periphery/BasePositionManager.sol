@@ -309,7 +309,7 @@ contract BasePositionManager is
     internal 
     returns (uint256 additionalRTokenOwed) 
   {
-    if (newFee > oldFee) {
+    if (newFee != oldFee) {
       uint256 feeGrowthInsideDiff;
       unchecked {
         feeGrowthInsideDiff = newFee - oldFee;
