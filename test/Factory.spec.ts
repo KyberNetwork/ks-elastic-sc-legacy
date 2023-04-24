@@ -5,10 +5,15 @@ import chai from 'chai';
 const {solidity, loadFixture} = waffle;
 chai.use(solidity);
 
-import {Factory, MockToken, MockToken__factory, Factory__factory} from '../typechain';
+import {
+  Factory, Factory__factory,
+  MockToken, MockToken__factory,
+  PoolOracle, PoolOracle__factory,
+} from '../typechain';
 import {getCreate2Address} from './helpers/utils';
 
 let Token: MockToken__factory;
+let poolOracle: PoolOracle;
 let factory: Factory;
 let tokenA: MockToken;
 let tokenB: MockToken;
@@ -24,8 +29,10 @@ describe('Factory', () => {
     tokenA = await Token.deploy('USDC', 'USDC', BN.from(1000).mul(PRECISION));
     tokenB = await Token.deploy('DAI', 'DAI', BN.from(1000).mul(PRECISION));
 
+    const PoolOracleContract = (await ethers.getContractFactory('PoolOracle')) as PoolOracle__factory;
+    poolOracle = (await PoolOracleContract.connect(admin).deploy());
     const FactoryContract = (await ethers.getContractFactory('Factory')) as Factory__factory;
-    return await FactoryContract.connect(admin).deploy(vestingPeriod);
+    return await FactoryContract.connect(admin).deploy(vestingPeriod, poolOracle.address);
   }
 
   beforeEach('load fixture', async () => {
@@ -44,6 +51,7 @@ describe('Factory', () => {
 
   it('should have initialized with the expected settings', async () => {
     expect(await factory.configMaster()).to.eql(admin.address);
+    expect(await factory.poolOracle()).to.eql(poolOracle.address);
     expect(await factory.feeAmountTickDistance(8)).to.eql(1);
     expect(await factory.feeAmountTickDistance(10)).to.eql(1);
     expect(await factory.feeAmountTickDistance(40)).to.eql(8);
@@ -94,6 +102,20 @@ describe('Factory', () => {
       let poolAddressTwo = await factory.getPool(tokenA.address, tokenB.address, swapFeeUnits);
       expect(poolAddressOne).to.be.eq(poolAddressTwo);
       expect(poolAddressOne).to.not.be.eq(ZERO_ADDRESS);
+    });
+
+    it('should update correctly the parameters', async () => {
+      let swapFee = 300;
+      await factory.createPool(tokenA.address, tokenB.address, swapFee);
+      let token0 = tokenA.address < tokenB.address ? tokenA.address : tokenB.address;
+      let token1 = token0 == tokenA.address ? tokenB.address : tokenA.address;
+      let parameters = await factory.parameters();
+      expect(parameters.factory).to.be.eql(factory.address);
+      expect(parameters.poolOracle).to.be.eql(await factory.poolOracle());
+      expect(parameters.token0).to.be.eql(token0);
+      expect(parameters.token1).to.be.eql(token1);
+      expect(parameters.swapFeeUnits).to.be.eql(swapFee);
+      expect(parameters.tickDistance).to.be.eql(60);
     });
 
     it('should return different pool addresses for different swap fee units', async () => {

@@ -46,7 +46,7 @@ const veryLowRunSolcConfig = {
     ...solcConfig.settings,
     optimizer: {
       enabled: true,
-      runs: 2000,
+      runs: 500,
     },
   },
 };

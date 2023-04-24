@@ -17,6 +17,7 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
 
   struct Parameters {
     address factory;
+    address poolOracle;
     address token0;
     address token1;
     uint24 swapFeeUnits;
@@ -28,6 +29,7 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
 
   /// @inheritdoc IFactory
   bytes32 public immutable override poolInitHash;
+  address public immutable override poolOracle;
   address public override configMaster;
   bool public override whitelistDisabled;
 
@@ -52,8 +54,11 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
     _;
   }
 
-  constructor(uint32 _vestingPeriod) BaseSplitCodeFactory(type(MockPool).creationCode) {
+  constructor(uint32 _vestingPeriod, address _poolOracle) BaseSplitCodeFactory(type(MockPool).creationCode) {
     poolInitHash = keccak256(type(MockPool).creationCode);
+
+    require(_poolOracle != address(0), 'invalid pool oracle');
+    poolOracle = _poolOracle;
 
     vestingPeriod = _vestingPeriod;
     emit VestingPeriodUpdated(_vestingPeriod);
@@ -91,6 +96,7 @@ contract MockFactory is BaseSplitCodeFactory, IFactory {
     require(getPool[token0][token1][swapFeeUnits] == address(0), 'pool exists');
 
     parameters.factory = address(this);
+    parameters.poolOracle = poolOracle;
     parameters.token0 = token0;
     parameters.token1 = token1;
     parameters.swapFeeUnits = swapFeeUnits;

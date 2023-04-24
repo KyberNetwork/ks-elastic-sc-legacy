@@ -106,4 +106,11 @@ interface IPoolActions {
     uint256 qty1,
     bytes calldata data
   ) external;
+
+
+  /// @notice sync fee of position
+  /// @param tickLower Position's lower tick
+  /// @param tickUpper Position's upper tick
+  function tweakPosZeroLiq(int24 tickLower, int24 tickUpper) 
+    external returns(uint256 feeGrowthInsideLast);
 }
