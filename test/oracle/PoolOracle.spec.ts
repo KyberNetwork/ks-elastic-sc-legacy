@@ -276,6 +276,79 @@ describe('PoolOracle', () => {
     });
 
     it('write with cardinalityUpdated = cardinalityNext', async () => {
+      // init at block timestamp = 1000
+      let blockTimestamp = 1000;
+      let tick = 10;
+      let tickCumulative = BN.from(0);
+      await poolOracle.connect(user).initializeOracle(blockTimestamp);
+
+      await verifyStoredObservation(user.address, true, 0, 1, 1);
+      await verifyObservationAt(user.address, 0, blockTimestamp, tickCumulative, true);
+
+      // current data (index, cardinality, cardinalityNext) = (0, 1, 1)
+      let timeIncrease = 10;
+
+      await poolOracle.connect(user).writeNewEntry(0, blockTimestamp + timeIncrease, tick, defaultLiquidity, 1, 2);
+      // cardinality should be updated to the next = 2, index increases by 1
+      // cardinalityNext should be unchanged as we don't update it in the function
+      await verifyStoredObservation(user.address, true, 1, 2, 1);
+      // no change in index 0
+      await verifyObservationAt(user.address, 0, blockTimestamp, tickCumulative, true);
+      blockTimestamp += timeIncrease;
+      tickCumulative = tickCumulative.add(BN.from(tick * timeIncrease));
+      await verifyObservationAt(user.address, 1, blockTimestamp, tickCumulative, true);
+
+      // advance cardinalityNext to 5
+      await poolOracle.increaseObservationCardinalityNext(user.address, 5);
+      await verifyStoredObservation(user.address, true, 1, 2, 5);
+      // block timestamps cardinalityNextOld (1) to cardinalityNextNew (5) are set to 1
+      await verifyObservationAt(user.address, 1, 1, tickCumulative, true);
+      for(let i = 2; i < 5; i++) {
+        // not yet initialized, but block timestamps are all 1
+        await verifyObservationAt(user.address, i, 1, BN.from(0), false);
+      }
+
+      blockTimestamp = 1; // reset block timestamp to 1, for index 1
+      // write new entry, since index = cardinality - 1 and cardinalityNext > cardinality
+      // cardinality => cardinalityNext = 5, index => index + 1 = 2
+      timeIncrease = 200;
+      tick = -2;
+      await poolOracle.connect(user).write(blockTimestamp + timeIncrease, tick, defaultLiquidity);
+      await verifyStoredObservation(user.address, true, 2, 5, 5);
+      // unchange for index 1
+      await verifyObservationAt(user.address, 1, blockTimestamp, tickCumulative, true);
+      // update for index 2
+      blockTimestamp += timeIncrease;
+      tickCumulative = tickCumulative.add(BN.from(timeIncrease * tick));
+      await verifyObservationAt(user.address, 2, blockTimestamp, tickCumulative, true);
+
+      // write an entry until index = cardinality - 1 = 4
+      for(let i = 3; i <= 4; i++) {
+        timeIncrease = 20 * i;
+        tick = i * 10 - 36;
+        await poolOracle.connect(user).write(blockTimestamp + timeIncrease, tick, defaultLiquidity);
+        // index is advanced by 1
+        await verifyStoredObservation(user.address, true, i, 5, 5);
+        // data of last index is the same
+        await verifyObservationAt(user.address, i - 1, blockTimestamp, tickCumulative, true);
+        // data of the new index is written
+        blockTimestamp += timeIncrease;
+        tickCumulative = tickCumulative.add(BN.from(timeIncrease * tick));
+        await verifyObservationAt(user.address, i, blockTimestamp, tickCumulative, true);
+      }
+
+      // now index = cardinality - 1, cardinality = cardinalityNext
+      timeIncrease = 20;
+      tick = 100;
+      await poolOracle.connect(user).write(blockTimestamp + timeIncrease, tick, defaultLiquidity);
+      // index is reset to 0
+      await verifyStoredObservation(user.address, true, 0, 5, 5);
+      // data of the last index (4) is the same
+      await verifyObservationAt(user.address, 4, blockTimestamp, tickCumulative, true);
+      // data of the index 0 is written
+      blockTimestamp += timeIncrease;
+        tickCumulative = tickCumulative.add(BN.from(timeIncrease * tick));
+      await verifyObservationAt(user.address, 0, blockTimestamp, tickCumulative, true);
     });
   });
 });
